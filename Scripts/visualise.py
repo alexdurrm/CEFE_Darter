@@ -7,14 +7,13 @@ import seaborn as sns
 import os
 import argparse
 from collections import Counter
-
+from config import *
 
 parser = argparse.ArgumentParser()
 parser.add_argument("function", help="name of the function to use", choices=["fourier_per_folder", "transfer_effect_slope", "publication_plot", "LBP_hist_per_folder"])
 parser.add_argument("input_file", help="the path of the csv to open")
 args = parser.parse_args()
 
-flatui = ["#8c8c8c", "#5f9e6e", "#cc8963", "#5975a4", "#857aab", "#b55d60", "#c1b37f", "#8d7866", "#d095bf", "#71aec0"]
 
 def fourier_per_folder(filepath):
     '''
@@ -24,12 +23,12 @@ def fourier_per_folder(filepath):
     matplotlib.rcParams['font.family'] = 'serif'
     plt.rcParams['font.size'] = 16
     matplotlib.rcParams['axes.linewidth'] = 2
-    sns.set_palette(sns.color_palette(flatui))
+    sns.set_palette(sns.color_palette(FLAT_UI))
 
-    #ax = sns.catplot(x="folder", y="F_slope", data=data.where(data.folder == "caeruleum"),
-    ax = sns.catplot(x="folder", y="F_slope", data=data,
-                    #col="color_control",
-                    #hue="sex",
+    #ax = sns.catplot(x=COL_DIRECTORY, y=COL_F_SLOPE, data=data.where(data.folder == "caeruleum"),
+    ax = sns.catplot(x=COL_DIRECTORY, y=COL_F_SLOPE, data=data,
+                    #col=COL_COLOR_CONTROL,
+                    #hue=COL_FISH_SEX,
                     #split=True,
                     kind="violin")
 
@@ -48,7 +47,7 @@ def transfer_effect_slope(filepath):
     data = pd.read_csv(filepath, sep=',')
 
     #plot a naive but complete scatter of the fourier slopes
-    plt.scatter(data["folder"], data["F_slope"])
+    plt.scatter(data[COL_DIRECTORY], data[COL_F_SLOPE])
     plt.title("mean Fourrier slope of each images per folder")
     plt.show()
 
@@ -57,35 +56,35 @@ def transfer_effect_slope(filepath):
     slope_names=["HABITAT_images","FISH_images","All_layers",
                 "Layers_1and2","Layers_3to5"]
 
-    middles = data.loc[data['folder'] == slope_names[0]][["middle", "F_slope"]]
-    middles = middles.rename(columns={"F_slope": slope_names[0]})
+    middles = data.loc[data[COL_DIRECTORY] == slope_names[0]][[COL_HABITAT, COL_F_SLOPE]]
+    middles = middles.rename(columns={COL_F_SLOPE: slope_names[0]})
 
-    fishes = data.loc[data['folder'] == slope_names[1]][["fish_n", "F_slope"]]
-    fishes = fishes.rename(columns={"F_slope": slope_names[1]})
+    fishes = data.loc[data[COL_DIRECTORY] == slope_names[1]][[COL_FISH_NUMBER, COL_F_SLOPE]]
+    fishes = fishes.rename(columns={COL_F_SLOPE: slope_names[1]})
 
-    all_layers = data.loc[data['folder'] == slope_names[2]][["middle", "fish_n", "F_slope","color_control"]]
-    all_layers = all_layers.rename(columns={"F_slope": slope_names[2]})
+    all_layers = data.loc[data[COL_DIRECTORY] == slope_names[2]][[COL_HABITAT, COL_FISH_NUMBER, COL_F_SLOPE,COL_COLOR_CONTROL]]
+    all_layers = all_layers.rename(columns={COL_F_SLOPE: slope_names[2]})
 
-    layers1_2 = data.loc[data['folder'] == slope_names[3]][["middle", "fish_n", "F_slope","color_control"]]
-    layers1_2 = layers1_2.rename(columns={"F_slope": slope_names[3]})
+    layers1_2 = data.loc[data[COL_DIRECTORY] == slope_names[3]][[COL_HABITAT, COL_FISH_NUMBER, COL_F_SLOPE,COL_COLOR_CONTROL]]
+    layers1_2 = layers1_2.rename(columns={COL_F_SLOPE: slope_names[3]})
 
-    layers3_5 = data.loc[data['folder'] == slope_names[4]][["middle", "fish_n", "F_slope","color_control"]]
-    layers3_5 = layers3_5.rename(columns={"F_slope": slope_names[4]})
+    layers3_5 = data.loc[data[COL_DIRECTORY] == slope_names[4]][[COL_HABITAT, COL_FISH_NUMBER, COL_F_SLOPE,COL_COLOR_CONTROL]]
+    layers3_5 = layers3_5.rename(columns={COL_F_SLOPE: slope_names[4]})
 
     # merge the dataframe so a line correspond to an experiment: a fish + a middle + some corresponding network transfer
-    exp = all_layers.merge(layers1_2, on=["fish_n","middle","color_control"], how="outer")
-    exp = exp.merge(layers3_5, on=["fish_n","middle","color_control"], how="outer")
-    exp = exp.merge(middles, on=["middle"], how="outer")
-    exp = exp.merge(fishes, on=["fish_n"], how="outer")
+    exp = all_layers.merge(layers1_2, on=[COL_FISH_NUMBER,COL_HABITAT,COL_COLOR_CONTROL], how="outer")
+    exp = exp.merge(layers3_5, on=[COL_FISH_NUMBER,COL_HABITAT,COL_COLOR_CONTROL], how="outer")
+    exp = exp.merge(middles, on=[COL_HABITAT], how="outer")
+    exp = exp.merge(fishes, on=[COL_FISH_NUMBER], how="outer")
 
     # split the experiments between controlled and uncontrolled color
     Y_controled=exp.loc[exp.color_control=="ON"]
     Y_uncontroled=exp.loc[exp.color_control=="OFF"]
 
     #sort is used to group experiments in color groups
-    for sort in ["middle", "fish_n"]:
+    for sort in [COL_HABITAT, COL_FISH_NUMBER]:
         for name_middle, grp in data.groupby(sort):
-            plt.plot(grp["folder"], grp["F_slope"], linestyle='',  marker='o', label=name_middle)
+            plt.plot(grp[COL_DIRECTORY], grp[COL_F_SLOPE], linestyle='',  marker='o', label=name_middle)
         plt.legend(title="type of {}".format(sort), loc='best')
         plt.title("mean Fourrier slope of each images per folder")
 
@@ -95,7 +94,7 @@ def transfer_effect_slope(filepath):
         fig, (ax1, ax2) = plt.subplots(1, 2, sharey="row")
         i=0
         for name , grp in groups_Y:
-            color = flatui[i%len(groups_Y)]
+            color = FLAT_UI[i%len(groups_Y)]
             i+=1
             for _ , row in grp.iterrows():
                 ax1.plot(slope_names, row[slope_names], marker='o', c=color, label=name)
@@ -103,13 +102,13 @@ def transfer_effect_slope(filepath):
         ax1.set_title("Fourier slopes per experiment with color control")
         i=0
         for name , grp in groups_uncontrolled_Y:
-            color = flatui[i%len(groups_uncontrolled_Y)]
+            color = FLAT_UI[i%len(groups_uncontrolled_Y)]
             i+=1
             for _ , row in grp.iterrows():
                 ax2.plot(slope_names, row[slope_names], marker='o', c=color, label=name)
         ax2.set_xlabel("images")
         ax2.set_title("Fourier slopes per experiment without color control")
-        ax2.legend(title="type of {}".format(sort), loc='best')
+        # ax2.legend(title="type of {}".format(sort), loc='best')
         plt.show()
 
 
@@ -121,10 +120,10 @@ def publication_plot(filepath):
     matplotlib.rcParams['font.family'] = 'serif'
     plt.rcParams['font.size'] = 16
     matplotlib.rcParams['axes.linewidth'] = 2
-    sns.set_palette(sns.color_palette(flatui))
+    sns.set_palette(sns.color_palette(FLAT_UI))
 
-    ax = sns.catplot(x="folder", y="F_slope", data=data,
-                    hue="sex",
+    ax = sns.catplot(x=COL_DIRECTORY, y=COL_F_SLOPE, data=data,
+                    hue=COL_FISH_SEX,
                     split=True,
                     kind="violin")
 
@@ -138,10 +137,10 @@ def publication_plot(filepath):
 def LBP_hist_per_folder(filepath):
     data = pd.read_csv(filepath, sep=',')
 
-    split_by = ["color_control", "folder"]
-    params_lbp = ["radius_LBP", "points_LBP"]
+    split_by = [COL_COLOR_CONTROL, COL_DIRECTORY]
+    params_lbp = [COL_RADIUS_LBP, COL_POINTS_LBP]
 
-    param_groups = data.groupby(params_lbp)[["path_LBP", *params_lbp, *split_by]]
+    param_groups = data.groupby(params_lbp)[[COL_PATH_LBP, *params_lbp, *split_by]]
     col=0
     for param_val, param_grp in param_groups:   #plot a graph for each parameters
         R, P = map(int, param_val)
@@ -161,7 +160,7 @@ def LBP_hist_per_folder(filepath):
                 visu_LBP = np.zeros(shape=(len(grp.index), 2**P))
                 i=0
                 for _ , line in grp.iterrows():  #sum lbp for each lbp image
-                    LBP_values = np.load(line["path_LBP"]).astype(int).flatten()
+                    LBP_values = np.load(line[COL_PATH_LBP]).astype(int).flatten()
                     counter_lbp = Counter(LBP_values)
                     percent_appearance = np.array(list(counter_lbp.values()))/LBP_values.size*100
                     visu_LBP[i, list(counter_lbp.keys())] = percent_appearance

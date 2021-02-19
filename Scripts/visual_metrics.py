@@ -7,6 +7,7 @@ from collections import Counter
 from numpy import save as save_numpy
 from pspec import rgb_2_darter
 import cv2
+from config import *
 
 
 def get_LBP(image, P, R, visu=False):
@@ -55,7 +56,7 @@ def do_LBP_metric(img_path, P, R, verbosity=1, resize=None):
     output_filepath = os.path.join(output_dir, image_name+"_LBP.npy")
     save_numpy(output_filepath, LBP_image)
     if verbosity>=1: print("LBP image saved at {}".format(output_filepath))
-    return {"path_LBP": output_filepath, "radius_LBP":R , "points_LBP":P, "resize_LBP":bool(resize)}
+    return {COL_PATH_LBP: output_filepath, COL_RADIUS_LBP:R , COL_POINTS_LBP:P, COL_RESIZE_LBP:bool(resize)}
 
 
 # def do_network_deep_features(img_path, model):

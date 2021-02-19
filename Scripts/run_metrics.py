@@ -12,15 +12,18 @@ import cv2
 import csv
 import math
 import argparse
+
 from pspec import get_pspec
+from config import *
 from visual_metrics import do_LBP_metric
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument("input_dir", help="the path of the main directory containing the subdirs.")
 
                     ####   ARGUMENTS FOR FOURIER SLOPE   ###
-parser.add_argument("-s", "--window_size", default=200, type=int,
-                    help="Size of the square window, default 200")
+parser.add_argument("-s", "--window_size", default=512, type=int,
+                    help="Size of the square window, default 512")
 parser.add_argument('--no-resize', dest='resize', action='store_false',
                     help="add this argument to prevent resize, default resize the image to fit the window crop.")
 parser.add_argument("-v", "--verbosity", type=int, choices=[0, 1, 2], default=1,
@@ -53,20 +56,20 @@ def load_info_from_filepath(file_path):
     '''
     head, filename = os.path.split(file_path)
     head, directory = os.path.split(head)
-    dict_info={"filename":filename, "folder":directory}
+    dict_info={COL_FILENAME:filename, COL_DIRECTORY:directory}
     if "styletransferimages" in head.lower():
         if 'HABITAT' in directory:
-            dict_info["middle"] = filename.split("_")[0]
+            dict_info[COL_HABITAT] = filename.split("_")[0]
         elif 'layers' in directory.lower():
-            dict_info["middle"], dict_info["fish_n"] = filename.split("_")[0].rsplit("x", maxsplit=1)
-            dict_info["color_control"] = filename.split("_")[1][12:]
+            dict_info[COL_HABITAT], dict_info[COL_FISH_NUMBER] = filename.split("_")[0].rsplit("x", maxsplit=1)
+            dict_info[COL_COLOR_CONTROL] = filename.split("_")[1][12:]
         elif "FISH" in directory:
-            dict_info["sex"] = filename.split("_")[-1][0]
-            dict_info["fish_n"] = filename.split("_")[0]
+            dict_info[COL_FISH_SEX] = filename.split("_")[-1][0]
+            dict_info[COL_FISH_NUMBER] = filename.split("_")[0]
     elif "crops" in head.lower():
-        dict_info["species"] = directory
-        dict_info["sex"] = filename.split("_")[-1][0]
-        dict_info["fish_n"] = filename.split("_")[-1].split(".")[0][1:]
+        dict_info[COL_SPECIES] = directory
+        dict_info[COL_FISH_SEX] = filename.split("_")[-1][0]
+        dict_info[COL_FISH_NUMBER] = filename.split("_")[-1].split(".")[0][1:]
 
     return dict_info
 
@@ -166,8 +169,8 @@ def recursive_metrics_work(path, metrics, recursivity=1, root_save=True,
                 data = data.append(values, ignore_index=False, verify_integrity=True)
     #the root of the recursive tree returns or save the gathered data
     if root_save:
-        data.to_csv('{}/metrics_rec{}.csv'.format(path, recursivity), sep=',', index=True)
-        print("csv saved in {}/metrics_rec{}.csv".format(path, recursivity))
+        data.to_csv('{}/{}{}.csv'.format(path, CSV_NAME ,recursivity), sep=',', index=True)
+        print("csv saved in {}/{}{}.csv".format(path, CSV_NAME ,recursivity))
     return data
 
 
@@ -175,6 +178,6 @@ if __name__ == '__main__':
     metrics=[
         (load_info_from_filepath, [], {}),
         (calculate_slope, [FFT_RANGE, SAMPLE_DIM ,RESIZE, VERBOSITY, True], {}),
-        (do_LBP_metric, [POINTS, RADIUS], {"verbosity":VERBOSITY, "resize":(3000,1000)})
+        (do_LBP_metric, [POINTS, RADIUS], {"verbosity":VERBOSITY, "resize":(1536, 512)})
         ]
     recursive_metrics_work(MAIN_DIR, metrics, recursivity=2, types_allowed=(".jpg",".png",".tif"), only_endnodes=True)
