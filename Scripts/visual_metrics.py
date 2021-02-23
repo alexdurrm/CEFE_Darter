@@ -1,12 +1,16 @@
-from skimage.feature import local_binary_pattern
+from skimage.feature import local_binary_pattern, greycomatrix, greycoprops
+from scipy.stats import skew, kurtosis, entropy
 import argparse
 import imageio
 import os
 import matplotlib.pyplot as plt
 from collections import Counter
-from numpy import save as save_numpy
-from pspec import rgb_2_darter
+import numpy as np
 import cv2
+import tensorflow.keras as K
+from tensorflow.keras.applications.vgg16 import VGG16
+
+from pspec import rgb_2_darter, get_pspec
 from config import *
 
 
@@ -18,10 +22,8 @@ def get_LBP(image, P, R, visu=False):
     visu is to visualise the result
     return the path to the saved image
     '''
-    image = rgb_2_darter(image)
-    image = image[:, :, 0] + image[:, :, 1]
+    assert image.ndim==2, "image should be 2dim H,W"
     lbp_image = local_binary_pattern(image, P, R)
-
     if visu:
         fig, (ax0, ax1, ax2) = plt.subplots(figsize=(6, 12), nrows=3)
         ax0.imshow(image, cmap='gray')
@@ -34,49 +36,117 @@ def get_LBP(image, P, R, visu=False):
         ax2.hist(lbp_image.flatten(), bins=P)
         ax2.set_title("lbp values histogram")
         plt.show()
-    return lbp_image
+    return {NUMPY: lbp_image}
 
 
-def do_LBP_metric(img_path, P, R, verbosity=1, resize=None):
+def get_statistical_features(image, visu=False):
     '''
-    calls get_LBP and saves its result
-    return a dict of informations about the LBP obtained
+    get an image and return the statistical features like
+    mean value, standard deviation, skewness, kurtosis, and entropy
+    (calculated on flattened image)
     '''
-    image = imageio.imread(img_path)
-    if resize:
-        image = cv2.resize(image, dsize=resize, interpolation=cv2.INTER_CUBIC)
-    LBP_image = get_LBP(image, P, R, verbosity>=2)
-
-    head, image_name = os.path.split(img_path)
-    image_name, ext = os.path.splitext(image_name)
-    output_dir = os.path.join(head, "LocalBinaryPattern_P{}_R{}".format(P,R))
-
-    if not( os.path.exists(output_dir) and os.path.isdir(output_dir) ):
-        os.mkdir(output_dir)
-    output_filepath = os.path.join(output_dir, image_name+"_LBP.npy")
-    save_numpy(output_filepath, LBP_image)
-    if verbosity>=1: print("LBP image saved at {}".format(output_filepath))
-    return {COL_PATH_LBP: output_filepath, COL_RADIUS_LBP:R , COL_POINTS_LBP:P, COL_RESIZE_LBP:bool(resize)}
+    assert image.ndim==2, "image should be 2dim H,W"
+    dict_vals={}
+    dict_vals[COL_STAT_MEAN]=np.mean(image, axis=None)
+    dict_vals[COL_STAT_STD]=np.std(image, axis=None)
+    dict_vals[COL_STAT_SKEW]=skew(image, axis=None)
+    dict_vals[COL_STAT_KURT]=kurtosis(image, axis=None)
+    dict_vals[COL_STAT_ENTROPY]=entropy(image, axis=None)
+    if visu: print("mean: {} /std: {} / skewness: {} / kurtosis: {}".format(*dict_vals.values()))
+    return dict_vals
 
 
-# def do_network_deep_features(img_path, model):
-    # '''
-    # get an image path and a DNN model
-    # calculate the deep features of the model when infering on the image
-    # returns a dict containing the path of the deep features
-    # '''
-    # return {}
+def get_deep_features(image, base_model, visu=False):
+    '''
+    get the feature space of an image propagated through a given model
+    return a list of np array, each element of the list represent an output of a layer ,input layer is ignored
+    '''
+    input_tensor = K.Input(shape=image.shape)
+    base_model.layers[0] = input_tensor
+    deep_features = K.Model(inputs=base_model.input, outputs=[l.output for l in base_model.layers[1:]])
+    # To see the models' architecture and layer names, run the following
+    pred = deep_features.predict(image[np.newaxis, ...])
+    if visu:
+        deep_features.summary()
+        for p in pred:
+            print(type(p))
+            print(p.shape)
+    return {DEEP_FEATURES:pred, COL_MODEL_NAME:base_model.name}
+   
+   
+def get_FFT_slope(image, fft_range, sample_dim, verbose=1):
+    '''
+    Calculate the fourier slope of a given image
+    fft_range is the range of frequencies for which is calculated the slope
+    sample_dim is the size of the squared window sample
+    return a dict containing informations about the fourier slope
+    '''
+    assert image.shape[0]>=sample_dim<=image.shape[1], "sample dim should be less or equal than image shapes"
+    # Define a sliding square window to iterate on the image
+    stride = int(sample_dim/2)
+    slopes = []
+    tot_samples = 0
+    for start_x in range(0, image.shape[0]-sample_dim+1, stride):
+        for start_y in range(0, image.shape[1]-sample_dim+1, stride):
+            tot_samples+=1
+            sample = image[start_x: start_x+sample_dim, start_y: start_y + sample_dim]
+            slopes.append( get_pspec(sample, bin_range=fft_range, visu=verbose>=2) )
+    if verbose>=1: print("mean slope on {} samples: {}".format(tot_samples, np.mean(slopes)))
+    return {COL_F_SLOPE:np.mean(slopes), COL_F_N_SAMPLE:tot_samples, COL_F_WIN_SIZE:sample_dim, COL_FFT_RANGE:fft_range}
 
-
-
+    
+def get_GLCM(image, distances, angles):
+    '''
+    get an image and calculates its grey level co-occurence matrix
+    calculate it along different angles and distances
+    '''
+    assert image.ndim==2, "image should be 2dim H,W"
+    return {NUMPY:greycomatrix(image, distances, angles, levels=None, symmetric=False, normed=False)}
+    
+    
+def get_Haralick_descriptors(image, distances, angles, visu=False):
+    '''
+    get an image and calculates its grey level co-occurence matrix
+    calculate it along different angles and distances
+    returns a few characteristics about this GLCM
+    '''
+    assert image.ndim==2, "image should be 2dim H,W"
+    dict_vals={}
+    glcm = greycomatrix(image, distances, angles, levels=None, symmetric=False, normed=False)
+    
+    dict_vals[COL_GLCM_MEAN] = np.mean(glcm, axis=(0,1))
+    dict_vals[COL_GLCM_VAR] = np.var(glcm, axis=(0,1))
+    dict_vals[COL_GLCM_CORR] = greycoprops(glcm, 'correlation')
+    
+    dict_vals[COL_GLCM_CONTRAST] = greycoprops(glcm, 'contrast')
+    dict_vals[COL_GLCM_DISSIMIL] = greycoprops(glcm, 'dissimilarity')
+    dict_vals[COL_GLCM_HOMO] = greycoprops(glcm, 'homogeneity')
+    
+    dict_vals[COL_GLCM_ASM] = greycoprops(glcm, 'ASM')
+    dict_vals[COL_GLCM_ENERGY] = greycoprops(glcm, 'energy')
+    
+    dict_vals[COL_GLCM_MAXP] = np.max(glcm, axis=(0,1))
+    dict_vals[COL_GLCM_ENTROPY] = entropy(glcm, axis=(0,1))
+    if visu: 
+        print(dict_vals)
+    return dict_vals
+    
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("image", help="path of the image file to open")
-    parser.add_argument("-r", "--radius", default=1, type=int,
-                        help="radius of the circle. Default 1.")
-    parser.add_argument("-p", "--points", default=8, type=int,
-                        help="Number of points on the circle. Default 8.")
     args = parser.parse_args()
     image = imageio.imread(os.path.abspath(args.image))
-    get_LBP(image, args.points, args.radius, True)
+
+    vgg_model = VGG16(weights='imagenet',
+                              include_top=False)
+    get_deep_features(image, vgg_model, True)
+    get_FFT_slope(image, (10,110), 200, 1)
+
+    image = rgb_2_darter(image)
+    image = image[:, :, 0] + image[:, :, 1]
+    
+    get_LBP(image, 8, 1, True)
+    get_statistical_features(image, visu=True)
+    get_GLCM(image, [1], [0, 45, 90, 135] )
+    get_Haralick_descriptors(image, [1], [0, 45, 90, 135] , visu=True)
