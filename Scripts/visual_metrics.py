@@ -14,7 +14,7 @@ from pspec import rgb_2_darter, get_pspec
 from config import *
 
 
-def get_LBP(image, P, R, visu=False):
+def get_LBP(image, P, R, resize=None, visu=False):
     '''
     calculates the Local Binary Pattern of a given image
     P is the number of neighbors points to use
@@ -22,7 +22,12 @@ def get_LBP(image, P, R, visu=False):
     visu is to visualise the result
     return the path to the saved image
     '''
-    assert image.ndim==2, "image should be 2dim H,W"
+    assert image.ndim==3, "image should be 3 dimensions: H,W,C"
+    image = rgb_2_darter(image)
+    image = image[:, :, 0] + image[:, :, 1]
+    if resize:
+        image = cv2.resize(image, dsize=resize, interpolation=cv2.INTER_CUBIC)
+        
     lbp_image = local_binary_pattern(image, P, R)
     if visu:
         fig, (ax0, ax1, ax2) = plt.subplots(figsize=(6, 12), nrows=3)
@@ -36,7 +41,7 @@ def get_LBP(image, P, R, visu=False):
         ax2.hist(lbp_image.flatten(), bins=P)
         ax2.set_title("lbp values histogram")
         plt.show()
-    return {NUMPY: lbp_image}
+    return {DATA: lbp_image.astype(np.uint8), FORMAT:".jpg", SAVING_DIR:"LBP_P{}_R{}".format(P,R), NAME_COL_PATH:COL_PATH_LBP}
 
 
 def get_statistical_features(image, visu=False):
@@ -45,7 +50,8 @@ def get_statistical_features(image, visu=False):
     mean value, standard deviation, skewness, kurtosis, and entropy
     (calculated on flattened image)
     '''
-    assert image.ndim==2, "image should be 2dim H,W"
+    image = rgb_2_darter(image)
+    image = image[:, :, 0] + image[:, :, 1]
     dict_vals={}
     dict_vals[COL_STAT_MEAN]=np.mean(image, axis=None)
     dict_vals[COL_STAT_STD]=np.std(image, axis=None)
@@ -61,6 +67,7 @@ def get_deep_features(image, base_model, visu=False):
     get the feature space of an image propagated through a given model
     return a list of np array, each element of the list represent an output of a layer ,input layer is ignored
     '''
+    image = (image - np.mean(image, axis=(0,1))) / np.std(image, axis=(0,1))
     input_tensor = K.Input(shape=image.shape)
     base_model.layers[0] = input_tensor
     deep_features = K.Model(inputs=base_model.input, outputs=[l.output for l in base_model.layers[1:]])
@@ -71,17 +78,26 @@ def get_deep_features(image, base_model, visu=False):
         for p in pred:
             print(type(p))
             print(p.shape)
-    return {DEEP_FEATURES:pred, COL_MODEL_NAME:base_model.name}
+    return {DATA:pred, FORMAT:".npz", SAVING_DIR:"DeepFeatures_"+base_model.name, 
+            COL_MODEL_NAME:base_model.name, NAME_COL_PATH:COL_PATH_DEEP_FEATURES}
+
    
-   
-def get_FFT_slope(image, fft_range, sample_dim, verbose=1):
+def get_FFT_slope(image, fft_range, resize, sample_dim, verbose=1):
     '''
     Calculate the fourier slope of a given image
     fft_range is the range of frequencies for which is calculated the slope
     sample_dim is the size of the squared window sample
     return a dict containing informations about the fourier slope
     '''
-    assert image.shape[0]>=sample_dim<=image.shape[1], "sample dim should be less or equal than image shapes"
+    if resize:
+        resize_ratio = sample_dim/np.min(image.shape[0:2])
+        new_x, new_y = (int(round(resize_ratio*dim)) for dim in image.shape[0:2])
+        if verbose>=1:
+            print("Resizing image from {}x{} to {}x{}".format(
+                image.shape[0], image.shape[1], new_x, new_y ))
+        image = cv2.resize(image, dsize=(new_y, new_x),
+            interpolation=cv2.INTER_CUBIC)  #cv2 (x,y) are numpy (y,x)
+    else: assert image.shape[0]>=sample_dim<=image.shape[1], "sample dim should be less or equal than image shapes"
     # Define a sliding square window to iterate on the image
     stride = int(sample_dim/2)
     slopes = []
@@ -100,9 +116,12 @@ def get_GLCM(image, distances, angles):
     get an image and calculates its grey level co-occurence matrix
     calculate it along different angles and distances
     '''
-    assert image.ndim==2, "image should be 2dim H,W"
-    return {NUMPY:greycomatrix(image, distances, angles, levels=None, symmetric=False, normed=False)}
+    image = rgb_2_darter(image).astype(np.uint8)
+    image = image[:, :, 0] + image[:, :, 1]
     
+    glcm = greycomatrix(image, distances, angles, levels=None, symmetric=False, normed=False)
+    return {DATA:glcm, FORMAT:".npy", SAVING_DIR:"GLCM"}
+
     
 def get_Haralick_descriptors(image, distances, angles, visu=False):
     '''
@@ -110,7 +129,9 @@ def get_Haralick_descriptors(image, distances, angles, visu=False):
     calculate it along different angles and distances
     returns a few characteristics about this GLCM
     '''
-    assert image.ndim==2, "image should be 2dim H,W"
+    image = rgb_2_darter(image).astype(np.uint8)
+    image = image[:, :, 0] + image[:, :, 1]
+    
     dict_vals={}
     glcm = greycomatrix(image, distances, angles, levels=None, symmetric=False, normed=False)
     
@@ -140,12 +161,8 @@ if __name__=='__main__':
 
     vgg_model = VGG16(weights='imagenet',
                               include_top=False)
-    get_deep_features(image, vgg_model, True)
+    get_deep_features(image, vgg_model, True)   
     get_FFT_slope(image, (10,110), 200, 1)
-
-    image = rgb_2_darter(image)
-    image = image[:, :, 0] + image[:, :, 1]
-    
     get_LBP(image, 8, 1, True)
     get_statistical_features(image, visu=True)
     get_GLCM(image, [1], [0, 45, 90, 135] )

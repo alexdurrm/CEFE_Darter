@@ -12,62 +12,15 @@ import cv2
 import csv
 import math
 import argparse
+from tensorflow.keras.applications.vgg16 import VGG16
 
 from pspec import get_pspec, rgb_2_darter
 from config import *
-from visual_metrics import get_LBP, get_FFT_slope
+from visual_metrics import *
 
 ###############################################################
 ### File used to calculate metrics and save them in a csv file
 ###############################################################
-
-
-def do_LBP_metric(img_path, P, R, verbosity=1, resize=None):
-    '''
-    calls get_LBP and saves its result
-    return a dict of informations about the LBP obtained
-    '''
-    image = imageio.imread(img_path)
-    image = rgb_2_darter(image)
-    image = image[:, :, 0] + image[:, :, 1]
-    if resize:
-        image = cv2.resize(image, dsize=resize, interpolation=cv2.INTER_CUBIC)
-    LBP_image = get_LBP(image, P, R, verbosity>=2)
-
-    head, image_name = os.path.split(img_path)
-    image_name, ext = os.path.splitext(image_name)
-    output_dir = os.path.join(head, "LocalBinaryPattern_P{}_R{}".format(P,R))
-
-    if not( os.path.exists(output_dir) and os.path.isdir(output_dir) ):
-        os.mkdir(output_dir)
-    output_filepath = os.path.join(output_dir, image_name+"_LBP.npy")
-    np.save(output_filepath, LBP_image)
-    if verbosity>=1: print("LBP image saved at {}".format(output_filepath))
-    return {COL_PATH_LBP: output_filepath, COL_RADIUS_LBP:R , COL_POINTS_LBP:P, COL_RESIZE_LBP:bool(resize)}
-
-
-def calculate_slope(path, fft_range, sample_dim ,resize, verbose=1, return_dict=False):
-    '''
-    Calculate the fourier slope of a given image
-    fft_range is the range of frequencies for which is calculated the slope
-    sample_dim is the size of the squared window sample
-    if resize is true the image is resized to fit the sample dim but conserve its ratio
-    return a dict containing more informations about the fourier slope
-    '''
-    image = imageio.imread(path)
-    # resize the image to just fit the window while keeping its ratio
-    if resize:
-        resize_ratio = sample_dim/np.min(image.shape[0:2])
-        new_x, new_y = (int(round(resize_ratio*dim)) for dim in image.shape[0:2])
-        if verbose>=1:
-            print("Resizing image from {}x{} to {}x{}".format(
-                image.shape[0], image.shape[1], new_x, new_y ))
-        image = cv2.resize(image, dsize=(new_y, new_x),
-            interpolation=cv2.INTER_CUBIC)  #cv2 (x,y) are numpy (y,x)
-    return get_FFT_slope(image, fft_range, sample_dim, verbose)
-    
-    
-############################################################
 
 
 def load_info_from_filepath(file_path):
@@ -81,13 +34,13 @@ def load_info_from_filepath(file_path):
 
     #if the directory contains stylized fishes
     if [p for p in DIR_STYLIZED_FISHES if p in long_head]:
-        crossing, color_ctrl, _, tvloss, _, layers  = filename.split("_")
+        crossing, color_ctrl, _, tvloss, *_  = filename.split("_")
         middle, fish_n = crossing.rsplit("x", maxsplit=1)
         dict_info[COL_FISH_NUMBER] = fish_n
         dict_info[COL_HABITAT] = middle
         dict_info[COL_COLOR_CONTROL] = color_ctrl
         dict_info[COL_TV_LOSS] = tvloss
-        dict_info[COL_LAYERS] = layers
+        dict_info[COL_LAYERS] = directory
         dict_info[COL_TYPE] = "fish stylized"
     #if the directory contains original fishes
     elif [p for p in DIR_ORIGINAL_FISHES if p in long_head]:
@@ -107,6 +60,7 @@ def load_info_from_filepath(file_path):
         dict_info[COL_FISH_NUMBER] = fish.split('.')[0][1:]
         dict_info[COL_FISH_SEX] = fish.split('.')[0][0]
         dict_info[COL_SPECIES] = specie
+    return dict_info
 
 
 def work_metrics(row, *metrics):
@@ -116,8 +70,33 @@ def work_metrics(row, *metrics):
     where func is the function to call, args is a list of parameters, and kwargs is a dict of parameters
     '''
     img_path = row.name
+    head, image_name = os.path.split(img_path)
+    image_name, ext = os.path.splitext(image_name)
+    image = imageio.imread(img_path)
     for (func, args, kwargs) in metrics:
-        dict_data = func(img_path, *args, **kwargs)
+        #call the metric
+        dict_data = func(image, *args, **kwargs)
+        #if the metric return something to save, save it
+        data = dict_data.pop(DATA, None)
+        format = dict_data.pop(FORMAT, "")
+        save_dir = dict_data.pop(SAVING_DIR, "DefaultDir")
+        col_name_path = dict_data.pop(NAME_COL_PATH, "path")
+        if data is not None:
+            output_dir = os.path.join(head, save_dir) 
+            dest = os.path.join(output_dir, image_name)
+            if not( os.path.exists(output_dir) and os.path.isdir(output_dir) ):
+                os.mkdir(output_dir)
+            if format == ".npy":
+                np.save(dest, data)
+            elif format in [".png", ".jpg", ".tif"]:
+                imageio.imwrite(dest, data, format)
+            elif format == ".npz":
+                np.savez(dest, *data)
+            else:
+                raise ValueError("format {} is not of a supported format".format(format))
+            print("DATA saved at {}".format(dest))
+            row[col_name_path] = dest
+        #add the info to the dataframe
         for key, val in dict_data.items():
             row[key] = val
     return row
@@ -145,7 +124,7 @@ def get_files(main_path, max_depth, types_allowed, ignored_folders, only_endnode
     return data
 
     
-def linear_metric_work(input, metrics, recursivity, types_allowed, only_endnodes, ignored_folders, verbosity=1):
+def main(input, metrics, recursivity, types_allowed, only_endnodes, ignored_folders, overwrite, verbosity=1):
     '''
     create a csv file or load an existing one
     update the values in this csv by running new metrics
@@ -159,9 +138,10 @@ def linear_metric_work(input, metrics, recursivity, types_allowed, only_endnodes
         if os.path.isdir(input): output = os.path.join(input, CSV_NAME+str(recursivity)+".csv") 
         else: output = os.path.splitext(input)[0] + CSV_NAME + str(recursivity) + ".csv"
         #for each function add informations to the data
-    data = data.apply(work_metrics, 1, args=metrics)
-    # data.join(df_info)  #merge the data on the index
-        
+    if overwrite:
+        data = data.apply(work_metrics, 1, args=metrics)
+    else:
+        data = data.join(data.apply(work_metrics, 1, args=metrics))
     #save the data
     data.to_csv(output, sep=',', index=True)
     print("DONE: CSV SAVED AT {}".format(output))
@@ -188,11 +168,18 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     FFT_RANGE=(10, 110) #110 pour des fenetres 200x200!!!
+    GLCM_DISTANCES=[1]
+    GLCM_ANGLES=[0, 45, 90, 135]
 
+    vgg16_model = VGG16(weights='imagenet', include_top=False)
     metrics=[
-        (calculate_slope, [FFT_RANGE, args.window_size ,args.resize, args.verbosity, True], {}),
-        (do_LBP_metric, [ args.points, args.radius], {"verbosity":args.verbosity, "resize":(1536, 512)})
+        (get_Haralick_descriptors, [GLCM_DISTANCES, GLCM_ANGLES], {"visu":args.verbosity>=2}),
+        (get_GLCM, [GLCM_DISTANCES, GLCM_ANGLES], {}),
+        (get_FFT_slope, [FFT_RANGE, args.resize ,args.window_size], {"verbose":args.verbosity}),
+        # (get_deep_features, [vgg16_model], {"visu":args.verbosity>=2}),
+        (get_statistical_features, [], {"visu":args.verbosity>=1}),
+        (get_LBP, [args.points, args.radius, (1536, 512)], {"visu":args.verbosity>=2})
         ]
-    # recursive_metrics_work(INPUT, metrics, recursivity=2, types_allowed=(".jpg",".png",".tif"), only_endnodes=True)
-    d = linear_metric_work(args.input, metrics, 1, (".jpg",".png",".tif"), ignored_folders=[], only_endnodes=True, verbosity=args.verbosity) 
+    
+    d = main(args.input, metrics, 2, (".jpg",".png",".tif"), ignored_folders=[], only_endnodes=True, overwrite=True, verbosity=args.verbosity) 
     print(d)

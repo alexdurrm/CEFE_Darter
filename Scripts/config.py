@@ -4,7 +4,6 @@ file used to centralize the names and other parameters
 ### NAME OF THE CSV FILE WHICH STORES ALL THE METRICS
 CSV_NAME="metrics_depth"
 
-
 ### DIRECTORY NAMES
 DIR_STYLIZED_FISHES=["StyleTransferImages\All_layers", 
                     "StyleTransferImages\Layers_1and2",
@@ -12,9 +11,7 @@ DIR_STYLIZED_FISHES=["StyleTransferImages\All_layers",
 DIR_ORIGINAL_FISHES=["StyleTransferImages\FISH_images"]
 DIR_ORIGINAL_HABITATS=["StyleTransferImages\HABITAT_images"]
 DIR_SAMUEL=["crops"]
-
 DIR_IGNORED=[]
-
 
 ### COLUMN NAMES FOR THE CSV FILE
 COL_INDEX="filepath"
@@ -60,10 +57,11 @@ COL_GLCM_ENERGY="GLCM_energy"
 COL_GLCM_MAXP="GLCM_max_proba"
 COL_GLCM_ENTROPY="GLCM_entropy"
 
-### keywords given by visual_metrics that are interpreted
-DEEP_FEATURES="deep_features"
-IMAGE="image"
-NUMPY="numpy_array"
+### keywords given by visual_metrics that are interpreted by run metrics
+DATA="data"
+FORMAT="format"
+SAVING_DIR="saving_directory"
+NAME_COL_PATH="name_path_column"
 
 ### matplotlib parameters
 FLAT_UI = ["#8c8c8c", "#5f9e6e", "#cc8963", "#5975a4", "#857aab", "#b55d60", "#c1b37f", "#8d7866", "#d095bf", "#71aec0"]
