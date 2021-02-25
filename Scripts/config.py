@@ -57,6 +57,8 @@ COL_GLCM_ASM="GLCM_ASM"
 COL_GLCM_ENERGY="GLCM_energy"
 COL_GLCM_MAXP="GLCM_max_proba"
 COL_GLCM_ENTROPY="GLCM_entropy"
+COL_GLCM_ANGLES="GLCM_angles"
+COL_GLCM_DIST="GLCM_dist"
 #GINI
 COL_GINI_VALUE="gini_coefficient"
 
@@ -65,6 +67,7 @@ DATA="data"
 FORMAT="format"
 SAVING_DIR="saving_directory"
 NAME_COL_PATH="name_path_column"
+
 
 ### matplotlib parameters
 FLAT_UI = ["#8c8c8c", "#5f9e6e", "#cc8963", "#5975a4", "#857aab", "#b55d60", "#c1b37f", "#8d7866", "#d095bf", "#71aec0"]

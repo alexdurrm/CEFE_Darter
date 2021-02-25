@@ -7,12 +7,9 @@ import seaborn as sns
 import os
 import argparse
 from collections import Counter
-from config import *
+import imageio
 
-parser = argparse.ArgumentParser()
-parser.add_argument("function", help="name of the function to use", choices=["fourier_per_folder", "transfer_effect_slope", "publication_plot", "LBP_hist_per_folder"])
-parser.add_argument("input_file", help="the path of the csv to open")
-args = parser.parse_args()
+from config import *
 
 
 def fourier_per_folder(filepath):
@@ -78,8 +75,8 @@ def transfer_effect_slope(filepath):
     exp = exp.merge(fishes, on=[COL_FISH_NUMBER], how="outer")
 
     # split the experiments between controlled and uncontrolled color
-    Y_controled=exp.loc[exp.color_control=="ON"]
-    Y_uncontroled=exp.loc[exp.color_control=="OFF"]
+    Y_controled=exp.loc[exp[COL_COLOR_CONTROL]=="ON"]
+    Y_uncontroled=exp.loc[exp[COL_COLOR_CONTROL]=="OFF"]
 
     #sort is used to group experiments in color groups
     for sort in [COL_HABITAT, COL_FISH_NUMBER]:
@@ -87,10 +84,10 @@ def transfer_effect_slope(filepath):
             plt.plot(grp[COL_DIRECTORY], grp[COL_F_SLOPE], linestyle='',  marker='o', label=name_middle)
         plt.legend(title="type of {}".format(sort), loc='best')
         plt.title("mean Fourrier slope of each images per folder")
-
+        plt.show()
+        
         groups_Y = Y_controled.groupby(sort, dropna=False)
         groups_uncontrolled_Y = Y_uncontroled.groupby(sort, dropna=False)
-
         fig, (ax1, ax2) = plt.subplots(1, 2, sharey="row")
         i=0
         for name , grp in groups_Y:
@@ -135,6 +132,9 @@ def publication_plot(filepath):
 
 
 def LBP_hist_per_folder(filepath):
+    '''
+    Compare the mean local binary patterns histograms for each of the folders
+    '''
     data = pd.read_csv(filepath, sep=',')
 
     split_by = [COL_COLOR_CONTROL, COL_DIRECTORY]
@@ -146,12 +146,11 @@ def LBP_hist_per_folder(filepath):
         R, P = map(int, param_val)
         for split in split_by:  #group data on different categories
             groups = param_grp.groupby(split)
-            # if len(groups)>1:
             n_row = len(groups)
             n_col = len(param_groups)
             fig1, axs = plt.subplots(n_row, n_col, sharex='col', squeeze=False)
             fig2, ax2 = plt.subplots(1, 1)
-            fig1.suptitle("splitted by {}, params R:{}, P:{}".format(split, R, P))
+            fig1.suptitle("mean LBP histograms splitted by {}, params R:{}, P:{}".format(split, R, P))
             row=0
             for name, grp in groups:   #plot a resuming picture for each group
                 axs[row,col].set_title("group {}".format(name))
@@ -162,7 +161,7 @@ def LBP_hist_per_folder(filepath):
                 for _ , line in grp.iterrows():  #sum lbp for each lbp image
                     LBP_values = np.load(line[COL_PATH_LBP]).astype(int).flatten()
                     counter_lbp = Counter(LBP_values)
-                    percent_appearance = np.array(list(counter_lbp.values()))/LBP_values.size*100
+                    percent_appearance = [lbp/LBP_values.size*100 for lbp in counter_lbp.values()]
                     visu_LBP[i, list(counter_lbp.keys())] = percent_appearance
                     i+=1
                 axs[row,col].imshow(visu_LBP, aspect='auto')
@@ -171,8 +170,15 @@ def LBP_hist_per_folder(filepath):
                 ax2.legend()
                 row+=1
             plt.show()
-        col+=1
+        col+=1   
+    
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("function", help="name of the function to use", choices=["fourier_per_folder", "transfer_effect_slope", "publication_plot", 
+        "LBP_hist_per_folder", "Haralick_compare_folders"])
+    parser.add_argument("input_file", help="the path of the csv to open")
+    args = parser.parse_args()
+    
     globals()[args.function](args.input_file)

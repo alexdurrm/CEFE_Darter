@@ -41,7 +41,8 @@ def get_LBP(image, P, R, resize=None, visu=False):
         ax2.hist(lbp_image.flatten(), bins=P)
         ax2.set_title("lbp values histogram")
         plt.show()
-    return {DATA: lbp_image.astype(np.uint8), FORMAT:".jpg", SAVING_DIR:"LBP_P{}_R{}".format(P,R), NAME_COL_PATH:COL_PATH_LBP}
+    return {DATA: lbp_image, FORMAT:".npy", SAVING_DIR:"LBP_P{}_R{}".format(P,R), NAME_COL_PATH:COL_PATH_LBP,
+            COL_RADIUS_LBP:R ,COL_POINTS_LBP:P }
 
 
 def get_statistical_features(image, visu=False):
@@ -100,7 +101,7 @@ def get_GLCM(image, distances, angles):
     image = image[:, :, 0] + image[:, :, 1]
     
     glcm = greycomatrix(image, distances, angles, levels=None, symmetric=False, normed=False)
-    return {DATA:glcm, FORMAT:".npy", SAVING_DIR:"GLCM"}
+    return {DATA:glcm, FORMAT:".npy", SAVING_DIR:"GLCM", COL_GLCM_DIST: distances, COL_GLCM_ANGLES: angles}
 
     
 def get_Haralick_descriptors(image, distances, angles, visu=False):
@@ -114,6 +115,9 @@ def get_Haralick_descriptors(image, distances, angles, visu=False):
     
     dict_vals={}
     glcm = greycomatrix(image, distances, angles, levels=None, symmetric=False, normed=False)
+    
+    dict_vals[COL_GLCM_DIST] = distances
+    dict_vals[COL_GLCM_ANGLES] = angles
     
     dict_vals[COL_GLCM_MEAN] = np.mean(glcm, axis=(0,1))
     dict_vals[COL_GLCM_VAR] = np.var(glcm, axis=(0,1))
@@ -193,7 +197,7 @@ def get_gini(array, visu=False):
     n = array.shape[0]
     # Gini coefficient:
     gini_val = ((np.sum((2 * index - n  - 1) * array)) / (n * np.sum(array)))
-    print("GINI: {}".format(gini_val))
+    if visu: print("GINI: {}".format(gini_val))
     return {COL_GINI_VALUE: gini_val}
 
 

@@ -36,10 +36,10 @@ def load_info_from_filepath(file_path):
     if [p for p in DIR_STYLIZED_FISHES if p in long_head]:
         crossing, color_ctrl, _, tvloss, *_  = filename.split("_")
         middle, fish_n = crossing.rsplit("x", maxsplit=1)
-        dict_info[COL_FISH_NUMBER] = fish_n
+        dict_info[COL_FISH_NUMBER] = fish_n[4:] #4 to remove FISH
         dict_info[COL_HABITAT] = middle
-        dict_info[COL_COLOR_CONTROL] = color_ctrl
-        dict_info[COL_TV_LOSS] = tvloss
+        dict_info[COL_COLOR_CONTROL] = color_ctrl[12:]
+        dict_info[COL_TV_LOSS] = tvloss[6:]
         dict_info[COL_LAYERS] = directory
         dict_info[COL_TYPE] = "fish stylized"
     #if the directory contains original fishes
@@ -83,7 +83,7 @@ def work_metrics(row, *metrics):
         col_name_path = dict_data.pop(NAME_COL_PATH, "path")
         if data is not None:
             output_dir = os.path.join(head, save_dir) 
-            dest = os.path.join(output_dir, image_name)
+            dest = os.path.join(output_dir, image_name)+format
             if not( os.path.exists(output_dir) and os.path.isdir(output_dir) ):
                 os.mkdir(output_dir)
             if format == ".npy":
@@ -171,14 +171,14 @@ if __name__ == '__main__':
     
     vgg16_model = Deep_Features_Model( VGG16(weights='imagenet', include_top=False), (RESIZED_IMG))
     metrics=[
-        # (get_Haralick_descriptors, [GLCM_DISTANCES, GLCM_ANGLES], {"visu":args.verbosity>=2}),
+        (get_Haralick_descriptors, [GLCM_DISTANCES, GLCM_ANGLES], {"visu":args.verbosity>=2}),
         # (get_GLCM, [GLCM_DISTANCES, GLCM_ANGLES], {}),
         # (get_FFT_slope, [FFT_RANGE, args.resize ,args.window_size], {"verbose":args.verbosity}),
-        #(vgg16_model.get_deep_features, [RESIZED_IMG, args.verbosity>=1], {}),
-        # (get_statistical_features, [], {"visu":args.verbosity>=1}),
-        # (get_LBP, [args.points, args.radius, RESIZED_IMG], {"visu":args.verbosity>=2}),
-        (vgg16_model.get_layers_sparseness, [args.verbosity>=2], {}),
-        (get_gini, [args.verbosity>=2], {})
+        # (vgg16_model.get_deep_features, [args.verbosity>=1], {}),
+        (get_statistical_features, [], {"visu":args.verbosity>=1}),
+        (get_LBP, [args.points, args.radius, RESIZED_IMG], {"visu":args.verbosity>=2})
+        # (vgg16_model.get_layers_sparseness, [args.verbosity>=2], {}),
+        # (get_gini, [args.verbosity>=2], {})
         ]
     
     d = main(args.input, metrics, 2, (".jpg",".png",".tif"), ignored_folders=[], only_endnodes=True, verbosity=args.verbosity) 
