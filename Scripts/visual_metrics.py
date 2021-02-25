@@ -61,26 +61,6 @@ def get_statistical_features(image, visu=False):
     if visu: print("mean: {} /std: {} / skewness: {} / kurtosis: {}".format(*dict_vals.values()))
     return dict_vals
 
-
-def get_deep_features(image, base_model, visu=False):
-    '''
-    get the feature space of an image propagated through a given model
-    return a list of np array, each element of the list represent an output of a layer ,input layer is ignored
-    '''
-    image = (image - np.mean(image, axis=(0,1))) / np.std(image, axis=(0,1))
-    input_tensor = K.Input(shape=image.shape)
-    base_model.layers[0] = input_tensor
-    deep_features = K.Model(inputs=base_model.input, outputs=[l.output for l in base_model.layers[1:]])
-    # To see the models' architecture and layer names, run the following
-    pred = deep_features.predict(image[np.newaxis, ...])
-    if visu:
-        deep_features.summary()
-        for p in pred:
-            print(type(p))
-            print(p.shape)
-    return {DATA:pred, FORMAT:".npz", SAVING_DIR:"DeepFeatures_"+base_model.name, 
-            COL_MODEL_NAME:base_model.name, NAME_COL_PATH:COL_PATH_DEEP_FEATURES}
-
    
 def get_FFT_slope(image, fft_range, resize, sample_dim, verbose=1):
     '''
@@ -153,17 +133,82 @@ def get_Haralick_descriptors(image, distances, angles, visu=False):
     return dict_vals
     
 
+class Deep_Features_Model:
+    def __init__(self, base_model, input_shape):
+        self.base_model = base_model
+        self.input_shape = input_shape
+        input_tensor = K.Input(shape=self.input_shape)
+        self.base_model.layers[0] = input_tensor
+        self.deep_features = K.Model(inputs=self.base_model.input, outputs=[l.output for l in self.base_model.layers[1:]])
+        
+    def get_deep_features(self, image, visu=False):
+        '''
+        get the feature space of an image propagated through the deep feature model
+        return a list of np array, each element of the list represent an output of a layer ,input layer is ignored
+        '''
+        #resize and normalize the image
+        if image.shape != self.input_shape:
+            image = cv2.resize(image, dsize=self.input_shape, interpolation=cv2.INTER_CUBIC)  
+        image = (image - np.mean(image, axis=(0,1))) / np.std(image, axis=(0,1))
+        #make the prediction
+        pred = self.deep_features.predict(image[np.newaxis, ...])
+        if visu:
+            self.deep_features.summary()
+            for p in pred:
+                print(type(p))
+                print(p.shape)
+        return {DATA:pred, FORMAT:".npz", SAVING_DIR:"DeepFeatures_"+self.base_model.name, 
+                COL_MODEL_NAME:self.base_model.name, NAME_COL_PATH:COL_PATH_DEEP_FEATURES}
+                
+    def get_layers_sparseness(self, image, visu=False):
+        deep_features = self.get_deep_features(image, visu)[DATA]
+        sparseness=[get_gini(df[0])[COL_GINI_VALUE] for df in deep_features]
+        if visu: print(sparseness)
+        return {COL_SPARSENESS_DF:sparseness, COL_MODEL_NAME:self.base_model.name}
+
+
+def get_gini(array, visu=False):
+    '''
+    Calculate the Gini coefficient of a numpy array.
+    Author: Olivia Guest (oliviaguest)
+    Original publication of this code available at https://github.com/oliviaguest/gini/blob/master/gini.py
+    '''
+    # All values are treated equally, arrays must be 1d:
+    assert array.ndim <=3, "Gini can be calculated on an array of max 3 Dims, given {}".format(array.ndim)
+    if array.ndim==3:
+        array = rgb_2_darter(array)
+        array = array[:, :, 0] + array[:, :, 1]
+    if array.ndim==2:
+        array = array.flatten()
+    if np.amin(array) < 0:
+        # Values cannot be negative:
+        array -= np.amin(array)
+    # Values cannot be 0:
+    array += 0.0000001
+    # Values must be sorted:
+    array = np.sort(array)
+    # Index per array element:
+    index = np.arange(1,array.shape[0]+1)
+    # Number of array elements:
+    n = array.shape[0]
+    # Gini coefficient:
+    gini_val = ((np.sum((2 * index - n  - 1) * array)) / (n * np.sum(array)))
+    print("GINI: {}".format(gini_val))
+    return {COL_GINI_VALUE: gini_val}
+
+
 if __name__=='__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("image", help="path of the image file to open")
     args = parser.parse_args()
     image = imageio.imread(os.path.abspath(args.image))
 
-    vgg_model = VGG16(weights='imagenet',
-                              include_top=False)
-    get_deep_features(image, vgg_model, True)   
+    vgg_model_df = Deep_Features_Model(VGG16(weights='imagenet', include_top=False), (1536,512))
+    vgg_model_df.get_layers_sparseness(image, (1536,512), True)   
     get_FFT_slope(image, (10,110), 200, 1)
     get_LBP(image, 8, 1, True)
     get_statistical_features(image, visu=True)
     get_GLCM(image, [1], [0, 45, 90, 135] )
     get_Haralick_descriptors(image, [1], [0, 45, 90, 135] , visu=True)
+    get_gini(image)
+    

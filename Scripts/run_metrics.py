@@ -120,11 +120,11 @@ def get_files(main_path, max_depth, types_allowed, ignored_folders, only_endnode
             if depth==max_depth or not only_endnodes:
                 if visu: print("ADDING {}".format(path))
                 dict_info = load_info_from_filepath(path)
-                data.loc[path, [*dict_info.keys()]] = [*dict_info.values()]
+                data.loc[os.path.abspath(path), [*dict_info.keys()]] = [*dict_info.values()]
     return data
 
     
-def main(input, metrics, recursivity, types_allowed, only_endnodes, ignored_folders, overwrite, verbosity=1):
+def main(input, metrics, recursivity, types_allowed, only_endnodes, ignored_folders, verbosity=1):
     '''
     create a csv file or load an existing one
     update the values in this csv by running new metrics
@@ -138,10 +138,7 @@ def main(input, metrics, recursivity, types_allowed, only_endnodes, ignored_fold
         if os.path.isdir(input): output = os.path.join(input, CSV_NAME+str(recursivity)+".csv") 
         else: output = os.path.splitext(input)[0] + CSV_NAME + str(recursivity) + ".csv"
         #for each function add informations to the data
-    if overwrite:
-        data = data.apply(work_metrics, 1, args=metrics)
-    else:
-        data = data.join(data.apply(work_metrics, 1, args=metrics))
+    data = data.apply(work_metrics, 1, args=metrics)
     #save the data
     data.to_csv(output, sep=',', index=True)
     print("DONE: CSV SAVED AT {}".format(output))
@@ -170,16 +167,19 @@ if __name__ == '__main__':
     FFT_RANGE=(10, 110) #110 pour des fenetres 200x200!!!
     GLCM_DISTANCES=[1]
     GLCM_ANGLES=[0, 45, 90, 135]
-
-    vgg16_model = VGG16(weights='imagenet', include_top=False)
+    RESIZED_IMG=(1536,512)
+    
+    vgg16_model = Deep_Features_Model( VGG16(weights='imagenet', include_top=False), (RESIZED_IMG))
     metrics=[
-        (get_Haralick_descriptors, [GLCM_DISTANCES, GLCM_ANGLES], {"visu":args.verbosity>=2}),
-        (get_GLCM, [GLCM_DISTANCES, GLCM_ANGLES], {}),
-        (get_FFT_slope, [FFT_RANGE, args.resize ,args.window_size], {"verbose":args.verbosity}),
-        # (get_deep_features, [vgg16_model], {"visu":args.verbosity>=2}),
-        (get_statistical_features, [], {"visu":args.verbosity>=1}),
-        (get_LBP, [args.points, args.radius, (1536, 512)], {"visu":args.verbosity>=2})
+        # (get_Haralick_descriptors, [GLCM_DISTANCES, GLCM_ANGLES], {"visu":args.verbosity>=2}),
+        # (get_GLCM, [GLCM_DISTANCES, GLCM_ANGLES], {}),
+        # (get_FFT_slope, [FFT_RANGE, args.resize ,args.window_size], {"verbose":args.verbosity}),
+        #(vgg16_model.get_deep_features, [RESIZED_IMG, args.verbosity>=1], {}),
+        # (get_statistical_features, [], {"visu":args.verbosity>=1}),
+        # (get_LBP, [args.points, args.radius, RESIZED_IMG], {"visu":args.verbosity>=2}),
+        (vgg16_model.get_layers_sparseness, [args.verbosity>=2], {}),
+        (get_gini, [args.verbosity>=2], {})
         ]
     
-    d = main(args.input, metrics, 2, (".jpg",".png",".tif"), ignored_folders=[], only_endnodes=True, overwrite=True, verbosity=args.verbosity) 
+    d = main(args.input, metrics, 2, (".jpg",".png",".tif"), ignored_folders=[], only_endnodes=True, verbosity=args.verbosity) 
     print(d)

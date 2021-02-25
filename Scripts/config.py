@@ -45,6 +45,7 @@ COL_STAT_ENTROPY="entropy_stat"
 #deep features
 COL_MODEL_NAME="model_name_deep_features"
 COL_PATH_DEEP_FEATURES="path_deep_features"
+COL_SPARSENESS_DF="sparseness_deep_features"
 #GLCM
 COL_GLCM_MEAN="GLCM_mean"
 COL_GLCM_VAR="GLCM_variance"
@@ -56,6 +57,8 @@ COL_GLCM_ASM="GLCM_ASM"
 COL_GLCM_ENERGY="GLCM_energy"
 COL_GLCM_MAXP="GLCM_max_proba"
 COL_GLCM_ENTROPY="GLCM_entropy"
+#GINI
+COL_GINI_VALUE="gini_coefficient"
 
 ### keywords given by visual_metrics that are interpreted by run metrics
 DATA="data"
