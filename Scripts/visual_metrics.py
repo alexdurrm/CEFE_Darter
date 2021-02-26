@@ -27,7 +27,7 @@ def get_LBP(image, P, R, resize=None, visu=False):
     image = image[:, :, 0] + image[:, :, 1]
     if resize:
         image = cv2.resize(image, dsize=resize, interpolation=cv2.INTER_CUBIC)
-        
+
     lbp_image = local_binary_pattern(image, P, R)
     if visu:
         fig, (ax0, ax1, ax2) = plt.subplots(figsize=(6, 12), nrows=3)
@@ -53,6 +53,7 @@ def get_statistical_features(image, visu=False):
     '''
     image = rgb_2_darter(image)
     image = image[:, :, 0] + image[:, :, 1]
+
     dict_vals={}
     dict_vals[COL_STAT_MEAN]=np.mean(image, axis=None)
     dict_vals[COL_STAT_STD]=np.std(image, axis=None)
@@ -62,7 +63,7 @@ def get_statistical_features(image, visu=False):
     if visu: print("mean: {} /std: {} / skewness: {} / kurtosis: {}".format(*dict_vals.values()))
     return dict_vals
 
-   
+
 def get_FFT_slope(image, fft_range, resize, sample_dim, verbose=1):
     '''
     Calculate the fourier slope of a given image
@@ -91,7 +92,7 @@ def get_FFT_slope(image, fft_range, resize, sample_dim, verbose=1):
     if verbose>=1: print("mean slope on {} samples: {}".format(tot_samples, np.mean(slopes)))
     return {COL_F_SLOPE:np.mean(slopes), COL_F_N_SAMPLE:tot_samples, COL_F_WIN_SIZE:sample_dim, COL_FFT_RANGE:fft_range}
 
-    
+
 def get_GLCM(image, distances, angles):
     '''
     get an image and calculates its grey level co-occurence matrix
@@ -99,11 +100,11 @@ def get_GLCM(image, distances, angles):
     '''
     image = rgb_2_darter(image).astype(np.uint8)
     image = image[:, :, 0] + image[:, :, 1]
-    
+
     glcm = greycomatrix(image, distances, angles, levels=None, symmetric=False, normed=False)
     return {DATA:glcm, FORMAT:".npy", SAVING_DIR:"GLCM", COL_GLCM_DIST: distances, COL_GLCM_ANGLES: angles}
 
-    
+
 def get_Haralick_descriptors(image, distances, angles, visu=False):
     '''
     get an image and calculates its grey level co-occurence matrix
@@ -112,30 +113,30 @@ def get_Haralick_descriptors(image, distances, angles, visu=False):
     '''
     image = rgb_2_darter(image).astype(np.uint8)
     image = image[:, :, 0] + image[:, :, 1]
-    
+
     dict_vals={}
     glcm = greycomatrix(image, distances, angles, levels=None, symmetric=False, normed=False)
-    
+
     dict_vals[COL_GLCM_DIST] = distances
     dict_vals[COL_GLCM_ANGLES] = angles
-    
+
     dict_vals[COL_GLCM_MEAN] = np.mean(glcm, axis=(0,1))
     dict_vals[COL_GLCM_VAR] = np.var(glcm, axis=(0,1))
     dict_vals[COL_GLCM_CORR] = greycoprops(glcm, 'correlation')
-    
+
     dict_vals[COL_GLCM_CONTRAST] = greycoprops(glcm, 'contrast')
     dict_vals[COL_GLCM_DISSIMIL] = greycoprops(glcm, 'dissimilarity')
     dict_vals[COL_GLCM_HOMO] = greycoprops(glcm, 'homogeneity')
-    
+
     dict_vals[COL_GLCM_ASM] = greycoprops(glcm, 'ASM')
     dict_vals[COL_GLCM_ENERGY] = greycoprops(glcm, 'energy')
-    
+
     dict_vals[COL_GLCM_MAXP] = np.max(glcm, axis=(0,1))
     dict_vals[COL_GLCM_ENTROPY] = entropy(glcm, axis=(0,1))
-    if visu: 
+    if visu:
         print(dict_vals)
     return dict_vals
-    
+
 
 class Deep_Features_Model:
     def __init__(self, base_model, input_shape):
@@ -144,7 +145,7 @@ class Deep_Features_Model:
         input_tensor = K.Input(shape=self.input_shape)
         self.base_model.layers[0] = input_tensor
         self.deep_features = K.Model(inputs=self.base_model.input, outputs=[l.output for l in self.base_model.layers[1:]])
-        
+
     def get_deep_features(self, image, visu=False):
         '''
         get the feature space of an image propagated through the deep feature model
@@ -152,7 +153,7 @@ class Deep_Features_Model:
         '''
         #resize and normalize the image
         if image.shape != self.input_shape:
-            image = cv2.resize(image, dsize=self.input_shape, interpolation=cv2.INTER_CUBIC)  
+            image = cv2.resize(image, dsize=self.input_shape, interpolation=cv2.INTER_CUBIC)
         image = (image - np.mean(image, axis=(0,1))) / np.std(image, axis=(0,1))
         #make the prediction
         pred = self.deep_features.predict(image[np.newaxis, ...])
@@ -161,9 +162,9 @@ class Deep_Features_Model:
             for p in pred:
                 print(type(p))
                 print(p.shape)
-        return {DATA:pred, FORMAT:".npz", SAVING_DIR:"DeepFeatures_"+self.base_model.name, 
+        return {DATA:pred, FORMAT:".npz", SAVING_DIR:"DeepFeatures_"+self.base_model.name,
                 COL_MODEL_NAME:self.base_model.name, NAME_COL_PATH:COL_PATH_DEEP_FEATURES}
-                
+
     def get_layers_sparseness(self, image, visu=False):
         deep_features = self.get_deep_features(image, visu)[DATA]
         sparseness=[get_gini(df[0])[COL_GINI_VALUE] for df in deep_features]
@@ -208,11 +209,10 @@ if __name__=='__main__':
     image = imageio.imread(os.path.abspath(args.image))
 
     vgg_model_df = Deep_Features_Model(VGG16(weights='imagenet', include_top=False), (1536,512))
-    vgg_model_df.get_layers_sparseness(image, (1536,512), True)   
+    vgg_model_df.get_layers_sparseness(image, (1536,512), True)
     get_FFT_slope(image, (10,110), 200, 1)
-    get_LBP(image, 8, 1, True)
+    get_LBP(image, 8, 1, (1536,512), True)
     get_statistical_features(image, visu=True)
     get_GLCM(image, [1], [0, 45, 90, 135] )
     get_Haralick_descriptors(image, [1], [0, 45, 90, 135] , visu=True)
     get_gini(image)
-    

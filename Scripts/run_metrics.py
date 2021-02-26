@@ -33,7 +33,7 @@ def load_info_from_filepath(file_path):
     dict_info={COL_FILENAME:filename, COL_DIRECTORY:directory}
 
     #if the directory contains stylized fishes
-    if [p for p in DIR_STYLIZED_FISHES if p in long_head]:
+    if [p for p in DIR_STYLIZED_FISHES if p == directory]:
         crossing, color_ctrl, _, tvloss, *_  = filename.split("_")
         middle, fish_n = crossing.rsplit("x", maxsplit=1)
         dict_info[COL_FISH_NUMBER] = fish_n[4:] #4 to remove FISH
@@ -43,19 +43,19 @@ def load_info_from_filepath(file_path):
         dict_info[COL_LAYERS] = directory
         dict_info[COL_TYPE] = "fish stylized"
     #if the directory contains original fishes
-    elif [p for p in DIR_ORIGINAL_FISHES if p in long_head]:
+    elif [p for p in DIR_ORIGINAL_FISHES if p == directory]:
         fish_n, _, original_size, specie, *_, end = filename.split("_")
         dict_info[COL_SPECIES] = specie
         dict_info[COL_FISH_NUMBER] = end.split('.')[0][1:]
         dict_info[COL_FISH_SEX] = end[0]
-        dict_info[COL_TYPE] = "crop fish" 
+        dict_info[COL_TYPE] = "crop fish"
     #if the directory contains original habitats
-    elif [p for p in DIR_ORIGINAL_HABITATS if p in long_head]:
+    elif [p for p in DIR_ORIGINAL_HABITATS if p == directory]:
         middle, *_ = filename.split('_')
         dict_info[COL_HABITAT] = middle
-        dict_info[COL_TYPE] = "habitat"   
+        dict_info[COL_TYPE] = "habitat"
     #if the folder is the samuel folder
-    elif [p for p in DIR_SAMUEL if p in long_head]:
+    elif [p for p in DIR_SAMUEL if p == directory]:
         specie, *_, fish = filename.split("_")
         dict_info[COL_FISH_NUMBER] = fish.split('.')[0][1:]
         dict_info[COL_FISH_SEX] = fish.split('.')[0][0]
@@ -82,7 +82,7 @@ def work_metrics(row, *metrics):
         save_dir = dict_data.pop(SAVING_DIR, "DefaultDir")
         col_name_path = dict_data.pop(NAME_COL_PATH, "path")
         if data is not None:
-            output_dir = os.path.join(head, save_dir) 
+            output_dir = os.path.join(head, save_dir)
             dest = os.path.join(output_dir, image_name)+format
             if not( os.path.exists(output_dir) and os.path.isdir(output_dir) ):
                 os.mkdir(output_dir)
@@ -123,7 +123,7 @@ def get_files(main_path, max_depth, types_allowed, ignored_folders, only_endnode
                 data.loc[os.path.abspath(path), [*dict_info.keys()]] = [*dict_info.values()]
     return data
 
-    
+
 def main(input, metrics, recursivity, types_allowed, only_endnodes, ignored_folders, verbosity=1):
     '''
     create a csv file or load an existing one
@@ -135,7 +135,7 @@ def main(input, metrics, recursivity, types_allowed, only_endnodes, ignored_fold
         output = input
     else:   #else create it by parcouring the files
         data = get_files(input, recursivity, types_allowed, ignored_folders, only_endnodes, verbosity>=1)
-        if os.path.isdir(input): output = os.path.join(input, CSV_NAME+str(recursivity)+".csv") 
+        if os.path.isdir(input): output = os.path.join(input, CSV_NAME+str(recursivity)+".csv")
         else: output = os.path.splitext(input)[0] + CSV_NAME + str(recursivity) + ".csv"
         #for each function add informations to the data
     data = data.apply(work_metrics, 1, args=metrics)
@@ -143,18 +143,18 @@ def main(input, metrics, recursivity, types_allowed, only_endnodes, ignored_fold
     data.to_csv(output, sep=',', index=True)
     print("DONE: CSV SAVED AT {}".format(output))
     return data
-    
-    
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("input", help="the path of the main directory containing the subdirs or the path of the csv to use.")
+    parser.add_argument("-v", "--verbosity", type=int, choices=[0, 1, 2], default=1,
+                    help="increase output verbosity, default is 1.")
                     ####   ARGUMENTS FOR FOURIER SLOPE   ###
     parser.add_argument("-s", "--window_size", default=512, type=int,
                     help="Size of the square window, default 512")
     parser.add_argument('--no-resize', dest='resize', action='store_false',
                     help="add this argument to prevent resize, default resize the image to fit the window crop.")
-    parser.add_argument("-v", "--verbosity", type=int, choices=[0, 1, 2], default=1,
-                    help="increase output verbosity, default is 1.")
     parser.set_defaults(auto_window=False)
     parser.set_defaults(resize=True)
                     ####   ARGUMENTS FOR LBP   ###
@@ -163,23 +163,23 @@ if __name__ == '__main__':
     parser.add_argument("-p", "--points", default=8, type=int,
                     help="Number of points on the circle. Default 8.")
     args = parser.parse_args()
-    
+
     FFT_RANGE=(10, 110) #110 pour des fenetres 200x200!!!
     GLCM_DISTANCES=[1]
     GLCM_ANGLES=[0, 45, 90, 135]
     RESIZED_IMG=(1536,512)
-    
+
     vgg16_model = Deep_Features_Model( VGG16(weights='imagenet', include_top=False), (RESIZED_IMG))
     metrics=[
         (get_Haralick_descriptors, [GLCM_DISTANCES, GLCM_ANGLES], {"visu":args.verbosity>=2}),
         # (get_GLCM, [GLCM_DISTANCES, GLCM_ANGLES], {}),
-        # (get_FFT_slope, [FFT_RANGE, args.resize ,args.window_size], {"verbose":args.verbosity}),
+        (get_FFT_slope, [FFT_RANGE, args.resize ,args.window_size], {"verbose":args.verbosity}),
         # (vgg16_model.get_deep_features, [args.verbosity>=1], {}),
         (get_statistical_features, [], {"visu":args.verbosity>=1}),
-        (get_LBP, [args.points, args.radius, RESIZED_IMG], {"visu":args.verbosity>=2})
-        # (vgg16_model.get_layers_sparseness, [args.verbosity>=2], {}),
-        # (get_gini, [args.verbosity>=2], {})
+        (get_LBP, [args.points, args.radius, RESIZED_IMG], {"visu":args.verbosity>=2}),
+        (vgg16_model.get_layers_sparseness, [args.verbosity>=2], {}),
+        (get_gini, [args.verbosity>=2], {})
         ]
-    
-    d = main(args.input, metrics, 2, (".jpg",".png",".tif"), ignored_folders=[], only_endnodes=True, verbosity=args.verbosity) 
+
+    d = main(args.input, metrics, 2, (".jpg",".png",".tif"), ignored_folders=[], only_endnodes=True, verbosity=args.verbosity)
     print(d)

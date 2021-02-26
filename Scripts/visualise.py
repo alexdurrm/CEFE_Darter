@@ -85,7 +85,7 @@ def transfer_effect_slope(filepath):
         plt.legend(title="type of {}".format(sort), loc='best')
         plt.title("mean Fourrier slope of each images per folder")
         plt.show()
-        
+
         groups_Y = Y_controled.groupby(sort, dropna=False)
         groups_uncontrolled_Y = Y_uncontroled.groupby(sort, dropna=False)
         fig, (ax1, ax2) = plt.subplots(1, 2, sharey="row")
@@ -170,15 +170,84 @@ def LBP_hist_per_folder(filepath):
                 ax2.legend()
                 row+=1
             plt.show()
-        col+=1   
-    
+        col+=1
+
+
+def Haralick_compare_folders(filepath):
+    '''
+    for each descriptor value draw a swarmplot of each folder
+    '''
+    haralick_descriptors = [COL_GLCM_MEAN, COL_GLCM_VAR, COL_GLCM_CORR, COL_GLCM_CONTRAST,
+    COL_GLCM_DISSIMIL, COL_GLCM_HOMO, COL_GLCM_ASM, COL_GLCM_ENERGY,
+    COL_GLCM_MAXP, COL_GLCM_ENTROPY]
+
+    data = pd.read_csv(filepath, sep=',')
+
+    matplotlib.rcParams['font.family'] = 'serif'
+    plt.rcParams['font.size'] = 16
+    matplotlib.rcParams['axes.linewidth'] = 2
+    sns.set_palette(sns.color_palette(FLAT_UI))
+
+    for col_descriptor in haralick_descriptors:
+        ax = sns.catplot(x=COL_DIRECTORY, y=col_descriptor, data=data,
+                        row=COL_GLCM_ANGLES,
+                        col=COL_GLCM_DIST,
+                        hue=COL_COLOR_CONTROL)
+
+        ax.set_ylabels(col_descriptor)
+        ax.set_yticklabels(fontstyle='italic')
+        plt.xticks(rotation=45)
+        plt.title("Haralick descriptors")
+        plt.show()
+
+
+def Gini_compare_folders(filepath):
+    '''
+    compare the gini values of each images
+    '''
+    data = pd.read_csv(filepath, sep=',')
+
+    matplotlib.rcParams['font.family'] = 'serif'
+    plt.rcParams['font.size'] = 16
+    matplotlib.rcParams['axes.linewidth'] = 2
+    sns.set_palette(sns.color_palette(FLAT_UI))
+
+    ax = sns.catplot(x=COL_DIRECTORY, y=COL_GINI_VALUE, data=data)
+
+    ax.set_ylabels(COL_GINI_VALUE)
+    ax.set_yticklabels(fontstyle='italic')
+    plt.xticks(rotation=45)
+    plt.title("GINI value")
+    plt.show()
+
+
+def Stat_compare_folders(filepath):
+    '''
+    for each statistical value compare the folders
+    '''
+    stats = [COL_STAT_MEAN, COL_STAT_STD, COL_STAT_SKEW, COL_STAT_KURT, COL_STAT_ENTROPY]
+    data = pd.read_csv(filepath, sep=',')
+
+    matplotlib.rcParams['font.family'] = 'serif'
+    plt.rcParams['font.size'] = 16
+    matplotlib.rcParams['axes.linewidth'] = 2
+    sns.set_palette(sns.color_palette(FLAT_UI))
+
+    for stat in stats:
+        ax = sns.catplot(x=COL_DIRECTORY, y=stat, data=data)
+
+        ax.set_ylabels(stat)
+        ax.set_yticklabels(fontstyle='italic')
+        plt.xticks(rotation=45)
+        plt.title("statistical descriptors")
+        plt.show()
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("function", help="name of the function to use", choices=["fourier_per_folder", "transfer_effect_slope", "publication_plot", 
-        "LBP_hist_per_folder", "Haralick_compare_folders"])
+    parser.add_argument("function", help="name of the function to use", choices=["fourier_per_folder", "transfer_effect_slope", "publication_plot",
+        "LBP_hist_per_folder", "Haralick_compare_folders", "Gini_compare_folders", "Stat_compare_folders"])
     parser.add_argument("input_file", help="the path of the csv to open")
     args = parser.parse_args()
-    
+
     globals()[args.function](args.input_file)

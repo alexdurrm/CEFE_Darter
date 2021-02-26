@@ -5,11 +5,11 @@ file used to centralize the names and other parameters
 CSV_NAME="metrics_depth"
 
 ### DIRECTORY NAMES
-DIR_STYLIZED_FISHES=["StyleTransferImages\All_layers", 
-                    "StyleTransferImages\Layers_1and2",
-                    "StyleTransferImages\Layers_3to5"]
-DIR_ORIGINAL_FISHES=["StyleTransferImages\FISH_images"]
-DIR_ORIGINAL_HABITATS=["StyleTransferImages\HABITAT_images"]
+DIR_STYLIZED_FISHES=["All_layers", 
+                    "Layers_1and2",
+                    "Layers_3to5"]
+DIR_ORIGINAL_FISHES=["FISH_images"]
+DIR_ORIGINAL_HABITATS=["HABITAT_images"]
 DIR_SAMUEL=["crops"]
 DIR_IGNORED=[]
 
