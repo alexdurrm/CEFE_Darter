@@ -4,6 +4,7 @@ file used to centralize the names and other parameters
 ### NAME OF THE CSV FILE WHICH STORES ALL THE METRICS
 CSV_NAME="metrics_depth"
 
+
 ### DIRECTORY NAMES
 DIR_STYLIZED_FISHES=["All_layers",
                     "Layers_1and2",
@@ -12,6 +13,7 @@ DIR_ORIGINAL_FISHES=["FISH_images"]
 DIR_ORIGINAL_HABITATS=["HABITAT_images"]
 DIR_SAMUEL=["crops"]
 DIR_IGNORED=[]
+
 
 ### COLUMN NAMES FOR THE CSV FILE
 COL_INDEX="filepath"
