@@ -1,9 +1,12 @@
-from skimage.feature import local_binary_pattern, greycomatrix, greycoprops
+from skimage.feature import local_binary_pattern, greycomatrix, greycoprops, hog
+from skimage.filters import gabor
+import skimage
 from scipy.stats import skew, kurtosis, entropy
 import argparse
 import imageio
 import os
 import matplotlib.pyplot as plt
+import seaborn as sns
 from collections import Counter
 import numpy as np
 import cv2
@@ -12,6 +15,23 @@ from tensorflow.keras.applications.vgg16 import VGG16
 
 from pspec import rgb_2_darter, get_pspec
 from config import *
+
+
+def preprocess_img(image, resize=None, to_darter=False, to_gray=False, normalize=False, standardize=False):
+    if resize:
+        image = cv2.resize(image, dsize=resize, interpolation=cv2.INTER_CUBIC)
+    if to_darter:
+        image = rgb_2_darter(image)
+        if to_gray:
+            image = image[:, :, 0] + image[:, :, 1]
+    elif to_gray:
+        r, g, b = image[:,:,0], image[:,:,1], image[:,:,2]
+        image = 0.2989 * r + 0.5870 * g + 0.1140 * b
+    if normalize:
+        image = (image - np.mean(image, axis=(0,1))) / np.std(image, axis=(0,1))
+    if standardize:
+        image = (image - np.min(image)) / (np.max(image)-np.min(image))
+    return image
 
 
 def get_LBP(image, P, R, resize=None, visu=False):
@@ -135,41 +155,27 @@ def get_Haralick_descriptors(image, distances, angles, visu=False):
     dict_vals[COL_GLCM_ENTROPY] = entropy(glcm, axis=(0,1))
     if visu:
         print(dict_vals)
+        plt.plot(dict_vals[COL_GLCM_MEAN])
+        plt.show()
+        plt.plot(dict_vals[COL_GLCM_VAR])
+        plt.show()
+        plt.plot(dict_vals[COL_GLCM_CORR])
+        plt.show()
+        plt.plot(dict_vals[COL_GLCM_CONTRAST])
+        plt.show()
+        plt.plot(dict_vals[COL_GLCM_DISSIMIL])
+        plt.show()
+        plt.plot(dict_vals[COL_GLCM_HOMO])
+        plt.show()
+        plt.plot(dict_vals[COL_GLCM_ASM])
+        plt.show()
+        plt.plot(dict_vals[COL_GLCM_ENERGY])
+        plt.show()
+        plt.plot(dict_vals[COL_GLCM_MAXP])
+        plt.show()
+        plt.plot(dict_vals[COL_GLCM_ENTROPY])
+        plt.show()
     return dict_vals
-
-
-class Deep_Features_Model:
-    def __init__(self, base_model, input_shape):
-        self.base_model = base_model
-        self.input_shape = input_shape
-        input_tensor = K.Input(shape=self.input_shape)
-        self.base_model.layers[0] = input_tensor
-        self.deep_features = K.Model(inputs=self.base_model.input, outputs=[l.output for l in self.base_model.layers[1:]])
-
-    def get_deep_features(self, image, visu=False):
-        '''
-        get the feature space of an image propagated through the deep feature model
-        return a list of np array, each element of the list represent an output of a layer ,input layer is ignored
-        '''
-        #resize and normalize the image
-        if image.shape != self.input_shape:
-            image = cv2.resize(image, dsize=self.input_shape, interpolation=cv2.INTER_CUBIC)
-        image = (image - np.mean(image, axis=(0,1))) / np.std(image, axis=(0,1))
-        #make the prediction
-        pred = self.deep_features.predict(image[np.newaxis, ...])
-        if visu:
-            self.deep_features.summary()
-            for p in pred:
-                print(type(p))
-                print(p.shape)
-        return {DATA:pred, FORMAT:".npz", SAVING_DIR:"DeepFeatures_"+self.base_model.name,
-                COL_MODEL_NAME:self.base_model.name, NAME_COL_PATH:COL_PATH_DEEP_FEATURES}
-
-    def get_layers_sparseness(self, image, visu=False):
-        deep_features = self.get_deep_features(image, visu)[DATA]
-        sparseness=[get_gini(df[0])[COL_GINI_VALUE] for df in deep_features]
-        if visu: print(sparseness)
-        return {COL_SPARSENESS_DF:sparseness, COL_MODEL_NAME:self.base_model.name}
 
 
 def get_gini(array, visu=False):
@@ -202,17 +208,79 @@ def get_gini(array, visu=False):
     return {COL_GINI_VALUE: gini_val}
 
 
+class Deep_Features_Model:
+    def __init__(self, base_model, input_shape):
+        self.base_model = base_model
+        self.input_shape = input_shape
+        input_tensor = K.Input(shape=self.input_shape)
+        self.base_model.layers[0] = input_tensor
+        self.deep_features = K.Model(inputs=self.base_model.input, outputs=[l.output for l in self.base_model.layers[1:]])
+
+    def get_deep_features(self, image, visu=False):
+        '''
+        get the feature space of an image propagated through the deep feature model
+        return a list of np array, each element of the list represent an output of a layer ,input layer is ignored
+        '''
+        #resize and normalize the image
+        if image.shape != self.input_shape:
+            image = cv2.resize(image, dsize=self.input_shape, interpolation=cv2.INTER_CUBIC)
+        image = (image - np.mean(image, axis=(0,1))) / np.std(image, axis=(0,1))
+        #make the prediction
+        pred = self.deep_features.predict(image[np.newaxis, ...])
+        if visu:
+            self.deep_features.summary()
+            for p in pred:
+                print(type(p))
+                print(p.shape)
+        return {DATA:pred, FORMAT:".npz", SAVING_DIR:"DeepFeatures_"+self.base_model.name,
+                COL_MODEL_NAME:self.base_model.name, NAME_COL_PATH:COL_PATH_DEEP_FEATURES}
+
+    def get_layers_gini(self, image, visu=False):
+        deep_features = self.get_deep_features(image, visu)[DATA]
+        sparseness=[get_gini(df[0])[COL_GINI_VALUE] for df in deep_features]
+        if visu: print(sparseness)
+        return {COL_SPARSENESS_DF:sparseness, COL_MODEL_NAME:self.base_model.name}
+
+
+def get_gabor_filters(image, angles, frequencies, visu=False):
+    '''
+    produces a set of gabor filters and
+    angles is the angles of the gabor filters, given in degrees
+    return a map of the mean activation of each gabor filter
+    '''
+    image = rgb_2_darter(image)
+    image = image[:, :, 0] + image[:, :, 1]
+
+    assert image.ndim==2, "Should be a 2D array"
+    activation_map = np.empty(shape=[len(angles), len(frequencies)])
+    rad_angles = np.radians(angles)
+    for t, theta in enumerate(rad_angles):
+        for f, freq in enumerate(frequencies):
+            real, _ = gabor(image, freq, theta)
+            if visu:
+                plt.imshow(real, cmap="gray")
+                plt.title("gabor theta:{}  frequency:{}".format(t, f))
+                plt.colorbar()
+                plt.show()
+            activation_map[t, f] = np.mean(real)
+    if visu:
+        ax = sns.heatmap(activation_map, annot=True, center=1, xticklabels=frequencies, yticklabels=angles)
+        plt.show()
+    return {COL_GABOR_ANGLES:angles, COL_GABOR_FREQ:frequencies, COL_GABOR_VALUES:activation_map}
+
+
 if __name__=='__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("image", help="path of the image file to open")
     args = parser.parse_args()
     image = imageio.imread(os.path.abspath(args.image))
 
-    vgg_model_df = Deep_Features_Model(VGG16(weights='imagenet', include_top=False), (1536,512))
-    vgg_model_df.get_layers_sparseness(image, (1536,512), True)
-    get_FFT_slope(image, (10,110), 200, 1)
-    get_LBP(image, 8, 1, (1536,512), True)
-    get_statistical_features(image, visu=True)
-    get_GLCM(image, [1], [0, 45, 90, 135] )
-    get_Haralick_descriptors(image, [1], [0, 45, 90, 135] , visu=True)
-    get_gini(image)
+    # vgg_model_df = Deep_Features_Model(VGG16(weights='imagenet', include_top=False), (1536,512))
+    # vgg_model_df.get_layers_gini(image, (1536,512), True)
+    # get_FFT_slope(image, (10,110), 200, 1)
+    # get_LBP(image, 8, 1, (1536,512), True)
+    # get_statistical_features(image, visu=True)
+    # get_GLCM(image, [1], [0, 45, 90, 135] )
+    # get_Haralick_descriptors(image, [1], [0, 45, 90, 135] , visu=True)
+    # get_gini(image)
+    get_gabor_filters(image, [0,45,90,135], [0.2, 0.4, 0.8],visu=True)

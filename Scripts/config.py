@@ -5,7 +5,7 @@ file used to centralize the names and other parameters
 CSV_NAME="metrics_depth"
 
 ### DIRECTORY NAMES
-DIR_STYLIZED_FISHES=["All_layers", 
+DIR_STYLIZED_FISHES=["All_layers",
                     "Layers_1and2",
                     "Layers_3to5"]
 DIR_ORIGINAL_FISHES=["FISH_images"]
@@ -25,6 +25,8 @@ COL_LAYERS="layers"
 COL_FISH_SEX="sex"
 COL_FISH_NUMBER="fish_n"
 COL_SPECIES="species"
+COL_IMG_WIDTH="img_width"
+COL_IMG_HEIGHT="img_height"
 #fourrier slope
 COL_F_SLOPE="mean_slope_F"
 COL_F_N_SAMPLE="n_sample_F"
@@ -61,6 +63,11 @@ COL_GLCM_ANGLES="GLCM_angles"
 COL_GLCM_DIST="GLCM_dist"
 #GINI
 COL_GINI_VALUE="gini_coefficient"
+#GABOR
+COL_GABOR_ANGLES="gabor_angles"
+COL_GABOR_FREQ="gabor_frequencies"
+COL_GABOR_VALUES="gabor_values"
+
 
 ### keywords given by visual_metrics that are interpreted by run metrics
 DATA="data"

@@ -12,6 +12,7 @@ import cv2
 import csv
 import math
 import argparse
+from functools import partial
 from tensorflow.keras.applications.vgg16 import VGG16
 
 from pspec import get_pspec, rgb_2_darter
@@ -30,7 +31,9 @@ def load_info_from_filepath(file_path):
     '''
     long_head, filename = os.path.split(file_path)
     head, directory = os.path.split(long_head)
-    dict_info={COL_FILENAME:filename, COL_DIRECTORY:directory}
+    image = imageio.imread(img_path)
+    dict_info={COL_FILENAME:filename, COL_DIRECTORY:directory,
+        COL_IMG_HEIGHT:image.shape[0], COL_IMG_WIDTH:image.shape[1]}
 
     #if the directory contains stylized fishes
     if [p for p in DIR_STYLIZED_FISHES if p == directory]:
@@ -63,7 +66,7 @@ def load_info_from_filepath(file_path):
     return dict_info
 
 
-def work_metrics(row, *metrics):
+def work_metrics(row, preprocess, metrics):
     '''
     function called to perform the boring work of tidying the data to prepare its inclusion to the main dataframe
     call the metric given in parameter under the form (func, args, kwargs)
@@ -73,6 +76,7 @@ def work_metrics(row, *metrics):
     head, image_name = os.path.split(img_path)
     image_name, ext = os.path.splitext(image_name)
     image = imageio.imread(img_path)
+    image = preprocess(image)
     for (func, args, kwargs) in metrics:
         #call the metric
         dict_data = func(image, *args, **kwargs)
@@ -124,7 +128,7 @@ def get_files(main_path, max_depth, types_allowed, ignored_folders, only_endnode
     return data
 
 
-def main(input, metrics, recursivity, types_allowed, only_endnodes, ignored_folders, verbosity=1):
+def main(input, preprocess, metrics, recursivity, types_allowed, only_endnodes, ignored_folders, verbosity=1):
     '''
     create a csv file or load an existing one
     update the values in this csv by running new metrics
@@ -138,7 +142,7 @@ def main(input, metrics, recursivity, types_allowed, only_endnodes, ignored_fold
         if os.path.isdir(input): output = os.path.join(input, CSV_NAME+str(recursivity)+".csv")
         else: output = os.path.splitext(input)[0] + CSV_NAME + str(recursivity) + ".csv"
         #for each function add informations to the data
-    data = data.apply(work_metrics, 1, args=metrics)
+    data = data.apply(work_metrics, 1, args=[preprocess, metrics])
     #save the data
     data.to_csv(output, sep=',', index=True)
     print("DONE: CSV SAVED AT {}".format(output))
@@ -166,20 +170,24 @@ if __name__ == '__main__':
 
     FFT_RANGE=(10, 110) #110 pour des fenetres 200x200!!!
     GLCM_DISTANCES=[1]
-    GLCM_ANGLES=[0, 45, 90, 135]
+    ANGLES=[0, 45, 90, 135]
     RESIZED_IMG=(1536,512)
+    GABOR_FREQ=[0.2, 0.4, 0.8]
 
     vgg16_model = Deep_Features_Model( VGG16(weights='imagenet', include_top=False), (RESIZED_IMG))
+
+    preprocess = partial(preprocess_img, resize=None, to_darter=False, to_gray=False, normalize=False, standardize=False)
     metrics=[
-        (get_Haralick_descriptors, [GLCM_DISTANCES, GLCM_ANGLES], {"visu":args.verbosity>=2}),
-        # (get_GLCM, [GLCM_DISTANCES, GLCM_ANGLES], {}),
-        (get_FFT_slope, [FFT_RANGE, args.resize ,args.window_size], {"verbose":args.verbosity}),
-        # (vgg16_model.get_deep_features, [args.verbosity>=1], {}),
-        (get_statistical_features, [], {"visu":args.verbosity>=1}),
-        (get_LBP, [args.points, args.radius, RESIZED_IMG], {"visu":args.verbosity>=2}),
-        (vgg16_model.get_layers_sparseness, [args.verbosity>=2], {}),
-        (get_gini, [args.verbosity>=2], {})
+        # (get_Haralick_descriptors, [GLCM_DISTANCES, ANGLES], {"visu":args.verbosity>=2}),
+        # # (get_GLCM, [GLCM_DISTANCES, ANGLES], {}),
+        # (get_FFT_slope, [FFT_RANGE, args.resize ,args.window_size], {"verbose":args.verbosity}),
+        # # (vgg16_model.get_deep_features, [args.verbosity>=1], {}),
+        # (get_statistical_features, [], {"visu":args.verbosity>=1}),
+        # (get_LBP, [args.points, args.radius, RESIZED_IMG], {"visu":args.verbosity>=2}),
+        # (vgg16_model.get_layers_gini, [args.verbosity>=2], {}),
+        # (get_gini, [args.verbosity>=2], {}),
+        (get_gabor_filters, [ANGLES, GABOR_FREQ], {"visu":args.verbosity>=2})
         ]
 
-    d = main(args.input, metrics, 2, (".jpg",".png",".tif"), ignored_folders=[], only_endnodes=True, verbosity=args.verbosity)
+    d = main(args.input, preprocess, metrics, 2, (".jpg",".png",".tif"), ignored_folders=[], only_endnodes=True, verbosity=args.verbosity)
     print(d)
