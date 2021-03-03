@@ -12,6 +12,7 @@ import numpy as np
 import cv2
 import tensorflow.keras as K
 from tensorflow.keras.applications.vgg16 import VGG16
+from sklearn.decomposition import PCA
 
 from pspec import rgb_2_darter, get_pspec
 from config import *
@@ -269,6 +270,27 @@ def get_gabor_filters(image, angles, frequencies, visu=False):
     return {COL_GABOR_ANGLES:angles, COL_GABOR_FREQ:frequencies, COL_GABOR_VALUES:activation_map}
 
 
+def get_color_ratio(image, visu=False):
+    '''
+    return the color ratio slope between the two color channel
+    '''
+    image = rgb_2_darter(image)
+    size_sample = np.min([image.shape[0]*image.shape[1], 1000])
+    selection = np.random.choice(np.arange(size_sample), size=size_sample, replace=False)
+    X = image[..., 0].flatten()[selection]
+    Y = image[..., 1].flatten()[selection]
+
+    slope, b = np.polyfit(X, Y, 1)
+    print(slope, b)
+    if visu:
+        x=np.arange(0, np.max(X), 16)
+        y=slope*x+b
+        plt.plot(x, y)
+        plt.scatter(X, Y)
+        plt.show()
+    return {COL_COLOR_RATIO:slope}
+
+
 if __name__=='__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("image", help="path of the image file to open")
@@ -283,4 +305,5 @@ if __name__=='__main__':
     # get_GLCM(image, [1], [0, 45, 90, 135] )
     # get_Haralick_descriptors(image, [1], [0, 45, 90, 135] , visu=True)
     # get_gini(image)
-    get_gabor_filters(image, [0,45,90,135], [0.2, 0.4, 0.8],visu=True)
+    # get_gabor_filters(image, [0,45,90,135], [0.2, 0.4, 0.8],visu=True)
+    get_color_ratio(image, True)

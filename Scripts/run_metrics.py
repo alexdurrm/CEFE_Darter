@@ -31,7 +31,7 @@ def load_info_from_filepath(file_path):
     '''
     long_head, filename = os.path.split(file_path)
     head, directory = os.path.split(long_head)
-    image = imageio.imread(img_path)
+    image = imageio.imread(file_path)
     dict_info={COL_FILENAME:filename, COL_DIRECTORY:directory,
         COL_IMG_HEIGHT:image.shape[0], COL_IMG_WIDTH:image.shape[1]}
 
@@ -136,15 +136,15 @@ def main(input, preprocess, metrics, recursivity, types_allowed, only_endnodes, 
     '''
     if input.endswith(".csv"):  #load the csv file if there is one
         data = pd.read_csv(input, index_col=0)
-        output = input
+        output = os.path.splitext(input)[0]
     else:   #else create it by parcouring the files
         data = get_files(input, recursivity, types_allowed, ignored_folders, only_endnodes, verbosity>=1)
-        if os.path.isdir(input): output = os.path.join(input, CSV_NAME+str(recursivity)+".csv")
-        else: output = os.path.splitext(input)[0] + CSV_NAME + str(recursivity) + ".csv"
+        if os.path.isdir(input): output = os.path.join(input, CSV_NAME+str(recursivity))
+        else: output = os.path.splitext(input)[0] + CSV_NAME + str(recursivity)
         #for each function add informations to the data
     data = data.apply(work_metrics, 1, args=[preprocess, metrics])
     #save the data
-    data.to_csv(output, sep=',', index=True)
+    data.to_csv(output+".csv", sep=',', index=True)
     print("DONE: CSV SAVED AT {}".format(output))
     return data
 
@@ -186,7 +186,8 @@ if __name__ == '__main__':
         # (get_LBP, [args.points, args.radius, RESIZED_IMG], {"visu":args.verbosity>=2}),
         # (vgg16_model.get_layers_gini, [args.verbosity>=2], {}),
         # (get_gini, [args.verbosity>=2], {}),
-        (get_gabor_filters, [ANGLES, GABOR_FREQ], {"visu":args.verbosity>=2})
+        # (get_gabor_filters, [ANGLES, GABOR_FREQ], {"visu":args.verbosity>=2}),
+        (get_color_ratio, [], {"visu":args.verbosity>=2})
         ]
 
     d = main(args.input, preprocess, metrics, 2, (".jpg",".png",".tif"), ignored_folders=[], only_endnodes=True, verbosity=args.verbosity)

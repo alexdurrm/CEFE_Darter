@@ -69,7 +69,8 @@ COL_GINI_VALUE="gini_coefficient"
 COL_GABOR_ANGLES="gabor_angles"
 COL_GABOR_FREQ="gabor_frequencies"
 COL_GABOR_VALUES="gabor_values"
-
+#COLOR
+COL_COLOR_RATIO="color_ratio"
 
 ### keywords given by visual_metrics that are interpreted by run metrics
 DATA="data"
