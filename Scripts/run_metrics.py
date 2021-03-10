@@ -19,6 +19,7 @@ from pspec import get_pspec, rgb_2_darter
 from config import *
 from visual_metrics import *
 
+
 ###############################################################
 ### File used to calculate metrics and save them in a csv file
 ###############################################################
@@ -31,9 +32,10 @@ def load_info_from_filepath(file_path):
     '''
     long_head, filename = os.path.split(file_path)
     head, directory = os.path.split(long_head)
+    _, ext = os.path.splitext(filename)
     image = imageio.imread(file_path)
     dict_info={COL_FILENAME:filename, COL_DIRECTORY:directory,
-        COL_IMG_HEIGHT:image.shape[0], COL_IMG_WIDTH:image.shape[1]}
+        COL_IMG_HEIGHT:image.shape[0], COL_IMG_WIDTH:image.shape[1], COL_IMG_EXT:ext}
 
     #if the directory contains stylized fishes
     if [p for p in DIR_STYLIZED_FISHES if p == directory]:
@@ -66,7 +68,7 @@ def load_info_from_filepath(file_path):
     return dict_info
 
 
-def work_metrics(row, preprocess, metrics):
+def store_metrics(row, preprocess, metrics):
     '''
     function called to perform the boring work of tidying the data to prepare its inclusion to the main dataframe
     call the metric given in parameter under the form (func, args, kwargs)
@@ -108,7 +110,7 @@ def work_metrics(row, preprocess, metrics):
 
 def get_files(main_path, max_depth, types_allowed, ignored_folders, only_endnodes, visu=False):
     '''
-    initiate a csv file with minimum values in it
+    initiate a dataframe with minimum values in it
     max_depth is the depth of the search: 0 is for a file, 1 is to search one directory, 2 is dir and subdirs...
     only_endnodes is whether or not to ignore files that are not located at the endnode of the directory tree
     ignored_folders is a list of folders to ignore
@@ -142,7 +144,7 @@ def main(input, preprocess, metrics, recursivity, types_allowed, only_endnodes, 
         if os.path.isdir(input): output = os.path.join(input, CSV_NAME+str(recursivity))
         else: output = os.path.splitext(input)[0] + CSV_NAME + str(recursivity)
         #for each function add informations to the data
-    data = data.apply(work_metrics, 1, args=[preprocess, metrics])
+    data = data.apply(store_metrics, 1, args=[preprocess, metrics])
     #save the data
     data.to_csv(output+".csv", sep=',', index=True)
     print("DONE: CSV SAVED AT {}".format(output))
@@ -176,18 +178,19 @@ if __name__ == '__main__':
 
     vgg16_model = Deep_Features_Model( VGG16(weights='imagenet', include_top=False), (RESIZED_IMG))
 
-    preprocess = partial(preprocess_img, resize=None, to_darter=False, to_gray=False, normalize=False, standardize=False)
+    preprocess = partial(preprocess_img, resize=RESIZED_IMG, to_darter=False, to_gray=False, normalize=False, standardize=False)
     metrics=[
         # (get_Haralick_descriptors, [GLCM_DISTANCES, ANGLES], {"visu":args.verbosity>=2}),
         # # (get_GLCM, [GLCM_DISTANCES, ANGLES], {}),
-        # (get_FFT_slope, [FFT_RANGE, args.resize ,args.window_size], {"verbose":args.verbosity}),
+        (get_FFT_slope, [FFT_RANGE, args.resize ,args.window_size], {"verbose":args.verbosity}),
         # # (vgg16_model.get_deep_features, [args.verbosity>=1], {}),
-        # (get_statistical_features, [], {"visu":args.verbosity>=1}),
-        # (get_LBP, [args.points, args.radius, RESIZED_IMG], {"visu":args.verbosity>=2}),
-        # (vgg16_model.get_layers_gini, [args.verbosity>=2], {}),
-        # (get_gini, [args.verbosity>=2], {}),
-        # (get_gabor_filters, [ANGLES, GABOR_FREQ], {"visu":args.verbosity>=2}),
-        (get_color_ratio, [], {"visu":args.verbosity>=2})
+        (get_statistical_features, [], {"visu":args.verbosity>=1}),
+        # (get_LBP, [args.points, args.radius], {"visu":args.verbosity>=2}),
+        (vgg16_model.get_layers_gini, [args.verbosity>=2], {}),
+        (get_gini, [args.verbosity>=2], {}),
+        #(get_gabor_filters, [ANGLES, GABOR_FREQ], {"visu":args.verbosity>=2}),
+        (get_color_ratio, [], {"visu":args.verbosity>=2}),
+        (get_PHOG, [], {"visu":args.verbosity>=2})
         ]
 
     d = main(args.input, preprocess, metrics, 2, (".jpg",".png",".tif"), ignored_folders=[], only_endnodes=True, verbosity=args.verbosity)

@@ -12,7 +12,6 @@ import numpy as np
 import cv2
 import tensorflow.keras as K
 from tensorflow.keras.applications.vgg16 import VGG16
-from sklearn.decomposition import PCA
 
 from pspec import rgb_2_darter, get_pspec
 from config import *
@@ -35,7 +34,7 @@ def preprocess_img(image, resize=None, to_darter=False, to_gray=False, normalize
     return image
 
 
-def get_LBP(image, P, R, resize=None, visu=False):
+def get_LBP(image, P, R, visu=False):
     '''
     calculates the Local Binary Pattern of a given image
     P is the number of neighbors points to use
@@ -46,8 +45,6 @@ def get_LBP(image, P, R, resize=None, visu=False):
     assert image.ndim==3, "image should be 3 dimensions: H,W,C"
     image = rgb_2_darter(image)
     image = image[:, :, 0] + image[:, :, 1]
-    if resize:
-        image = cv2.resize(image, dsize=resize, interpolation=cv2.INTER_CUBIC)
 
     lbp_image = local_binary_pattern(image, P, R)
     if visu:
@@ -62,6 +59,7 @@ def get_LBP(image, P, R, resize=None, visu=False):
         ax2.hist(lbp_image.flatten(), bins=P)
         ax2.set_title("lbp values histogram")
         plt.show()
+        
     return {DATA: lbp_image, FORMAT:".npy", SAVING_DIR:"LBP_P{}_R{}".format(P,R), NAME_COL_PATH:COL_PATH_LBP,
             COL_RADIUS_LBP:R ,COL_POINTS_LBP:P }
 
@@ -94,7 +92,7 @@ def get_FFT_slope(image, fft_range, resize, sample_dim, verbose=1):
     '''
     if resize:
         resize_ratio = sample_dim/np.min(image.shape[0:2])
-        new_x, new_y = (int(round(resize_ratio*dim)) for dim in image.shape[0:2])
+        new_x, new_y = (round(resize_ratio*dim) for dim in image.shape[0:2])
         if verbose>=1:
             print("Resizing image from {}x{} to {}x{}".format(
                 image.shape[0], image.shape[1], new_x, new_y ))
@@ -109,7 +107,7 @@ def get_FFT_slope(image, fft_range, resize, sample_dim, verbose=1):
         for start_y in range(0, image.shape[1]-sample_dim+1, stride):
             tot_samples+=1
             sample = image[start_x: start_x+sample_dim, start_y: start_y + sample_dim]
-            slopes.append( get_pspec(sample, bin_range=fft_range, visu=verbose>=2) )
+            slopes.append( get_pspec(sample, bin_range=fft_range, visu=verbose>=2) )    
     if verbose>=1: print("mean slope on {} samples: {}".format(tot_samples, np.mean(slopes)))
     return {COL_F_SLOPE:np.mean(slopes), COL_F_N_SAMPLE:tot_samples, COL_F_WIN_SIZE:sample_dim, COL_FFT_RANGE:fft_range}
 
@@ -222,9 +220,6 @@ class Deep_Features_Model:
         get the feature space of an image propagated through the deep feature model
         return a list of np array, each element of the list represent an output of a layer ,input layer is ignored
         '''
-        #resize and normalize the image
-        if image.shape != self.input_shape:
-            image = cv2.resize(image, dsize=self.input_shape, interpolation=cv2.INTER_CUBIC)
         image = (image - np.mean(image, axis=(0,1))) / np.std(image, axis=(0,1))
         #make the prediction
         pred = self.deep_features.predict(image[np.newaxis, ...])
@@ -291,6 +286,13 @@ def get_color_ratio(image, visu=False):
     return {COL_COLOR_RATIO:slope}
 
 
+def get_PHOG(image, bin=8, angle=360, Level=3, visu=False):
+    roi = [1,image.shape[0]-1,1,image.shape[1]-1]
+    p = anna_phog(image, bin, angle, Level, roi)
+    print("P: \n{}".format(p))
+    print(len(p), type(p))
+
+
 if __name__=='__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("image", help="path of the image file to open")
@@ -306,4 +308,6 @@ if __name__=='__main__':
     # get_Haralick_descriptors(image, [1], [0, 45, 90, 135] , visu=True)
     # get_gini(image)
     # get_gabor_filters(image, [0,45,90,135], [0.2, 0.4, 0.8],visu=True)
-    get_color_ratio(image, True)
+    # get_color_ratio(image, True)
+    
+

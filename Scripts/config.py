@@ -29,6 +29,7 @@ COL_FISH_NUMBER="fish_n"
 COL_SPECIES="species"
 COL_IMG_WIDTH="img_width"
 COL_IMG_HEIGHT="img_height"
+COL_IMG_EXT="image_exension"
 #fourrier slope
 COL_F_SLOPE="mean_slope_F"
 COL_F_N_SAMPLE="n_sample_F"

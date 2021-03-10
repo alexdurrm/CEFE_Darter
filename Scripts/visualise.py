@@ -12,11 +12,10 @@ import imageio
 from config import *
 
 
-def fourier_per_folder(filepath):
+def fourier_per_folder(data):
     '''
     used to plot the violin graph the fourier slopes categorized per folder
     '''
-    data = pd.read_csv(filepath, sep=',')
     matplotlib.rcParams['font.family'] = 'serif'
     plt.rcParams['font.size'] = 16
     matplotlib.rcParams['axes.linewidth'] = 2
@@ -36,22 +35,11 @@ def fourier_per_folder(filepath):
     plt.show()
 
 
-def transfer_effect_slope(filepath):
+def group_by_experiment(data):
     '''
-    used to compare the slopes of fish, environment, and different modified fishes
-    to measure the effects after a style transfer
+    group data by experiments, each experiment consisting of a group (FISH, HABITAT, OUTPUT_NETWORK...)
     '''
-    data = pd.read_csv(filepath, sep=',')
-
-    #plot a naive but complete scatter of the fourier slopes
-    plt.scatter(data[COL_DIRECTORY], data[COL_F_SLOPE])
-    plt.title("mean Fourrier slope of each images per folder")
-    plt.show()
-
-    # split the data in databases for the middle, the fishes, the network predictions
-    # and rename the column name F_slope to a more appropriate value
-    slope_names=["HABITAT_images","FISH_images","All_layers",
-                "Layers_1and2","Layers_3to5"]
+    slope_names=["HABITAT_images","FISH_images","All_layers", "Layers_1and2","Layers_3to5"]
 
     middles = data.loc[data[COL_DIRECTORY] == slope_names[0]][[COL_HABITAT, COL_F_SLOPE]]
     middles = middles.rename(columns={COL_F_SLOPE: slope_names[0]})
@@ -73,6 +61,26 @@ def transfer_effect_slope(filepath):
     exp = exp.merge(layers3_5, on=[COL_FISH_NUMBER,COL_HABITAT,COL_COLOR_CONTROL], how="outer")
     exp = exp.merge(middles, on=[COL_HABITAT], how="outer")
     exp = exp.merge(fishes, on=[COL_FISH_NUMBER], how="outer")
+    return exp
+
+
+def transfer_effect_slope(data):
+    '''
+    used to compare the slopes of fish, environment, and different modified fishes
+    to measure the effects after a style transfer
+    '''
+
+    #plot a naive but complete scatter of the fourier slopes
+    plt.scatter(data[COL_DIRECTORY], data[COL_F_SLOPE])
+    plt.title("mean Fourrier slope of each images per folder")
+    plt.show()
+
+    # split the data in databases for the middle, the fishes, the network predictions
+    # and rename the column name F_slope to a more appropriate value
+    slope_names=["HABITAT_images","FISH_images","All_layers",
+                "Layers_1and2","Layers_3to5"]
+
+    exp = group_by_experiment(data)
 
     # split the experiments between controlled and uncontrolled color
     Y_controled=exp.loc[exp[COL_COLOR_CONTROL]=="ON"]
@@ -109,11 +117,10 @@ def transfer_effect_slope(filepath):
         plt.show()
 
 
-def publication_plot(filepath):
+def publication_plot(data):
     '''
     reproduces the plot seen in the Hulse nature paper
     '''
-    data = pd.read_csv(filepath, sep=',')
     matplotlib.rcParams['font.family'] = 'serif'
     plt.rcParams['font.size'] = 16
     matplotlib.rcParams['axes.linewidth'] = 2
@@ -131,11 +138,10 @@ def publication_plot(filepath):
     plt.show()
 
 
-def LBP_hist_per_folder(filepath):
+def LBP_hist_per_folder(data):
     '''
     Compare the mean local binary patterns histograms for each of the folders
     '''
-    data = pd.read_csv(filepath, sep=',')
 
     split_by = [COL_COLOR_CONTROL, COL_DIRECTORY]
     params_lbp = [COL_RADIUS_LBP, COL_POINTS_LBP]
@@ -173,7 +179,7 @@ def LBP_hist_per_folder(filepath):
         col+=1
 
 
-def Haralick_compare_folders(filepath):
+def Haralick_compare_folders(data):
     '''
     for each descriptor value draw a swarmplot of each folder
     '''
@@ -181,7 +187,6 @@ def Haralick_compare_folders(filepath):
     COL_GLCM_DISSIMIL, COL_GLCM_HOMO, COL_GLCM_ASM, COL_GLCM_ENERGY,
     COL_GLCM_MAXP, COL_GLCM_ENTROPY]
 
-    data = pd.read_csv(filepath, sep=',')
 
     matplotlib.rcParams['font.family'] = 'serif'
     plt.rcParams['font.size'] = 16
@@ -201,11 +206,10 @@ def Haralick_compare_folders(filepath):
         plt.show()
 
 
-def Gini_compare_folders(filepath):
+def Gini_compare_folders(data):
     '''
     compare the gini values of each images
     '''
-    data = pd.read_csv(filepath, sep=',')
 
     matplotlib.rcParams['font.family'] = 'serif'
     plt.rcParams['font.size'] = 16
@@ -213,41 +217,66 @@ def Gini_compare_folders(filepath):
     sns.set_palette(sns.color_palette(FLAT_UI))
 
     ax = sns.catplot(x=COL_DIRECTORY, y=COL_GINI_VALUE, data=data)
-
     ax.set_ylabels(COL_GINI_VALUE)
     ax.set_yticklabels(fontstyle='italic')
     plt.xticks(rotation=45)
     plt.title("GINI value")
     plt.show()
 
+    ax = sns.catplot(x=COL_DIRECTORY, y=COL_GINI_VALUE, data=data, hue=COL_HABITAT)
+    plt.xticks(rotation=45)
+    plt.show()
 
-def Stat_compare_folders(filepath):
+
+
+def Stat_compare_folders(data):
     '''
     for each statistical value compare the folders
     '''
     stats = [COL_STAT_MEAN, COL_STAT_STD, COL_STAT_SKEW, COL_STAT_KURT, COL_STAT_ENTROPY]
-    data = pd.read_csv(filepath, sep=',')
 
     matplotlib.rcParams['font.family'] = 'serif'
     plt.rcParams['font.size'] = 16
     matplotlib.rcParams['axes.linewidth'] = 2
     sns.set_palette(sns.color_palette(FLAT_UI))
-
+    
     for stat in stats:
         ax = sns.catplot(x=COL_DIRECTORY, y=stat, data=data)
-
         ax.set_ylabels(stat)
         ax.set_yticklabels(fontstyle='italic')
         plt.xticks(rotation=45)
         plt.title("statistical descriptors")
         plt.show()
 
+        ax = sns.catplot(x=COL_DIRECTORY, y=stat, data=data, hue=COL_HABITAT)
+        ax.set_ylabels(stat)
+        plt.xticks(rotation=45)
+        plt.show()
+
+
+def network_sparseness(data):
+    '''
+    plot for each image the gini coefficient of each network layer
+    '''
+    df = pd.DataFrame()
+    x=0
+    for i, row in data.iterrows():
+        ginis = eval(row[COL_SPARSENESS_DF])
+        layers= ["layer_"+str(x) for x in range(len(ginis))]
+        for j in range(len(ginis)):
+            df.loc[x, ['layer_network', COL_SPARSENESS_DF, COL_DIRECTORY, COL_FILENAME]] = [j, ginis[j], row[COL_DIRECTORY], row[COL_FILENAME]]
+            x+=1
+    sns.relplot(data=df, x='layer_network', y=COL_SPARSENESS_DF, hue=COL_DIRECTORY, units=COL_FILENAME, kind="line", estimator=None, alpha=0.5)
+    plt.show()
+    print(df)
+    
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("function", help="name of the function to use", choices=["fourier_per_folder", "transfer_effect_slope", "publication_plot",
-        "LBP_hist_per_folder", "Haralick_compare_folders", "Gini_compare_folders", "Stat_compare_folders"])
+        "LBP_hist_per_folder", "Haralick_compare_folders", "Gini_compare_folders", "Stat_compare_folders", "network_sparseness"])
     parser.add_argument("input_file", help="the path of the csv to open")
     args = parser.parse_args()
-
-    globals()[args.function](args.input_file)
+    
+    data = pd.read_csv(args.input_file, sep=',')
+    globals()[args.function](data)
