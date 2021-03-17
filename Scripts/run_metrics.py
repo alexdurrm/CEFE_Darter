@@ -156,42 +156,32 @@ if __name__ == '__main__':
     parser.add_argument("input", help="the path of the main directory containing the subdirs or the path of the csv to use.")
     parser.add_argument("-v", "--verbosity", type=int, choices=[0, 1, 2], default=1,
                     help="increase output verbosity, default is 1.")
-                    ####   ARGUMENTS FOR FOURIER SLOPE   ###
-    parser.add_argument("-s", "--window_size", default=512, type=int,
-                    help="Size of the square window, default 512")
-    parser.add_argument('--no-resize', dest='resize', action='store_false',
-                    help="add this argument to prevent resize, default resize the image to fit the window crop.")
-    parser.set_defaults(auto_window=False)
-    parser.set_defaults(resize=True)
-                    ####   ARGUMENTS FOR LBP   ###
-    parser.add_argument("-r", "--radius", default=1, type=int,
-                    help="radius of the circle. Default 1.")
-    parser.add_argument("-p", "--points", default=8, type=int,
-                    help="Number of points on the circle. Default 8.")
+    parser.add_argument("-d", "--depth", type=int, choices=[0, 1, 2, 3], default=2,
+                    help="depth of the path searched, 0 is image, 1 is folder, 2:subfolders... not used if input is a csv file")
     args = parser.parse_args()
 
-    FFT_RANGE=(10, 110) #110 pour des fenetres 200x200!!!
-    GLCM_DISTANCES=[1]
-    ANGLES=[0, 45, 90, 135]
-    RESIZED_IMG=(1536,512)
-    GABOR_FREQ=[0.2, 0.4, 0.8]
+    # FFT_RANGE=(10, 110) #110 pour des fenetres 200x200!!!
+    # GLCM_DISTANCES=[1]
+    # ANGLES=[0, 45, 90, 135]
+    # RESIZED_IMG=(1536,512)
+    # GABOR_FREQ=[0.2, 0.4, 0.8]
 
-    vgg16_model = Deep_Features_Model( VGG16(weights='imagenet', include_top=False), (RESIZED_IMG))
+    # vgg16_model = Deep_Features_Model( VGG16(weights='imagenet', include_top=False), (RESIZED_IMG))
 
     preprocess = partial(preprocess_img, resize=RESIZED_IMG, to_darter=False, to_gray=False, normalize=False, standardize=False)
     metrics=[
         # (get_Haralick_descriptors, [GLCM_DISTANCES, ANGLES], {"visu":args.verbosity>=2}),
         # # (get_GLCM, [GLCM_DISTANCES, ANGLES], {}),
-        (get_FFT_slope, [FFT_RANGE, args.resize ,args.window_size], {"verbose":args.verbosity}),
+        # (get_FFT_slope, [FFT_RANGE, args.resize ,args.window_size], {"verbose":args.verbosity}),
         # # (vgg16_model.get_deep_features, [args.verbosity>=1], {}),
-        (get_statistical_features, [], {"visu":args.verbosity>=1}),
-        # (get_LBP, [args.points, args.radius], {"visu":args.verbosity>=2}),
-        (vgg16_model.get_layers_gini, [args.verbosity>=2], {}),
-        (get_gini, [args.verbosity>=2], {}),
-        #(get_gabor_filters, [ANGLES, GABOR_FREQ], {"visu":args.verbosity>=2}),
-        (get_color_ratio, [], {"visu":args.verbosity>=2}),
+        # (get_statistical_features, [], {"visu":args.verbosity>=1}),
+        # (get_LBP, [args.points, args.radius, RESIZED_IMG], {"visu":args.verbosity>=2}),
+        # (vgg16_model.get_layers_gini, [args.verbosity>=2], {}),
+        # (get_gini, [args.verbosity>=2], {}),
+        # (get_gabor_filters, [ANGLES, GABOR_FREQ], {"visu":args.verbosity>=2}),
+        # (get_color_ratio, [], {"visu":args.verbosity>=2}),
         (get_PHOG, [], {"visu":args.verbosity>=2})
         ]
 
-    d = main(args.input, preprocess, metrics, 2, (".jpg",".png",".tif"), ignored_folders=[], only_endnodes=True, verbosity=args.verbosity)
+    d = main(args.input, preprocess, metrics, args.depth, (".jpg",".png",".tif"), ignored_folders=[], only_endnodes=True, verbosity=args.verbosity)
     print(d)
