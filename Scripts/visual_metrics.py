@@ -1,4 +1,4 @@
-from skimage.feature import local_binary_pattern, greycomatrix, greycoprops, hog
+from skimage.feature import local_binary_pattern, greycomatrix, greycoprops
 from skimage.filters import gabor
 import skimage
 from scipy.stats import skew, kurtosis, entropy
@@ -13,6 +13,7 @@ import cv2
 import tensorflow.keras as K
 from tensorflow.keras.applications.vgg16 import VGG16
 from sklearn.decomposition import PCA
+from PHOG.anna_phog import anna_phog
 
 from pspec import rgb_2_darter, get_pspec
 from config import *
@@ -291,6 +292,19 @@ def get_color_ratio(image, visu=False):
     return {COL_COLOR_RATIO:slope}
 
 
+def get_PHOG(image, orientations=8, level=0, visu=False):
+    '''
+    return the pyramidal histogram oriented graph
+    '''
+    roi = [0, image.shape[0], 0, image.shape[1]]
+    phog = anna_phog(image, orientations, 360, level, roi)
+    if visu:
+        plt.bar(range(phog.shape[0]), phog)
+        plt.show()
+    return {COL_PHOG_LEVELS:level, COL_PHOG_BINS:orientations,
+        DATA:phog, FORMAT:".npy", SAVING_DIR:"PHOG", NAME_COL_PATH:COL_PATH_PHOG}
+
+
 if __name__=='__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("image", help="path of the image file to open")
@@ -306,4 +320,5 @@ if __name__=='__main__':
     # get_Haralick_descriptors(image, [1], [0, 45, 90, 135] , visu=True)
     # get_gini(image)
     # get_gabor_filters(image, [0,45,90,135], [0.2, 0.4, 0.8],visu=True)
-    get_color_ratio(image, True)
+    #get_color_ratio(image, True)
+    print(get_PHOG(image, 40, 2))

@@ -71,6 +71,10 @@ COL_GABOR_FREQ="gabor_frequencies"
 COL_GABOR_VALUES="gabor_values"
 #COLOR
 COL_COLOR_RATIO="color_ratio"
+#PHOG
+COL_PHOG_LEVELS="phog_level"
+COL_PHOG_BINS="phog_bins"
+COL_PATH_PHOG="path_phog"
 
 ### keywords given by visual_metrics that are interpreted by run metrics
 DATA="data"
