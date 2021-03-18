@@ -16,7 +16,7 @@ DIR_IGNORED=[]
 
 
 ### COLUMN NAMES FOR THE CSV FILE
-COL_INDEX="filepath"
+COL_IMG_PATH="Image_path"
 COL_FILENAME="filename"
 COL_TYPE="type"
 COL_DIRECTORY="folder"
@@ -30,27 +30,13 @@ COL_SPECIES="species"
 COL_IMG_WIDTH="img_width"
 COL_IMG_HEIGHT="img_height"
 COL_IMG_EXT="image_exension"
-#fourrier slope
-COL_F_SLOPE="mean_slope_F"
-COL_F_N_SAMPLE="n_sample_F"
-COL_F_WIN_SIZE="window_size_F"
-COL_F_RESIZE="resize_F"
-COL_FFT_RANGE="fft_range"
+
 #local binary Pattern
 COL_PATH_LBP="path_LBP"
 COL_RADIUS_LBP="radius_LBP"
 COL_POINTS_LBP="points_LBP"
 COL_RESIZE_LBP="resize_LBP"
-#statistical values
-COL_STAT_MEAN="mean_stat"
-COL_STAT_STD="std_stat"
-COL_STAT_SKEW="skewness_stat"
-COL_STAT_KURT="kurtosis_stat"
-COL_STAT_ENTROPY="entropy_stat"
-#deep features
-COL_MODEL_NAME="model_name_deep_features"
-COL_PATH_DEEP_FEATURES="path_deep_features"
-COL_SPARSENESS_DF="sparseness_deep_features"
+
 #GLCM
 COL_GLCM_MEAN="GLCM_mean"
 COL_GLCM_VAR="GLCM_variance"
@@ -64,18 +50,17 @@ COL_GLCM_MAXP="GLCM_max_proba"
 COL_GLCM_ENTROPY="GLCM_entropy"
 COL_GLCM_ANGLES="GLCM_angles"
 COL_GLCM_DIST="GLCM_dist"
-#GINI
-COL_GINI_VALUE="gini_coefficient"
+
 #GABOR
 COL_GABOR_ANGLES="gabor_angles"
 COL_GABOR_FREQ="gabor_frequencies"
 COL_GABOR_VALUES="gabor_values"
-#COLOR
-COL_COLOR_RATIO="color_ratio"
+
 #PHOG
 COL_PHOG_LEVELS="phog_level"
 COL_PHOG_BINS="phog_bins"
 COL_PATH_PHOG="path_phog"
+
 
 ### keywords given by visual_metrics that are interpreted by run metrics
 DATA="data"
