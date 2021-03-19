@@ -6,7 +6,7 @@ from Preprocess import *
 
 class MotherMetric:
     '''
-    Parent class for each metric
+    Parent class for each metric, takes care of the data processing
     '''
     def __init__(self, preprocess=None):
         if preprocess:

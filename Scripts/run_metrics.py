@@ -1,29 +1,17 @@
 import numpy as np
-from numpy.fft import fft2, fftshift
 import pandas as pd
 import imageio
 import os
-import sys
-import matplotlib
-from matplotlib import pyplot as plt
-import matplotlib.font_manager as font_manager
-import seaborn as sns
-import cv2
-import csv
-import math
 import argparse
 from functools import partial
 from tensorflow.keras.applications.vgg16 import VGG16
 
-from pspec import get_pspec, rgb_2_darter
 from config import *
-from visual_metrics import *
 
 
 ###############################################################
 ### File used to calculate metrics and save them in a csv file
 ###############################################################
-
 
 def load_info_from_filepath(file_path):
     '''

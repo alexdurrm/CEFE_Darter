@@ -16,7 +16,7 @@ COL_MODEL_NAME="model_name_deep_features"
 COL_PATH_DEEP_FEATURES="path_deep_features"
 COL_SPARSENESS_DF="sparseness_deep_features"
 COL_LAYER_DF="layer_deep_feature"
-class DeepFeaturesModel(MotherMetric):
+class DeepFeatureMetrics(MotherMetric):
     def __init__(self, base_model, input_shape, preprocess=None):
         self.base_model = base_model
         self.input_shape = input_shape
@@ -65,10 +65,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     pr = Preprocess(resize=(1500, 512), normalize=True)
-    vgg16_model = DeepFeaturesModel( VGG16(weights='imagenet', include_top=False), (1500, 512), pr)
+    vgg16_model = DeepFeatureMetrics( VGG16(weights='imagenet', include_top=False), (1500, 512), pr)
     d = vgg16_model(args.image)
     print(d)
     
-    vgg16_model = DeepFeaturesModel( VGG16(weights='imagenet', include_top=False), (1500, 512))
+    vgg16_model = DeepFeatureMetrics( VGG16(weights='imagenet', include_top=False), (1500, 512))
     d = vgg16_model(args.image)
     print(d)

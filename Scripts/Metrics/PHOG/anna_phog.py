@@ -26,19 +26,16 @@ def anna_phog(Img, bin, angle, L, roi):
     OUT:
         p - pyramid histogram of oriented gradients
     '''
-    if Img.shape[2] == 3:
-        G = cv2.cvtColor(Img, cv2.COLOR_BGR2GRAY)
-    else:
-        G = Img
+    assert Img.ndim==2, "Image should be 2D , here {}".format(Img.shape)
 
-    if np.sum(G) > 100:
+    if np.sum(Img) > 100:
         # apply automatic Canny edge detection using the computed median
         sigma = 0.33
-        v = np.median(G)
+        v = np.median(Img)
         lower = int(max(0, (1.0 - sigma) * v))
         upper = int(min(255, (1.0 + sigma) * v))
-        E = cv2.Canny(G,lower,upper) #high and low treshold
-        GradientX, GradientY = np.gradient(G)
+        E = cv2.Canny(Img,lower,upper) #high and low treshold
+        GradientX, GradientY = np.gradient(Img)
         GradientYY = np.gradient(GradientY, axis=1)
 
         Gr = np.sqrt(np.square(GradientX)+np.square(GradientY))
@@ -130,7 +127,6 @@ def anna_PhogDescriptor(bh,bv,L,bin):
         y = int(np.trunc(bh.shape[0]/(2**l)))
         for xx in range(0, bh.shape[1]-x+1, x):
             for yy in range(0, bh.shape[0]-y+1, y):
-                print(l)
                 bh_cella = bh[yy:yy+y, xx:xx+x]
                 bv_cella = bv[yy:yy+y, xx:xx+x]
 

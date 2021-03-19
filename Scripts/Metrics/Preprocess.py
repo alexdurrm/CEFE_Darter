@@ -5,7 +5,7 @@ import argparse
 import imageio
 from enum import Enum
 
-from pspec import rgb_2_darter
+from FourierAnalysisMaster.pspec import rgb_2_darter
 
 
 #PREPROCESSING
@@ -30,9 +30,14 @@ class CHANNEL(Enum):
 
 
 class Preprocess:
+    '''
+    A preprocess is a class that consistently preproces images the same way, 
+    it stores the preprocessed image so that we can fetch it multiple times without reprocess everytime
+    it also stores the parameters used to preprocess the image
+    '''
     def __init__(self, resize=None, normalize=False, standardize=False, img_type=IMG.RGB, img_channel=CHANNEL.ALL):
         '''
-        initialize a preprocess
+        initialise a process 
         '''
         self.normalize = normalize
         self.standardize = standardize
@@ -42,8 +47,8 @@ class Preprocess:
         
         self.image=None
         
-        resizeX = self.resize[0] if self.resize else None
-        resizeY = self.resize[1] if self.resize else None
+        resizeX = resize[0] if resize else None
+        resizeY = resize[1] if resize else None
         self.df_parameters = pd.DataFrame({COL_NORMALIZE:self.normalize, COL_STANDARDIZE:self.standardize,
             COL_IMG_TYPE:self.img_type.name, 
             COL_IMG_CHANNEL:self.img_channel.name, 
@@ -61,7 +66,7 @@ class Preprocess:
             image = cv2.resize(image, dsize=(self.resize[1], self.resize[0]), interpolation=cv2.INTER_CUBIC)
         #convert the image type
         if self.img_type == IMG.DARTER:                     #darter
-            image = rgb_2_darter(image)
+            image = rgb_2_darter(image).astype(np.uint8)
             if self.img_channel == CHANNEL.GRAY:
                 image = image[:, :, 0] + image[:, :, 1]
             elif self.img_channel == CHANNEL.ALL:

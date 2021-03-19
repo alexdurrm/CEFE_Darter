@@ -4,7 +4,7 @@ import os
 
 from MotherMetric import MotherMetric
 from Preprocess import *
-from pspec import get_FFT_slopes, get_pspec
+from FourierAnalysisMaster.pspec import get_pspec
 
 
 COL_F_WIN_SIZE="window_size_F"
@@ -42,6 +42,23 @@ class MeanFFTSlope(FFTMetrics):
         df.loc[0, [COL_F_MEAN_SLOPE, COL_F_N_SAMPLE, COL_F_WIN_SIZE, COL_FFT_RANGE_MIN, COL_FFT_RANGE_MAX]] = [np.mean(slopes), len(slopes), self.sample_dim, *self.fft_range]
         return df
 
+def get_FFT_slopes(image, fft_range, sample_dim, verbose=1):
+    '''
+    Calculate the fourier slopes of a given image for a given sample dimension
+    '''
+    assert image.ndim==2, "Image should be 2D"
+    assert image.shape[0]>=sample_dim<=image.shape[1], "sample dim should be less or equal than image shapes"
+    
+    # Define a sliding square window to iterate on the image        
+    stride = int(sample_dim/2)
+    slopes = []
+    for start_x in range(0, image.shape[0]-sample_dim+1, stride):
+        for start_y in range(0, image.shape[1]-sample_dim+1, stride):
+            sample = image[start_x: start_x+sample_dim, start_y: start_y + sample_dim]
+            slopes.append( get_pspec(sample, bin_range=fft_range, color_model=False) )   
+    return slopes
+    
+    
 ### FFT
 COL_FREQ_F = "frequency_F"
 COL_AMPL_F = "amplitude_F"
@@ -66,7 +83,7 @@ class FFT_bins(FFTMetrics):
                     idx+=1
         return df
 
-
+    
 if __name__=='__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("image", help="path of the image file to open")
