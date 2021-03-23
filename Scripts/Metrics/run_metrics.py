@@ -8,13 +8,13 @@ from tensorflow.keras.applications.vgg16 import VGG16
 
 from config import *
 from Preprocess import *
-from DeepFeatureMetrics import DeepFeatureMetrics
-from FFTMetrics import FFTSlopes
-from GaborMetrics import GaborMetrics
-from GLCMMetrics import HaralickMetrics
-from HOGMetrics import PHOGMetrics
-from LBPMetrics import LBPHistMetrics, BestLBPMetrics
-from ScalarMetrics import StatMetrics, ColorRatioMetrics
+from DeepFeatureMetrics import *
+from FFTMetrics import *
+from GaborMetrics import *
+from GLCMMetrics import *
+from HOGMetrics import *
+from LBPMetrics import *
+from ScalarMetrics import *
 
 ###############################################################
 ### File used to calculate metrics and save them in a csv file
@@ -87,7 +87,7 @@ def load_info_from_filepath(file_path):
     return dict_info
 
 
-def main(data, verbosity=1):
+def main(data_path, verbosity=1):
     '''
     create a csv file or load an existing one
     update the values in this csv by running new metrics
@@ -100,48 +100,47 @@ def main(data, verbosity=1):
     resize = (1536, 512)
 
     #initialize preprocessor used
-    # process_darter_gray = Preprocess(resize=resize, normalize=False, standardize=False, img_type=IMG.DARTER, img_channel=CHANNEL.GRAY)
+    process_darter_gray = Preprocess(resize=resize, normalize=False, standardize=False, img_type=IMG.DARTER, img_channel=CHANNEL.GRAY)
     process_darter_all = Preprocess(resize=resize, normalize=False, standardize=False, img_type=IMG.DARTER, img_channel=CHANNEL.ALL)
-    # process_RGB_all = Preprocess(resize=resize, normalize=True, standardize=False, img_type=IMG.RGB, img_channel=CHANNEL.ALL)
+    process_RGB_all = Preprocess(resize=resize, normalize=True, standardize=False, img_type=IMG.RGB, img_channel=CHANNEL.ALL)
     #initialize metrics used
-    # vgg16_model = DeepFeatureMetrics( VGG16(weights='imagenet', include_top=False), resize, process_RGB_all, os.path.join("Data","DeepFeatures.csv"))
-    # fft_slope = FFTSlopes(fft_range, 512, process_darter_gray, os.path.join("Data", "FFT_slopes.csv"))
-    # gabor_metric = GaborMetrics(gabor_angles, gabor_freq, process_darter_gray, os.path.join("Data", "gabor.csv"))
-    # glcm_metric = HaralickMetrics([2,4], gabor_angles, process_darter_gray, os.path.join("Data", "haralick.csv"))
-    # phog_metric = PHOGMetrics(40, 2, process_darter_gray, os.path.join("Data","phog.csv"))
-    # lbp_metric = LBPHistMetrics([8, 16], [2,4], 100, process_darter_gray, os.path.join("Data","lbp.csv"))
-    # best_lbp_metric = BestLBPMetrics([8, 16], [2,4], 100, process_darter_gray, os.path.join("Data","best_lbp.csv"))
-    # stats_metric = StatMetrics(process_darter_gray, os.path.join("Data","statistical_metrics.csv"))
-    color_ratio = ColorRatioMetrics(process_darter_all, os.path.join("Results","color_ratio_slopes.csv"))
-    
-    for img_path in data.index:
-        print(img_path)
-        
-        #update images preprocessed
-        # process_darter_gray(img_path)
-        process_darter_all(img_path)
-        # process_RGB_all(img_path)
-        
-        # call the metrics
-        # vgg16_model()
-        # fft_slope()
-        # gabor_metric()
-        # glcm_metric()
-        # phog_metric()
-        # lbp_metric()
-        # best_lbp_metric()
-        # stats_metric()
-        color_ratio()
-        
-    # vgg16_model.save()
-    # fft_slope.save()
-    # gabor_metric.save()
-    # glcm_metric.save()
-    # phog_metric.save()
-    # lbp_metric.save()
-    # best_lbp_metric.save()
-    # stats_metric.save()
+    vgg16_model = DeepFeatureMetrics( VGG16(weights='imagenet', include_top=False), resize, process_RGB_all, os.path.join(DIR_RESULTS, CSV_DEEP_FEATURES))
+    vgg19_model = DeepFeatureMetrics( VGG19(weights='imagenet', include_top=False), resize, process_RGB_all, os.path.join(DIR_RESULTS, CSV_DEEP_FEATURES))
+    fft_slope = FFTSlopes(fft_range, 512, process_darter_gray, os.path.join(DIR_RESULTS, CSV_FFT_SLOPE))
+    fft_bins = FFT_bins(fft_range, 512, process_darter_gray, os.path.join(DIR_RESULTS, CSV_FFT_BINS))
+    gabor_metric = GaborMetrics(gabor_angles, gabor_freq, process_darter_gray, os.path.join(DIR_RESULTS, "gabor.csv"))
+    glcm_metric = HaralickMetrics([2,4], gabor_angles, process_darter_gray, os.path.join(DIR_RESULTS, "haralick.csv"))
+    phog_metric = PHOGMetrics(40, 2, process_darter_gray, os.path.join(DIR_RESULTS,"phog.csv"))
+    lbp_metric = LBPHistMetrics([8, 16], [2,4], 100, process_darter_gray, os.path.join(DIR_RESULTS,"lbp.csv"))
+    best_lbp_metric = BestLBPMetrics([8, 16], [2,4], 100, process_darter_gray, os.path.join(DIR_RESULTS,"best_lbp.csv"))
+    stats_metric = StatMetrics(process_darter_gray, os.path.join(DIR_RESULTS,"statistical_metrics.csv"))
+    color_ratio = ColorRatioMetrics(process_darter_all, os.path.join(DIR_RESULTS,"color_ratio_slopes.csv"))
+
+    # call the metrics
+    vgg16_model.metric_from_df(data_path)
+    vgg16_model.save()
+    vgg19_model.load()
+    vgg19_model.metric_from_df(data_path)
+    vgg19_model.save()
+    fft_slope.metric_from_df(data_path)
+    fft_slope.save()
+    fft_bins.metric_from_df(data_path)
+    fft_bins.save()
+    gabor_metric.metric_from_df(data_path)
+    gabor_metric.save()
+    glcm_metric.metric_from_df(data_path)
+    glcm_metric.save()
+    phog_metric.metric_from_df(data_path)
+    phog_metric.save()
+    lbp_metric.metric_from_df(data_path)
+    lbp_metric.save()
+    best_lbp_metric.metric_from_df(data_path)
+    best_lbp_metric.save()
+    stats_metric.metric_from_df(data_path)
+    stats_metric.save()
+    color_ratio.metric_from_df(data_path)
     color_ratio.save()
+
     print("DONE")
 
 if __name__ == '__main__':
@@ -156,5 +155,6 @@ if __name__ == '__main__':
     main_file = os.path.abspath(args.input)
 
     data = get_files(main_file, args.depth, (".jpg",".png",".tiff"), [], only_endnodes=True, visu=False)
-    data.to_csv(os.path.join(DIR_RESULTS, CSV_IMAGE), index=False)
-    #main(data)
+    data_path = os.path.join(DIR_RESULTS, CSV_IMAGE)
+    data.to_csv(data_path, index=False)
+    main(data_path)

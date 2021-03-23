@@ -12,29 +12,6 @@ import imageio
 from config import *
 
 
-def fourier_per_folder(data):
-    '''
-    used to plot the violin graph the fourier slopes categorized per folder
-    '''
-    matplotlib.rcParams['font.family'] = 'serif'
-    plt.rcParams['font.size'] = 16
-    matplotlib.rcParams['axes.linewidth'] = 2
-    sns.set_palette(sns.color_palette(FLAT_UI))
-
-    #ax = sns.catplot(x=COL_DIRECTORY, y=COL_F_SLOPE, data=data.where(data.folder == "caeruleum"),
-    ax = sns.catplot(x=COL_DIRECTORY, y=COL_F_SLOPE, data=data,
-                    #col=COL_COLOR_CONTROL,
-                    #hue=COL_FISH_SEX,
-                    #split=True,
-                    kind="violin")
-
-    ax.set_ylabels('Slope of Fourier Power Spectrum ')
-    ax.set_yticklabels(fontstyle='italic')
-    plt.xticks(rotation=45)
-    plt.title("mean Fourrier slopes per folder")
-    plt.show()
-
-
 def group_by_experiment(data):
     '''
     group data by experiments, each experiment consisting of a group (FISH, HABITAT, OUTPUT_NETWORK...)
@@ -243,7 +220,7 @@ def network_sparseness(data):
     sns.relplot(data=df, x='layer_network', y=COL_SPARSENESS_DF, hue=COL_DIRECTORY, units=COL_FILENAME, kind="line", estimator=None, alpha=0.5)
     plt.show()
     print(df)
-    
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -251,6 +228,6 @@ if __name__ == '__main__':
         "LBP_hist_per_folder", "Haralick_compare_folders", "Gini_compare_folders", "Stat_compare_folders", "network_sparseness"])
     parser.add_argument("input_file", help="the path of the csv to open")
     args = parser.parse_args()
-    
+
     data = pd.read_csv(args.input_file, sep=',')
     globals()[args.function](data)

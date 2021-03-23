@@ -27,7 +27,7 @@ class DeepFeatureMetrics(MotherMetric):
         input_tensor = K.Input(shape=self.input_shape)
         self.base_model.layers[0] = input_tensor
         self.deep_features = K.Model(inputs=self.base_model.input, outputs=[l.output for l in self.base_model.layers[1:]])
-        
+
         super().__init__(*args, **kwargs)
 
     def get_deep_features(self, image, visu=False):
@@ -53,13 +53,13 @@ class DeepFeatureMetrics(MotherMetric):
     def function(self, image):
         gini = self.get_layers_gini(image)
         params = self.preprocess.get_params()
-        
+
         df = pd.DataFrame()
         for layer_idx , gini in enumerate(gini):
             df.loc[layer_idx, params.columns] = params.iloc[0]
             df.loc[layer_idx, [COL_MODEL_NAME, COL_SPARSENESS_DF, COL_LAYER_DF]] = [self.base_model.name, gini, layer_idx]
         return df
-    
+
     def visualize(self):
         '''
         plot for each image the gini coefficient of each network layer
@@ -68,15 +68,15 @@ class DeepFeatureMetrics(MotherMetric):
 
         data_image = pd.read_csv(os.path.join(DIR_RESULTS, CSV_IMAGE), index_col=0)
         merge_data = self.data.merge(data_image, on=COL_IMG_PATH)
-        
-        sns.relplot(data=merge_data, x=COL_LAYER_DF, y=COL_SPARSENESS_DF, hue=COL_DIRECTORY, units=COL_FILENAME, kind="line", estimator=None, alpha=0.5)
+
+        sns.relplot(data=merge_data, x=COL_LAYER_DF, y=COL_SPARSENESS_DF, hue=COL_DIRECTORY, kind="line", units=COL_IMG_PATH, estimator=None, alpha=0.25)
         plt.show()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("image", help="path of the image file to open")
     args = parser.parse_args()
-    
+
     pr = Preprocess(resize=(1500, 512), normalize=True)
     vgg16_model = DeepFeatureMetrics( VGG16(weights='imagenet', include_top=False), (1500, 512), pr, os.path.join(DIR_RESULTS,CSV_DEEP_FEATURES))
     # d = vgg16_model(args.image)

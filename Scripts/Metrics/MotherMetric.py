@@ -31,7 +31,7 @@ class MotherMetric:
             value = self.function(image)
         self.data = self.data.append(value, ignore_index=True)
         return value
-        
+
     def metric_from_df(self, df_path):
         df = pd.read_csv(df_path, index_col=0)
         for path in df.index:
@@ -56,15 +56,15 @@ class MotherMetric:
             self.data.to_csv(output_path, index=False)
         else:
             self.data.to_csv(self.path, index=False)
-            
+
 
     def function(self, image):
         '''
-        perform the metric on the image 
+        perform the metric on the image
         return the value consisting of a df with the parameters and result of the metric
-        '''  
+        '''
         raise NotImplementedError("Hey, Don't forget to implement the function!")
-        
+
     def visualize(self):
         '''
         plot a visualization of the metric
