@@ -66,7 +66,7 @@ class Preprocess:
             image = cv2.resize(image, dsize=(self.resize[1], self.resize[0]), interpolation=cv2.INTER_CUBIC)
         #convert the image type
         if self.img_type == IMG.DARTER:                     #darter
-            image = rgb_2_darter(image).astype(np.uint8)
+            image = rgb_2_darter(image)
             if self.img_channel == CHANNEL.GRAY:
                 image = image[:, :, 0] + image[:, :, 1]
             elif self.img_channel == CHANNEL.ALL:
@@ -97,6 +97,7 @@ class Preprocess:
         return self.df_parameters.copy()
     
     def get_image(self):
+        print(self.image.dtype)
         return self.image.copy()
 
 

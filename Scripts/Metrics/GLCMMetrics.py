@@ -24,14 +24,13 @@ COL_GLCM_ANGLE="GLCM_angle"
 COL_GLCM_DIST="GLCM_dist"
 
 class HaralickMetrics(MotherMetric):
-    def __init__(self, distances, angles, preprocess=None):
+    def __init__(self, distances, angles, *args, **kwargs):
         self.distances = distances
         self.angles = angles
-        if not preprocess:
-            preprocess = Preprocess(img_type=IMG.DARTER, img_channel=CHANNEL.GRAY)
-        super().__init__(preprocess)
+        super().__init__(*args, **kwargs)
     
     def function(self, image):
+        image = image.astype(np.uint8)
         df = pd.DataFrame()
         params = self.preprocess.get_params()
         haralick = get_Haralick_descriptors(image, self.distances, self.angles)
@@ -101,8 +100,9 @@ if __name__=='__main__':
     parser.add_argument("image", help="path of the image file to open")
     args = parser.parse_args()
     image_path = os.path.abspath(args.image)
-
-    metric = HaralickMetrics(distances=[2,4], angles=[0,45,90,135])
+    
+    preprocess = Preprocess(img_type=IMG.DARTER, img_channel=CHANNEL.GRAY)
+    metric = HaralickMetrics(distances=[2,4], angles=[0,45,90,135], preprocess=preprocess)
     print(metric(image_path))
     
     

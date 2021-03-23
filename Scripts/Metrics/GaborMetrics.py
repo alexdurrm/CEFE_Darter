@@ -13,12 +13,10 @@ COL_GABOR_FREQ="gabor_frequencies"
 COL_GABOR_VALUES="gabor_values"
 
 class GaborMetrics(MotherMetric):
-    def __init__(self, angles, frequencies, preprocess=None):
+    def __init__(self, angles, frequencies, *args, **kwargs):
         self.angles = angles
         self.frequencies = frequencies
-        if not preprocess:
-            preprocess = Preprocess(img_type=IMG.DARTER, img_channel=CHANNEL.GRAY)
-        super().__init__(preprocess)    
+        super().__init__(*args, **kwargs)    
     
     def function(self, image):
         params = self.preprocess.get_params()
@@ -64,7 +62,8 @@ if __name__=='__main__':
     args = parser.parse_args()
     image_path = os.path.abspath(args.image)
 
-    metric = GaborMetrics(angles=[0,45,90,135], frequencies=[0.2, 0.4, 0.8])
+    preprocess = Preprocess(img_type=IMG.DARTER, img_channel=CHANNEL.GRAY)
+    metric = GaborMetrics(angles=[0,45,90,135], frequencies=[0.2, 0.4, 0.8], preprocess=preprocess)
     print(metric(image_path))
     
     

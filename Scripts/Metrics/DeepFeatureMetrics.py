@@ -3,30 +3,32 @@ from tensorflow.keras.applications.vgg16 import VGG16
 import pandas as pd
 import numpy as np
 import argparse
+import os
+import seaborn as sns
+import matplotlib.pyplot as plt
 
-from config import *
 from Preprocess import *
+from config import *
 from MotherMetric import MotherMetric
 
 from ScalarMetrics import get_gini
 
 
 #deep features
+CSV_DEEP_FEATURES="deep_features.csv"
 COL_MODEL_NAME="model_name_deep_features"
 COL_PATH_DEEP_FEATURES="path_deep_features"
 COL_SPARSENESS_DF="sparseness_deep_features"
 COL_LAYER_DF="layer_deep_feature"
 class DeepFeatureMetrics(MotherMetric):
-    def __init__(self, base_model, input_shape, preprocess=None):
+    def __init__(self, base_model, input_shape, *args, **kwargs):
         self.base_model = base_model
         self.input_shape = input_shape
         input_tensor = K.Input(shape=self.input_shape)
         self.base_model.layers[0] = input_tensor
         self.deep_features = K.Model(inputs=self.base_model.input, outputs=[l.output for l in self.base_model.layers[1:]])
         
-        if not preprocess:
-            preprocess = Preprocess(resize=input_shape)
-        super().__init__(preprocess)
+        super().__init__(*args, **kwargs)
 
     def get_deep_features(self, image, visu=False):
         '''
@@ -57,7 +59,18 @@ class DeepFeatureMetrics(MotherMetric):
             df.loc[layer_idx, params.columns] = params.iloc[0]
             df.loc[layer_idx, [COL_MODEL_NAME, COL_SPARSENESS_DF, COL_LAYER_DF]] = [self.base_model.name, gini, layer_idx]
         return df
+    
+    def visualize(self):
+        '''
+        plot for each image the gini coefficient of each network layer
+        '''
+        sns.set_palette(sns.color_palette(FLAT_UI))
 
+        data_image = pd.read_csv(os.path.join(DIR_RESULTS, CSV_IMAGE), index_col=0)
+        merge_data = self.data.merge(data_image, on=COL_IMG_PATH)
+        
+        sns.relplot(data=merge_data, x=COL_LAYER_DF, y=COL_SPARSENESS_DF, hue=COL_DIRECTORY, units=COL_FILENAME, kind="line", estimator=None, alpha=0.5)
+        plt.show()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -65,10 +78,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     pr = Preprocess(resize=(1500, 512), normalize=True)
-    vgg16_model = DeepFeatureMetrics( VGG16(weights='imagenet', include_top=False), (1500, 512), pr)
-    d = vgg16_model(args.image)
-    print(d)
-    
-    vgg16_model = DeepFeatureMetrics( VGG16(weights='imagenet', include_top=False), (1500, 512))
-    d = vgg16_model(args.image)
-    print(d)
+    vgg16_model = DeepFeatureMetrics( VGG16(weights='imagenet', include_top=False), (1500, 512), pr, os.path.join(DIR_RESULTS,CSV_DEEP_FEATURES))
+    # d = vgg16_model(args.image)
+    # print(d)
+    #vgg16_model.metric_from_df(args.image)
+    #vgg16_model.save()
+    vgg16_model.load()
+    vgg16_model.visualize()

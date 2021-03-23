@@ -12,14 +12,13 @@ COL_RADIUS_LBP="radius_LBP"
 COL_VALUE_LBP="value_LBP"
 COL_COUNT_LBP="count_LBP_value"
 class LBPHistMetrics(MotherMetric):
-    def __init__(self, points, radius, nbins, preprocess=None):
+    def __init__(self, points, radius, nbins, *args, **kwargs):
         assert len(points)==len(radius), "points and radius are used zipped, should be the same length"
         self.points = points
         self.radius = radius
         self.nbins = nbins
-        if not preprocess:
-            preprocess = Preprocess(img_type=IMG.DARTER, img_channel=CHANNEL.GRAY)
-        super().__init__(preprocess)
+
+        super().__init__(*args, **kwargs)
         
     def function(self, image, visu=False):
         '''
@@ -57,14 +56,12 @@ class LBPHistMetrics(MotherMetric):
 
 
 class BestLBPMetrics(MotherMetric):
-    def __init__(self, points, radius, n_best=20, preprocess=None):
+    def __init__(self, points, radius, n_best=20, *args, **kwargs):
         assert len(points)==len(radius), "points and radius are used zipped, should be the same length"
         self.points = points
         self.radius = radius
         self.n_best = n_best
-        if not preprocess:
-            preprocess = Preprocess(img_type=IMG.DARTER, img_channel=CHANNEL.GRAY)
-        super().__init__(preprocess)
+        super().__init__(*args, **kwargs)
         
     def function(self, image, visu=False):
         '''
@@ -98,8 +95,10 @@ if __name__=='__main__':
     args = parser.parse_args()
     image_path = os.path.abspath(args.image)
     
-    metric = LBPHistMetrics(points=[8, 16], radius=[2,4], nbins=20)
+    preprocess = Preprocess(img_type=IMG.DARTER, img_channel=CHANNEL.GRAY)
+    
+    metric = LBPHistMetrics(points=[8, 16], radius=[2,4], nbins=20, preprocess=preprocess)
     print(metric(image_path))
     
-    metric = BestLBPMetrics(points=[8, 16], radius=[2,4], n_best=20)
+    metric = BestLBPMetrics(points=[8, 16], radius=[2,4], n_best=20, preprocess=preprocess)
     print(metric(image_path))

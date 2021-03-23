@@ -2,7 +2,8 @@
 file used to centralize the names and other parameters
 '''
 ### NAME OF THE CSV FILE WHICH STORES ALL THE METRICS
-CSV_NAME="metrics_depth"
+DIR_RESULTS="Results"
+CSV_IMAGE="image_list.csv"
 
 
 ### DIRECTORY NAMES

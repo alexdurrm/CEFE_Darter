@@ -228,32 +228,6 @@ def Gini_compare_folders(data):
     plt.show()
 
 
-
-def Stat_compare_folders(data):
-    '''
-    for each statistical value compare the folders
-    '''
-    stats = [COL_STAT_MEAN, COL_STAT_STD, COL_STAT_SKEW, COL_STAT_KURT, COL_STAT_ENTROPY]
-
-    matplotlib.rcParams['font.family'] = 'serif'
-    plt.rcParams['font.size'] = 16
-    matplotlib.rcParams['axes.linewidth'] = 2
-    sns.set_palette(sns.color_palette(FLAT_UI))
-    
-    for stat in stats:
-        ax = sns.catplot(x=COL_DIRECTORY, y=stat, data=data)
-        ax.set_ylabels(stat)
-        ax.set_yticklabels(fontstyle='italic')
-        plt.xticks(rotation=45)
-        plt.title("statistical descriptors")
-        plt.show()
-
-        ax = sns.catplot(x=COL_DIRECTORY, y=stat, data=data, hue=COL_HABITAT)
-        ax.set_ylabels(stat)
-        plt.xticks(rotation=45)
-        plt.show()
-
-
 def network_sparseness(data):
     '''
     plot for each image the gini coefficient of each network layer

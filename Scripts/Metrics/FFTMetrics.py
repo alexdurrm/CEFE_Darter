@@ -11,12 +11,10 @@ COL_F_WIN_SIZE="window_size_F"
 COL_FFT_RANGE_MIN="freq_range_Min_F"
 COL_FFT_RANGE_MAX="freq_range_Max_F"
 class FFTMetrics(MotherMetric):
-    def __init__(self, fft_range, sample_dim, standardize=True, preprocess=None):
-        if not preprocess:
-            preprocess = Preprocess(img_type=IMG.DARTER, img_channel=CHANNEL.GRAY)
-        super().__init__(preprocess)
+    def __init__(self, fft_range, sample_dim, *args, **kwargs):
         self.fft_range = fft_range
         self.sample_dim = sample_dim
+        super().__init__(*args, **kwargs)
 
 ###FFT SLOPE
 COL_F_SLOPE_SAMPLE="slope_sample_F"
@@ -78,8 +76,8 @@ class FFT_bins(FFTMetrics):
             for start_y in range(0, image.shape[1]-self.sample_dim+1, stride):
                 sample = image[start_x: start_x+self.sample_dim, start_y: start_y + self.sample_dim]
                 bins, ampl = get_pspec(sample, bin_range=self.fft_range, return_bins=True, color_model=False)   
-                for freq, ampl in zip(bins, ampl):
-                    df.loc[idx, [COL_FREQ_F, COL_AMPL_F, COL_F_WIN_SIZE, COL_FFT_RANGE_MIN, COL_FFT_RANGE_MAX]] = [freq, ampl, self.sample_dim, *self.fft_range]
+                for f, a in zip(bins, ampl):
+                    df.loc[idx, [COL_FREQ_F, COL_AMPL_F, COL_F_WIN_SIZE, COL_FFT_RANGE_MIN, COL_FFT_RANGE_MAX]] = [f, a, self.sample_dim, *self.fft_range]
                     idx+=1
         return df
 
@@ -90,9 +88,11 @@ if __name__=='__main__':
     args = parser.parse_args()
     image_path = os.path.abspath(args.image)
     
-    fft_bins = FFT_bins(fft_range=[10,80], sample_dim=120)
-    mean_slope = MeanFFTSlope(fft_range=[10,80], sample_dim=120)
-    fft_slopes = FFTSlopes(fft_range=[10,80], sample_dim=120)
+    preprocess = Preprocess(img_type=IMG.DARTER, img_channel=CHANNEL.GRAY)
+    
+    fft_bins = FFT_bins(fft_range=[10,80], sample_dim=120, preprocess=preprocess)
+    mean_slope = MeanFFTSlope(fft_range=[10,80], sample_dim=120, preprocess=preprocess)
+    fft_slopes = FFTSlopes(fft_range=[10,80], sample_dim=120, preprocess=preprocess)
     
     print( fft_bins(image_path) )
     print( mean_slope(image_path) )

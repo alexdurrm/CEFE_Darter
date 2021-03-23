@@ -3,9 +3,12 @@ import numpy as np
 import pandas as pd
 import argparse
 import os
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 from MotherMetric import MotherMetric
 from Preprocess import *
+from config import *
 
 
 ###statistical values
@@ -15,20 +18,39 @@ COL_STAT_STD="std_stat"
 COL_STAT_SKEW="skewness_stat"
 COL_STAT_KURT="kurtosis_stat"
 COL_STAT_ENTROPY="entropy_stat"
+COL_GINI_VALUE="gini_coefficient"
 class StatMetrics(MotherMetric):
-    def __init__(self, preprocess=None):
-        if not preprocess:
-            preprocess = Preprocess(img_type=IMG.DARTER, img_channel=CHANNEL.GRAY)
-        super().__init__(preprocess)
-    
     def function(self, image):
         df = self.preprocess.get_params()
         metrics = get_statistical_features(image)
         df.loc[0, metrics.columns] = metrics.loc[0]
+        df.loc[0, COL_GINI_VALUE] = [get_gini(image)]
         return df
         
+    def visualize(self):
+        '''
+        plot a visualization of the metric
+        '''
+        stats = [COL_STAT_MEAN, COL_STAT_STD, COL_STAT_SKEW, COL_STAT_KURT, COL_STAT_ENTROPY, COL_GINI_VALUE]
+        data_image = pd.read_csv(os.path.join(DIR_RESULTS, CSV_IMAGE), index_col=0)
+        merge_data = self.data.merge(data_image, on=COL_IMG_PATH)
         
-        
+        sns.set_palette(sns.color_palette(FLAT_UI))
+        for stat in stats:
+            ax = sns.catplot(x=COL_DIRECTORY, y=stat, data=merge_data)
+            ax.set_ylabels(stat)
+            ax.set_yticklabels(fontstyle='italic')
+            plt.xticks(rotation=45)
+            plt.title("statistical descriptors")
+            plt.show()
+
+            ax = sns.catplot(x=COL_DIRECTORY, y=stat, data=merge_data, hue=COL_HABITAT)
+            ax.set_ylabels(stat)
+            plt.xticks(rotation=45)
+            plt.show()
+
+
+
 def get_statistical_features(image, visu=False):
     '''
     get an image and return the statistical features like
@@ -46,22 +68,6 @@ def get_statistical_features(image, visu=False):
     if visu: print(vals)
     return vals
 
-
-
-###GINI
-
-COL_GINI_VALUE="gini_coefficient"
-class GiniMetrics(MotherMetric):
-    def __init__(self, preprocess=None):
-        if not preprocess:
-            preprocess = Preprocess(img_type=IMG.DARTER, img_channel=CHANNEL.GRAY)
-        super().__init__(preprocess)
-    
-    def function(self, image):
-        gini_df = self.preprocess.get_params()
-        gini_df.loc[0, COL_GINI_VALUE] = [get_gini(image)]
-        return gini_df
-        
 def get_gini(array, visu=False):
     '''
     Calculate the Gini coefficient of a numpy array.
@@ -89,18 +95,31 @@ def get_gini(array, visu=False):
     
     
 ###COLOR RATIO
-
+CSV_COLOR_RATIO="color_ratio.csv"
 COL_COLOR_RATIO="color_ratio"        
-class ColorRatioMetrics(MotherMetric):
-    def __init__(self, preprocess=None):
-        if not preprocess:
-            preprocess = Preprocess(img_type=IMG.DARTER, img_channel=CHANNEL.ALL)
-        super().__init__(preprocess)
-    
+class ColorRatioMetrics(MotherMetric):    
     def function(self, image):
         df = self.preprocess.get_params()
         df.loc[0,COL_COLOR_RATIO]=[get_color_ratio(image)]
         return df
+        
+    def visualize(self):
+        '''
+        plot a visualization of the metric
+        '''
+        sns.set_palette(sns.color_palette(FLAT_UI))
+
+        data_image = pd.read_csv(os.path.join(DIR_RESULTS, CSV_IMAGE), index_col=0)
+        merge_data = self.data.merge(data_image, on=COL_IMG_PATH)
+        
+        ax = sns.catplot(x=COL_DIRECTORY, y=COL_COLOR_RATIO, data=merge_data)
+        ax.set_ylabels(COL_COLOR_RATIO)
+        ax.set_yticklabels(fontstyle='italic')
+        plt.xticks(rotation=45)
+        plt.title("color ratio")
+        plt.show()
+
+    
 
 def get_color_ratio(image, visu=False):
     '''
@@ -133,12 +152,19 @@ if __name__=='__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("image", help="path of the image file to open")
     args = parser.parse_args()
-    image_path = os.path.abspath(args.image)
+    path = os.path.abspath(args.image)
     
-    stat = StatMetrics()
-    gini = GiniMetrics()
-    ratio = ColorRatioMetrics()
+    # preprocess = Preprocess(img_type=IMG.DARTER, img_channel=CHANNEL.GRAY)
+    # stat = StatMetrics(preprocess=preprocess, path="Results\\stats.csv")
+    # stat.metric_from_df(path)
+    # stat.save()
+    # stat.load()
+    # stat.visualize()
     
-    print(stat(image_path))
-    print(gini(image_path))
-    print(ratio(image_path))
+    preprocess_all = Preprocess(img_type=IMG.DARTER, img_channel=CHANNEL.ALL)
+    # print(ratio(path))
+    ratio = ColorRatioMetrics(preprocess_all, path=os.path.join(DIR_RESULTS, CSV_COLOR_RATIO))
+    ratio.metric_from_df(path)
+    ratio.save()
+    ratio.visualize()
+    

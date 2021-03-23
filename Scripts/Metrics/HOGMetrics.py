@@ -11,19 +11,17 @@ COL_PHOG_LEVELS="phog_level"
 COL_PHOG_BINS="phog_bins"
 COL_PHOG_VALUE="phog_val"
 class PHOGMetrics(MotherMetric):
-    def __init__(self, orientations=8, level=0, preprocess=None):
+    def __init__(self, orientations=8, level=0, *args, **kwargs):
         self.orientations=orientations
         self.level=level
-        if not preprocess:
-            preprocess = Preprocess(img_type=IMG.RGB, img_channel=CHANNEL.GRAY)
-        super().__init__(preprocess)
+        super().__init__(*args, **kwargs)
         
     def function(self, image):
         df = pd.DataFrame()
         params = self.preprocess.get_params()
         
         roi = [0, image.shape[0], 0, image.shape[1]]
-        phog = anna_phog(image, self.orientations, 360, self.level, roi)
+        phog = anna_phog(image.astype(np.uint8), self.orientations, 360, self.level, roi)
 
         for i, value in enumerate(phog):
             df.loc[i, params.columns] = params.loc[0]
@@ -37,5 +35,6 @@ if __name__=='__main__':
     args = parser.parse_args()
     image_path = os.path.abspath(args.image)
 
-    metric = PHOGMetrics(orientations=40, level=2)
+    pr = Preprocess(img_type=IMG.RGB, img_channel=CHANNEL.GRAY)
+    metric = PHOGMetrics(orientations=40, level=2, preprocess=pr)
     print(metric(image_path))
