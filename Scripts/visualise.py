@@ -156,33 +156,6 @@ def LBP_hist_per_folder(data):
         col+=1
 
 
-def Haralick_compare_folders(data):
-    '''
-    for each descriptor value draw a swarmplot of each folder
-    '''
-    haralick_descriptors = [COL_GLCM_MEAN, COL_GLCM_VAR, COL_GLCM_CORR, COL_GLCM_CONTRAST,
-    COL_GLCM_DISSIMIL, COL_GLCM_HOMO, COL_GLCM_ASM, COL_GLCM_ENERGY,
-    COL_GLCM_MAXP, COL_GLCM_ENTROPY]
-
-
-    matplotlib.rcParams['font.family'] = 'serif'
-    plt.rcParams['font.size'] = 16
-    matplotlib.rcParams['axes.linewidth'] = 2
-    sns.set_palette(sns.color_palette(FLAT_UI))
-
-    for col_descriptor in haralick_descriptors:
-        ax = sns.catplot(x=COL_DIRECTORY, y=col_descriptor, data=data,
-                        row=COL_GLCM_ANGLES,
-                        col=COL_GLCM_DIST,
-                        hue=COL_COLOR_CONTROL)
-
-        ax.set_ylabels(col_descriptor)
-        ax.set_yticklabels(fontstyle='italic')
-        plt.xticks(rotation=45)
-        plt.title("Haralick descriptors")
-        plt.show()
-
-
 def Gini_compare_folders(data):
     '''
     compare the gini values of each images

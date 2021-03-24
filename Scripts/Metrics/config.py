@@ -1,10 +1,11 @@
+from enum import Enum
 '''
 file used to centralize the names and other parameters
 '''
 ### NAME OF THE CSV FILE WHICH STORES ALL THE METRICS
 DIR_RESULTS="Results"
 CSV_IMAGE="image_list.csv"
-
+CSV_EXPERIMENTS="experiments.csv"
 
 ### DIRECTORY NAMES
 DIR_STYLIZED_FISHES=["All_layers",
@@ -31,6 +32,16 @@ COL_SPECIES="species"
 COL_IMG_WIDTH="img_width"
 COL_IMG_HEIGHT="img_height"
 COL_IMG_EXT="image_exension"
+
+class FILE_TYPE(Enum):
+    ORIG_FISH="original fish"
+    STYLIZED_FISH="fish stylized"
+    HABITAT="habitat"
+
+### COLUMN NAMES FOR CSV EXPERIMENTS
+COL_FISH_PATH="exp_fish_path"
+COL_HABITAT_PATH="exp_habitat_path"
+COL_EXP_ID="exp_id"
 
 
 ### matplotlib parameters

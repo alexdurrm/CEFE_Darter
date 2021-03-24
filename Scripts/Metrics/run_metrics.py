@@ -65,19 +65,19 @@ def load_info_from_filepath(file_path):
         dict_info[COL_COLOR_CONTROL] = color_ctrl[12:]
         dict_info[COL_TV_LOSS] = tvloss[6:]
         dict_info[COL_LAYERS] = directory
-        dict_info[COL_TYPE] = "fish stylized"
+        dict_info[COL_TYPE] = FILE_TYPE.STYLIZED_FISH.value
     #if the directory contains original fishes
     elif [p for p in DIR_ORIGINAL_FISHES if p == directory]:
         fish_n, _, original_size, specie, *_, end = filename.split("_")
         dict_info[COL_SPECIES] = specie
         dict_info[COL_FISH_NUMBER] = end.split('.')[0][1:]
         dict_info[COL_FISH_SEX] = end[0]
-        dict_info[COL_TYPE] = "crop fish"
+        dict_info[COL_TYPE] = FILE_TYPE.ORIG_FISH.value
     #if the directory contains original habitats
     elif [p for p in DIR_ORIGINAL_HABITATS if p == directory]:
         middle, *_ = filename.split('_')
         dict_info[COL_HABITAT] = middle
-        dict_info[COL_TYPE] = "habitat"
+        dict_info[COL_TYPE] = FILE_TYPE.HABITAT.value
     #if the folder is the samuel folder
     elif [p for p in DIR_SAMUEL if p == directory]:
         specie, *_, fish = filename.split("_")
@@ -143,6 +143,25 @@ def main(data_path, verbosity=1):
 
     print("DONE")
 
+
+def group_files_by_experiments(df_files):
+    experiments = pd.DataFrame()
+    output_net = df_files[df_files[COL_TYPE]==FILE_TYPE.STYLIZED_FISH.value]
+    fishes = df_files[df_files[COL_TYPE]==FILE_TYPE.ORIG_FISH.value]
+    habitat = df_files[df_files[COL_TYPE]==FILE_TYPE.HABITAT.value]
+    # experiments : [exp_id | fish_path | env_path]
+    idx=0
+    for i, out in output_net.iterrows():
+        fish_path = fishes.loc[fishes[COL_FISH_NUMBER]==out[COL_FISH_NUMBER], COL_IMG_PATH]
+        habitat_path = habitat.loc[habitat[COL_HABITAT]==out[COL_HABITAT], COL_IMG_PATH]
+        print(fish_path, habitat_path)
+        experiments.loc[idx, [COL_FISH_PATH, COL_HABITAT_PATH]]=[fish_path, habitat_path]
+        idx+=1
+    experiments = experiments.drop_duplicates(subset=[COL_FISH_PATH, COL_HABITAT_PATH], ignore_index=True)
+    experiments = experiments.reset_index().rename(columns={'index':COL_EXP_ID})
+    return experiments
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("input", help="the path of the main directory containing the subdirs or the path of the csv to use.")
@@ -154,7 +173,15 @@ if __name__ == '__main__':
 
     main_file = os.path.abspath(args.input)
 
+    #gather informations about the files and save them
     data = get_files(main_file, args.depth, (".jpg",".png",".tiff"), [], only_endnodes=True, visu=False)
     data_path = os.path.join(DIR_RESULTS, CSV_IMAGE)
     data.to_csv(data_path, index=False)
-    main(data_path)
+
+    #group files by experiments and save experiements
+    exp = group_files_by_experiments(data)
+    exp_path = os.path.join(DIR_RESULTS, CSV_EXPERIMENTS)
+    exp.to_csv(exp_path, index=False)
+
+    #execute the metrics
+    # main(data_path)
