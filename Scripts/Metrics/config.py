@@ -31,7 +31,7 @@ COL_FISH_NUMBER="fish_n"
 COL_SPECIES="species"
 COL_IMG_WIDTH="img_width"
 COL_IMG_HEIGHT="img_height"
-COL_IMG_EXT="image_exension"
+COL_IMG_EXT="image_extension"
 
 class FILE_TYPE(Enum):
     ORIG_FISH="original fish"

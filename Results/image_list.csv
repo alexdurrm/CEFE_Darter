@@ -1,4 +1,4 @@
-Image_path,filename,folder,img_height,img_width,image_exension,fish_n,habitat,color_control,tv_loss,layers,type,species,sex
+Image_path,filename,folder,img_height,img_width,image_extension,fish_n,habitat,color_control,tv_loss,layers,type,species,sex
 /home/durrmeyer/Images/StyleTransferImages/Layers_1and2/BOULDERxSANDxFISH02_colorcontrolON_1vs1e3_TVlossON_1e-3_layers1and2.png,BOULDERxSANDxFISH02_colorcontrolON_1vs1e3_TVlossON_1e-3_layers1and2.png,Layers_1and2,170.0,512.0,.png,02,BOULDERxSAND,ON,ON,Layers_1and2,fish stylized,,
 /home/durrmeyer/Images/StyleTransferImages/Layers_1and2/PLANTSxFISH01_colorcontrolOFF_1vs1e3_TVlossON_1e-3_layers1and2.png,PLANTSxFISH01_colorcontrolOFF_1vs1e3_TVlossON_1e-3_layers1and2.png,Layers_1and2,170.0,512.0,.png,01,PLANTS,OFF,ON,Layers_1and2,fish stylized,,
 /home/durrmeyer/Images/StyleTransferImages/Layers_1and2/GRAVELxFISH04_colorcontrolOFF_1vs1e3_TVlossON_1e-3_layers1and2.png,GRAVELxFISH04_colorcontrolOFF_1vs1e3_TVlossON_1e-3_layers1and2.png,Layers_1and2,170.0,512.0,.png,04,GRAVEL,OFF,ON,Layers_1and2,fish stylized,,

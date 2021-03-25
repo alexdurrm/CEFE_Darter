@@ -5,6 +5,7 @@ import os
 import argparse
 from functools import partial
 from tensorflow.keras.applications.vgg16 import VGG16
+from tensorflow.keras.applications.vgg19 import VGG19
 
 from config import *
 from Preprocess import *
@@ -146,19 +147,18 @@ def main(data_path, verbosity=1):
 
 def group_files_by_experiments(df_files):
     experiments = pd.DataFrame()
+    fishes = df_files[df_files[COL_TYPE]==FILE_TYPE.ORIG_FISH.value][[COL_IMG_PATH, COL_FISH_NUMBER, COL_FISH_SEX, COL_SPECIES]]
+    habitat = df_files[df_files[COL_TYPE]==FILE_TYPE.HABITAT.value][[COL_IMG_PATH, COL_HABITAT]]
+
     output_net = df_files[df_files[COL_TYPE]==FILE_TYPE.STYLIZED_FISH.value]
-    fishes = df_files[df_files[COL_TYPE]==FILE_TYPE.ORIG_FISH.value]
-    habitat = df_files[df_files[COL_TYPE]==FILE_TYPE.HABITAT.value]
-    # experiments : [exp_id | fish_path | env_path]
-    idx=0
-    for i, out in output_net.iterrows():
-        fish_path = fishes.loc[fishes[COL_FISH_NUMBER]==out[COL_FISH_NUMBER], COL_IMG_PATH]
-        habitat_path = habitat.loc[habitat[COL_HABITAT]==out[COL_HABITAT], COL_IMG_PATH]
-        print(fish_path, habitat_path)
-        experiments.loc[idx, [COL_FISH_PATH, COL_HABITAT_PATH]]=[fish_path, habitat_path]
-        idx+=1
-    experiments = experiments.drop_duplicates(subset=[COL_FISH_PATH, COL_HABITAT_PATH], ignore_index=True)
-    experiments = experiments.reset_index().rename(columns={'index':COL_EXP_ID})
+    output_net = output_net.drop_duplicates(subset=[COL_FISH_NUMBER, COL_FISH_SEX, COL_SPECIES, COL_HABITAT, COL_COLOR_CONTROL, COL_TV_LOSS], ignore_index=True)
+
+    experiments = output_net.merge(fishes, on=[COL_FISH_NUMBER], how="inner", suffixes=(None, "_fish"))
+    experiments = experiments.merge(habitat, on=[COL_HABITAT], how="inner", suffixes=(None, "_hab"))
+
+    fish_path = COL_IMG_PATH+"_fish"
+    habitat_path = COL_IMG_PATH+"_hab"
+    experiments = experiments[[fish_path, habitat_path]].reset_index().rename(columns={'index':COL_EXP_ID, fish_path:COL_FISH_PATH, habitat_path:COL_HABITAT_PATH})
     return experiments
 
 
@@ -184,4 +184,4 @@ if __name__ == '__main__':
     exp.to_csv(exp_path, index=False)
 
     #execute the metrics
-    # main(data_path)
+    main(data_path)
