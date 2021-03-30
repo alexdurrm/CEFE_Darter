@@ -43,14 +43,17 @@ class PHOGMetrics(MotherMetric):
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("image", help="path of the image file to open")
+    parser.add_argument("path", help="path of the image file to open")
+    parser.add_argument("action", help="type of action needed", choices=["visu", "work"])
     args = parser.parse_args()
-    image_path = os.path.abspath(args.image)
+    path = os.path.abspath(args.path)
 
     pr = Preprocess(img_type=IMG.RGB, img_channel=CHANNEL.GRAY)
     metric = PHOGMetrics(orientations=40, level=2, preprocess=pr, path=os.path.join(DIR_RESULTS, CSV_PHOG))
-    # metric.metric_from_df(image_path)
-    # metric.save()
-    metric.load()
-    metric.visualize()
-    # print(metric(image_path))
+
+    if args.action == "visu":
+        metric.load()
+        metric.visualize()
+    elif args.action=="work":
+        metric.metric_from_csv(path)
+        metric.save()

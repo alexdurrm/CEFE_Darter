@@ -119,20 +119,18 @@ class FFT_bins(FFTMetrics):
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("image", help="path of the image file to open")
+    parser.add_argument("path", help="path of the image file to open")
+    parser.add_argument("action", help="type of action needed", choices=["visu", "work"])
     args = parser.parse_args()
-    image_path = os.path.abspath(args.image)
+    path = os.path.abspath(args.path)
 
     preprocess = Preprocess(img_type=IMG.DARTER, img_channel=CHANNEL.GRAY, resize=(512,1536))
+    metric = MeanFFTSlope(fft_range=[10,80], sample_dim=120, preprocess=preprocess, path=os.path.join(DIR_RESULTS, CSV_MEAN_FFT_SLOPE))
+    # metric = FFT_bins(fft_range=[10,110], sample_dim=512, preprocess=preprocess, path=os.path.join(DIR_RESULTS, CSV_FFT_BINS))
 
-    # mean_slope = MeanFFTSlope(fft_range=[10,80], sample_dim=120, preprocess=preprocess, path=os.path.join(DIR_RESULTS, CSV_MEAN_FFT_SLOPE))
-    # mean_slope.metric_from_df(image_path)
-    # mean_slope.save()
-    # mean_slope.load()
-    # mean_slope.visualize()
-
-    fft_bins = FFT_bins(fft_range=[10,110], sample_dim=512, preprocess=preprocess, path=os.path.join(DIR_RESULTS, CSV_FFT_BINS))
-    # fft_bins.metric_from_df(image_path)
-    # fft_bins.save()
-    fft_bins.load()
-    fft_bins.visualize()
+    if args.action == "visu":
+        metric.load()
+        metric.visualize()
+    elif args.action=="work":
+        metric.metric_from_csv(path)
+        metric.save()

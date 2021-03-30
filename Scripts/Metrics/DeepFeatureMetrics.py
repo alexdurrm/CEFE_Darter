@@ -69,19 +69,21 @@ class DeepFeatureMetrics(MotherMetric):
         data_image = pd.read_csv(os.path.join(DIR_RESULTS, CSV_IMAGE), index_col=0)
         merge_data = self.data.merge(data_image, on=COL_IMG_PATH)
 
-        sns.relplot(data=merge_data, x=COL_LAYER_DF, y=COL_SPARSENESS_DF, hue=COL_DIRECTORY, kind="line", units=COL_IMG_PATH, estimator=None, alpha=0.25)
+        sns.relplot(data=merge_data, x=COL_LAYER_DF, y=COL_SPARSENESS_DF, hue=COL_DIRECTORY, col=COL_MODEL_NAME, kind="line", units=COL_IMG_PATH, estimator=None, alpha=0.25)
         plt.show()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("image", help="path of the image file to open")
+    parser.add_argument("action", help="type of action needed", choices=["visu", "work"])
+    parser.add_argument("path", help="path of the image file to open")
     args = parser.parse_args()
 
     pr = Preprocess(resize=(1500, 512), normalize=True)
     vgg16_model = DeepFeatureMetrics( VGG16(weights='imagenet', include_top=False), (1500, 512), pr, os.path.join(DIR_RESULTS,CSV_DEEP_FEATURES))
-    # d = vgg16_model(args.image)
-    # print(d)
-    #vgg16_model.metric_from_df(args.image)
-    #vgg16_model.save()
-    vgg16_model.load()
-    vgg16_model.visualize()
+
+    if args.action == "visu":
+        vgg16_model.load()
+        vgg16_model.visualize()
+    elif args.action=="work":
+        vgg16_model.metric_from_csv(args.path)
+        vgg16_model.save()

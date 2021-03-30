@@ -1,6 +1,6 @@
 from enum import Enum
 '''
-file used to centralize the names and other parameters
+file used to centralize the names and other parameters used in CSV Results
 '''
 ### NAME OF THE CSV FILE WHICH STORES ALL THE METRICS
 DIR_RESULTS="Results"
@@ -17,7 +17,7 @@ DIR_SAMUEL=["crops"]
 DIR_IGNORED=[]
 
 
-### COLUMN NAMES FOR THE CSV FILE
+### COLUMN NAMES FOR THE IMAGE CSV FILE
 COL_IMG_PATH="Image_path"
 COL_FILENAME="filename"
 COL_TYPE="type"
@@ -33,16 +33,22 @@ COL_IMG_WIDTH="img_width"
 COL_IMG_HEIGHT="img_height"
 COL_IMG_EXT="image_extension"
 
+LIST_COLUMNS_IMG=[COL_IMG_PATH, COL_FILENAME, COL_TYPE, COL_DIRECTORY, COL_HABITAT,
+    COL_COLOR_CONTROL, COL_TV_LOSS, COL_LAYERS, COL_FISH_SEX, COL_FISH_NUMBER,
+    COL_SPECIES,COL_IMG_WIDTH,COL_IMG_HEIGHT,COL_IMG_EXT]
+
 class FILE_TYPE(Enum):
     ORIG_FISH="original fish"
     STYLIZED_FISH="fish stylized"
     HABITAT="habitat"
+    ELSE="else"
 
 ### COLUMN NAMES FOR CSV EXPERIMENTS
-COL_FISH_PATH="exp_fish_path"
-COL_HABITAT_PATH="exp_habitat_path"
+COL_CONTENT_EXP_PATH="exp_fish_path"
+COL_STYLE_EXP_PATH="exp_habitat_path"
 COL_EXP_ID="exp_id"
 
+LIST_COLUMNS_EXP=[COL_CONTENT_EXP_PATH, COL_STYLE_EXP_PATH, COL_EXP_ID]
 
 ### matplotlib parameters
 FLAT_UI = ["#8c8c8c", "#5f9e6e", "#cc8963", "#5975a4", "#857aab", "#b55d60", "#c1b37f", "#8d7866", "#d095bf", "#71aec0"]

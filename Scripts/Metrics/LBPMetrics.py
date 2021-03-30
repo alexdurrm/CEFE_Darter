@@ -7,6 +7,8 @@ from MotherMetric import MotherMetric
 from Preprocess import *
 
 #local binary Pattern
+CSV_LBP="lbp.csv"
+
 COL_POINTS_LBP="points_LBP"
 COL_RADIUS_LBP="radius_LBP"
 COL_VALUE_LBP="value_LBP"
@@ -19,7 +21,7 @@ class LBPHistMetrics(MotherMetric):
         self.nbins = nbins
 
         super().__init__(*args, **kwargs)
-        
+
     def function(self, image, visu=False):
         '''
         calculates the Local Binary Pattern of a given image
@@ -51,10 +53,11 @@ class LBPHistMetrics(MotherMetric):
                 ax2.hist(lbp_image.flatten(), bins=self.bins)
                 ax2.set_title("lbp values histogram")
                 plt.show()
-                
+
         return df
 
 
+CSV_BEST_LBP="best_lbp.csv"
 class BestLBPMetrics(MotherMetric):
     def __init__(self, points, radius, n_best=20, *args, **kwargs):
         assert len(points)==len(radius), "points and radius are used zipped, should be the same length"
@@ -62,7 +65,7 @@ class BestLBPMetrics(MotherMetric):
         self.radius = radius
         self.n_best = n_best
         super().__init__(*args, **kwargs)
-        
+
     def function(self, image, visu=False):
         '''
         calculates the Local Binary Pattern of a given image
@@ -85,20 +88,24 @@ class BestLBPMetrics(MotherMetric):
                 df.loc[idx, [COL_POINTS_LBP, COL_RADIUS_LBP, COL_VALUE_LBP, COL_COUNT_LBP]] = [P, R, lbp_val, lbp_count]
                 idx+=1
         return df
-    
+
 
 
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("image", help="path of the image file to open")
+    parser.add_argument("path", help="path of the image file to open")
+    parser.add_argument("action", help="type of action needed", choices=["visu", "work"])
     args = parser.parse_args()
-    image_path = os.path.abspath(args.image)
-    
+    path = os.path.abspath(args.path)
+
     preprocess = Preprocess(img_type=IMG.DARTER, img_channel=CHANNEL.GRAY)
-    
     metric = LBPHistMetrics(points=[8, 16], radius=[2,4], nbins=20, preprocess=preprocess)
-    print(metric(image_path))
-    
-    metric = BestLBPMetrics(points=[8, 16], radius=[2,4], n_best=20, preprocess=preprocess)
-    print(metric(image_path))
+#    metric = BestLBPMetrics(points=[8, 16], radius=[2,4], n_best=20, preprocess=preprocess)
+
+    if args.action == "visu":
+        metric.load()
+        metric.visualize()
+    elif args.action=="work":
+        metric.metric_from_csv(path)
+        metric.save()

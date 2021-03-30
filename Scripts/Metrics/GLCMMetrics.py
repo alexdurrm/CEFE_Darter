@@ -121,13 +121,17 @@ def get_Haralick_descriptors(image, distances, angles, visu=False):
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("image", help="path of the image file to open")
+    parser.add_argument("path", help="path of the image file to open")
+    parser.add_argument("action", help="type of action needed", choices=["visu", "work"])
     args = parser.parse_args()
-    image_path = os.path.abspath(args.image)
+    path = os.path.abspath(args.path)
 
     preprocess = Preprocess(img_type=IMG.DARTER, img_channel=CHANNEL.GRAY)
     metric = HaralickMetrics(distances=[2,4], angles=[0,45,90,135], preprocess=preprocess, path=os.path.join(DIR_RESULTS, CSV_HARALICK))
-    # metric.metric_from_df(image_path)
-    # metric.save()
-    metric.load()
-    metric.visualize()
+
+    if args.action == "visu":
+        metric.load()
+        metric.visualize()
+    elif args.action=="work":
+        metric.metric_from_csv(path)
+        metric.save()

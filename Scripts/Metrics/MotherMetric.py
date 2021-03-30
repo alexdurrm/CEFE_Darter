@@ -28,13 +28,13 @@ class MotherMetric:
             image = self.preprocess.get_image()
         else:
             image = self.preprocess(path)
-            value = self.function(image)
+        value = self.function(image)
         self.data = self.data.append(value, ignore_index=True)
         return value
 
-    def metric_from_df(self, df_path):
+    def metric_from_csv(self, df_path):
         df = pd.read_csv(df_path, index_col=0)
-        for path in df.index:
+        for path in df[COL_IMG_PATH]:
             image = self.preprocess(path)
             value = self.function(image)
             self.data = self.data.append(value, ignore_index=True)
@@ -56,6 +56,13 @@ class MotherMetric:
             self.data.to_csv(output_path, index=False)
         else:
             self.data.to_csv(self.path, index=False)
+
+    def clear(self):
+        '''
+        clear the data
+        '''
+        del self.data
+        self.data = pd.DataFrame()
 
 
     def function(self, image):

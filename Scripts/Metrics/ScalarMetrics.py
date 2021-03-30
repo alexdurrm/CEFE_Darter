@@ -12,7 +12,7 @@ from config import *
 
 
 ###statistical values
-
+CSV_STATS_METRICS="statistical_metrics.csv"
 COL_STAT_MEAN="mean_stat"
 COL_STAT_STD="std_stat"
 COL_STAT_SKEW="skewness_stat"
@@ -20,13 +20,16 @@ COL_STAT_KURT="kurtosis_stat"
 COL_STAT_ENTROPY="entropy_stat"
 COL_GINI_VALUE="gini_coefficient"
 class StatMetrics(MotherMetric):
+    '''
+    Class used to calculate a list of statistical moments of an image
+    '''
     def function(self, image):
         df = self.preprocess.get_params()
         metrics = get_statistical_features(image)
         df.loc[0, metrics.columns] = metrics.loc[0]
         df.loc[0, COL_GINI_VALUE] = [get_gini(image)]
         return df
-        
+
     def visualize(self):
         '''
         plot a visualization of the metric
@@ -34,7 +37,7 @@ class StatMetrics(MotherMetric):
         stats = [COL_STAT_MEAN, COL_STAT_STD, COL_STAT_SKEW, COL_STAT_KURT, COL_STAT_ENTROPY, COL_GINI_VALUE]
         data_image = pd.read_csv(os.path.join(DIR_RESULTS, CSV_IMAGE), index_col=0)
         merge_data = self.data.merge(data_image, on=COL_IMG_PATH)
-        
+
         sns.set_palette(sns.color_palette(FLAT_UI))
         for stat in stats:
             ax = sns.catplot(x=COL_DIRECTORY, y=stat, data=merge_data)
@@ -58,7 +61,7 @@ def get_statistical_features(image, visu=False):
     (calculated on flattened image)
     '''
     assert image.ndim==2, "Image should be 2D only"
-    
+
     vals=pd.DataFrame()
     vals.loc[0, COL_STAT_MEAN]=np.mean(image, axis=None)
     vals.loc[0, COL_STAT_STD]=np.std(image, axis=None)
@@ -91,18 +94,21 @@ def get_gini(array, visu=False):
     gini_val = (np.sum((2 * index - n  - 1) * array)) / (n * np.sum(array))
     if visu: print("GINI: {}".format(gini_val))
     return gini_val
-    
-    
-    
+
+
+
 ###COLOR RATIO
 CSV_COLOR_RATIO="color_ratio.csv"
-COL_COLOR_RATIO="color_ratio"        
-class ColorRatioMetrics(MotherMetric):    
+COL_COLOR_RATIO="color_ratio"
+class ColorRatioMetrics(MotherMetric):
+    '''
+    Class used to calculate the ratio between 2 color channels of an image
+    '''
     def function(self, image):
         df = self.preprocess.get_params()
         df.loc[0,COL_COLOR_RATIO]=[get_color_ratio(image)]
         return df
-        
+
     def visualize(self):
         '''
         plot a visualization of the metric
@@ -111,7 +117,7 @@ class ColorRatioMetrics(MotherMetric):
 
         data_image = pd.read_csv(os.path.join(DIR_RESULTS, CSV_IMAGE), index_col=0)
         merge_data = self.data.merge(data_image, on=COL_IMG_PATH)
-        
+
         ax = sns.catplot(x=COL_DIRECTORY, y=COL_COLOR_RATIO, data=merge_data)
         ax.set_ylabels(COL_COLOR_RATIO)
         ax.set_yticklabels(fontstyle='italic')
@@ -119,7 +125,7 @@ class ColorRatioMetrics(MotherMetric):
         plt.title("color ratio")
         plt.show()
 
-    
+
 
 def get_color_ratio(image, visu=False):
     '''
@@ -127,7 +133,7 @@ def get_color_ratio(image, visu=False):
     '''
     assert image.ndim==3, "Image should be 3D"
     assert image.shape[2]==2, "Image should have two channels, here image is shape{}".format(image.shape)
-    
+
     size_sample = np.min([image.size, 1000])
     selection = np.random.choice(np.arange(size_sample), size=size_sample, replace=False)
     X = image[..., 0].flatten()[selection]
@@ -144,27 +150,22 @@ def get_color_ratio(image, visu=False):
     return slope
 
 
-
-
-
-
 if __name__=='__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("image", help="path of the image file to open")
+    parser.add_argument("path", help="path of the image file to open")
+    parser.add_argument("action", help="type of action needed", choices=["visu", "work"])
     args = parser.parse_args()
-    path = os.path.abspath(args.image)
-    
+    path = os.path.abspath(args.path)
+
     # preprocess = Preprocess(img_type=IMG.DARTER, img_channel=CHANNEL.GRAY)
-    # stat = StatMetrics(preprocess=preprocess, path="Results\\stats.csv")
-    # stat.metric_from_df(path)
-    # stat.save()
-    # stat.load()
-    # stat.visualize()
-    
+    # metric = StatMetrics(preprocess=preprocess, path="Results\\stats.csv")
+
     preprocess_all = Preprocess(img_type=IMG.DARTER, img_channel=CHANNEL.ALL)
-    # print(ratio(path))
-    ratio = ColorRatioMetrics(preprocess_all, path=os.path.join(DIR_RESULTS, CSV_COLOR_RATIO))
-    ratio.metric_from_df(path)
-    ratio.save()
-    ratio.visualize()
-    
+    metric = ColorRatioMetrics(preprocess_all, path=os.path.join(DIR_RESULTS, CSV_COLOR_RATIO))
+
+    if args.action == "visu":
+        metric.load()
+        metric.visualize()
+    elif args.action=="work":
+        metric.metric_from_csv(path)
+        metric.save()

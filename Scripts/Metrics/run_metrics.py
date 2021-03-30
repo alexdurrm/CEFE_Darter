@@ -31,7 +31,7 @@ def get_files(main_path, max_depth, types_allowed, ignored_folders, only_endnode
     if main_path.endswith(".csv"):  #load the csv file if there is one
         return pd.read_csv(main_path, index_col=0)
     assert max_depth>=0, "You should not give a depth lower than 0"
-    data = pd.DataFrame()
+    data = pd.DataFrame(columns=LIST_COLUMNS_IMG)
     to_visit=[(main_path, 0)]
     while to_visit:
         path, depth = to_visit.pop()
@@ -85,6 +85,9 @@ def load_info_from_filepath(file_path):
         dict_info[COL_FISH_NUMBER] = fish.split('.')[0][1:]
         dict_info[COL_FISH_SEX] = fish.split('.')[0][0]
         dict_info[COL_SPECIES] = specie
+        dict_info[COL_TYPE] = FILE_TYPE.ORIG_FISH.value
+    else:
+        dict_info[COL_TYPE] = FILE_TYPE.ELSE.value
     return dict_info
 
 
@@ -104,61 +107,77 @@ def main(data_path, verbosity=1):
     process_darter_gray = Preprocess(resize=resize, normalize=False, standardize=False, img_type=IMG.DARTER, img_channel=CHANNEL.GRAY)
     process_darter_all = Preprocess(resize=resize, normalize=False, standardize=False, img_type=IMG.DARTER, img_channel=CHANNEL.ALL)
     process_RGB_all = Preprocess(resize=resize, normalize=True, standardize=False, img_type=IMG.RGB, img_channel=CHANNEL.ALL)
+
     #initialize metrics used
     vgg16_model = DeepFeatureMetrics( VGG16(weights='imagenet', include_top=False), resize, process_RGB_all, os.path.join(DIR_RESULTS, CSV_DEEP_FEATURES))
     vgg19_model = DeepFeatureMetrics( VGG19(weights='imagenet', include_top=False), resize, process_RGB_all, os.path.join(DIR_RESULTS, CSV_DEEP_FEATURES))
     fft_slope = FFTSlopes(fft_range, 512, process_darter_gray, os.path.join(DIR_RESULTS, CSV_FFT_SLOPE))
     fft_bins = FFT_bins(fft_range, 512, process_darter_gray, os.path.join(DIR_RESULTS, CSV_FFT_BINS))
-    gabor_metric = GaborMetrics(gabor_angles, gabor_freq, process_darter_gray, os.path.join(DIR_RESULTS, "gabor.csv"))
-    glcm_metric = HaralickMetrics([2,4], gabor_angles, process_darter_gray, os.path.join(DIR_RESULTS, "haralick.csv"))
-    phog_metric = PHOGMetrics(40, 2, process_darter_gray, os.path.join(DIR_RESULTS,"phog.csv"))
-    lbp_metric = LBPHistMetrics([8, 16], [2,4], 100, process_darter_gray, os.path.join(DIR_RESULTS,"lbp.csv"))
-    best_lbp_metric = BestLBPMetrics([8, 16], [2,4], 100, process_darter_gray, os.path.join(DIR_RESULTS,"best_lbp.csv"))
-    stats_metric = StatMetrics(process_darter_gray, os.path.join(DIR_RESULTS,"statistical_metrics.csv"))
-    color_ratio = ColorRatioMetrics(process_darter_all, os.path.join(DIR_RESULTS,"color_ratio_slopes.csv"))
+    gabor_metric = GaborMetrics(gabor_angles, gabor_freq, process_darter_gray, os.path.join(DIR_RESULTS, CSV_GABOR))
+    glcm_metric = HaralickMetrics([2,4], gabor_angles, process_darter_gray, os.path.join(DIR_RESULTS, CSV_HARALICK))
+    phog_metric = PHOGMetrics(40, 2, process_darter_gray, os.path.join(DIR_RESULTS, CSV_PHOG))
+    lbp_metric = LBPHistMetrics([8, 16], [2,4], 100, process_darter_gray, os.path.join(DIR_RESULTS, CSV_LBP))
+    best_lbp_metric = BestLBPMetrics([8, 16], [2,4], 100, process_darter_gray, os.path.join(DIR_RESULTS, CSV_BEST_LBP))
+    stats_metric = StatMetrics(process_darter_gray, os.path.join(DIR_RESULTS, CSV_STATS_METRICS))
+    color_ratio = ColorRatioMetrics(process_darter_all, os.path.join(DIR_RESULTS, CSV_COLOR_RATIO))
 
     # call the metrics
-    vgg16_model.metric_from_df(data_path)
+    vgg16_model.metric_from_csv(data_path)
     vgg16_model.save()
+
     vgg19_model.load()
-    vgg19_model.metric_from_df(data_path)
+    vgg19_model.metric_from_csv(data_path)
     vgg19_model.save()
-    fft_slope.metric_from_df(data_path)
+
+    fft_slope.metric_from_csv(data_path)
     fft_slope.save()
-    fft_bins.metric_from_df(data_path)
+
+    fft_bins.metric_from_csv(data_path)
     fft_bins.save()
-    gabor_metric.metric_from_df(data_path)
+
+    gabor_metric.metric_from_csv(data_path)
     gabor_metric.save()
-    glcm_metric.metric_from_df(data_path)
+
+    glcm_metric.metric_from_csv(data_path)
     glcm_metric.save()
-    phog_metric.metric_from_df(data_path)
+
+    phog_metric.metric_from_csv(data_path)
     phog_metric.save()
-    lbp_metric.metric_from_df(data_path)
+
+    lbp_metric.metric_from_csv(data_path)
     lbp_metric.save()
-    best_lbp_metric.metric_from_df(data_path)
+
+    best_lbp_metric.metric_from_csv(data_path)
     best_lbp_metric.save()
-    stats_metric.metric_from_df(data_path)
+
+    stats_metric.metric_from_csv(data_path)
     stats_metric.save()
-    color_ratio.metric_from_df(data_path)
+
+    color_ratio.metric_from_csv(data_path)
     color_ratio.save()
 
     print("DONE")
 
 
 def group_files_by_experiments(df_files):
-    experiments = pd.DataFrame()
+    '''
+    returns a dataframe containing for each image transfer output,
+    a link between the path of the style image and the path of the content image
+    '''
+    experiments = pd.DataFrame(columns=LIST_COLUMNS_EXP)
     fishes = df_files[df_files[COL_TYPE]==FILE_TYPE.ORIG_FISH.value][[COL_IMG_PATH, COL_FISH_NUMBER, COL_FISH_SEX, COL_SPECIES]]
     habitat = df_files[df_files[COL_TYPE]==FILE_TYPE.HABITAT.value][[COL_IMG_PATH, COL_HABITAT]]
 
     output_net = df_files[df_files[COL_TYPE]==FILE_TYPE.STYLIZED_FISH.value]
-    output_net = output_net.drop_duplicates(subset=[COL_FISH_NUMBER, COL_FISH_SEX, COL_SPECIES, COL_HABITAT, COL_COLOR_CONTROL, COL_TV_LOSS], ignore_index=True)
+    if not output_net.empty:
+        output_net = output_net.drop_duplicates(subset=[COL_FISH_NUMBER, COL_FISH_SEX, COL_SPECIES, COL_HABITAT], ignore_index=True)
 
-    experiments = output_net.merge(fishes, on=[COL_FISH_NUMBER], how="inner", suffixes=(None, "_fish"))
-    experiments = experiments.merge(habitat, on=[COL_HABITAT], how="inner", suffixes=(None, "_hab"))
+        experiments = output_net.merge(fishes, on=[COL_FISH_NUMBER], how="inner", suffixes=(None, "_fish"))
+        experiments = experiments.merge(habitat, on=[COL_HABITAT], how="inner", suffixes=(None, "_hab"))
 
-    fish_path = COL_IMG_PATH+"_fish"
-    habitat_path = COL_IMG_PATH+"_hab"
-    experiments = experiments[[fish_path, habitat_path]].reset_index().rename(columns={'index':COL_EXP_ID, fish_path:COL_FISH_PATH, habitat_path:COL_HABITAT_PATH})
+        fish_path = COL_IMG_PATH+"_fish"
+        habitat_path = COL_IMG_PATH+"_hab"
+        experiments = experiments[[fish_path, habitat_path]].reset_index().rename(columns={'index':COL_EXP_ID, fish_path:COL_CONTENT_EXP_PATH, habitat_path:COL_STYLE_EXP_PATH})
     return experiments
 
 
@@ -173,6 +192,10 @@ if __name__ == '__main__':
 
     main_file = os.path.abspath(args.input)
 
+    #if the directory to store results do not exist create it
+    if not os.path.exists(DIR_RESULTS):
+        os.makedirs(DIR_RESULTS)
+
     #gather informations about the files and save them
     data = get_files(main_file, args.depth, (".jpg",".png",".tiff"), [], only_endnodes=True, visu=False)
     data_path = os.path.join(DIR_RESULTS, CSV_IMAGE)
@@ -184,4 +207,4 @@ if __name__ == '__main__':
     exp.to_csv(exp_path, index=False)
 
     #execute the metrics
-    main(data_path)
+    #main(data_path)
