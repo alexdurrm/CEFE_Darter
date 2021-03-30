@@ -18,7 +18,8 @@ from LBPMetrics import *
 from ScalarMetrics import *
 
 ###############################################################
-### File used to calculate metrics and save them in a csv file
+### File used to parse the images and construct a csv file containing informations about them
+### can also be used to call a list of metrics on these images 
 ###############################################################
 
 def get_files(main_path, max_depth, types_allowed, ignored_folders, only_endnodes, visu=False):
