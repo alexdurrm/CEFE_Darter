@@ -6,30 +6,38 @@ gamma correction, or compression; and with/without white balance.
 import rawpy as rp
 import imageio
 import os
+import argparse
 
 # path = 'C:/Users/preinstalled/PycharmProjects/pythonProject/fish_images/TrammelCreek/RAW/'
-path = 'C:/Users/preinstalled/PycharmProjects/pythonProject/fish_images/e_gracile_BrushxUnknownCreeks/RAW/'
 
+parser = argparse.ArgumentParser()
+parser.add_argument("input", help="path of the file to open")
+args = parser.parse_args()
+
+path = args.input
 files = os.listdir(path)
-print(path, files)
+# print(path, files)
 # outdir = 'C:/Users/preinstalled/PycharmProjects/pythonProject/fish_images/TrammelCreek/test_defWB/'
-outdir = 'C:/Users/preinstalled/PycharmProjects/pythonProject/fish_images/e_gracile_BrushxUnknownCreeks/whitebalance/'
-
+outdir = os.path.join(path, "TIFF")
+if not(os.path.exists(outdir) and os.path.isdir(outdir)):
+    os.makedirs(outdir)
+    
 count = 0
 for i in files:
     count += 1
     fnames = os.path.join(path, i)
-    print(fnames)
+    if os.path.isdir(fnames):
+        continue
     print('Processing file ' + str(count) + ' of ' + str(len(files)))
     raw = rp.imread(fnames)
-    print(raw)
-    # rawParams = rp.Params(gamma=(1, 1),
-    #                       no_auto_bright=False,
-    #                       user_wb=(1, 1, 1, 1),
-    #                       output_bps=16,
-    #                       half_size=True)
+    # print(raw)
+    rawParams = rp.Params(gamma=(1, 1),
+                          no_auto_bright=False,
+                          user_wb=(1, 1, 1, 1),
+                          output_bps=16,
+                          half_size=True)
     # print(rawParams)
-    # rgb = raw.postprocess(params = rawParams)
-    rgb = raw.postprocess(use_camera_wb=True)           # waiting for Sam to send the proper parameters
-    print(rgb)
-    imageio.imwrite((outdir + i[1:-4] + 'defWB' + '.tif'), rgb)
+    rgb = raw.postprocess(params = rawParams)
+    # rgb = raw.postprocess(use_camera_wb=True)           # waiting for Sam to send the proper parameters
+    # print(rgb)
+    imageio.imwrite(os.path.join(outdir, i[1:-4] + 'defWB' + '.tif'), rgb)
