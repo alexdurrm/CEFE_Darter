@@ -199,7 +199,7 @@ if __name__ == '__main__':
     #gather informations about the files and save them
     data = get_files(main_file, args.depth, (".jpg",".png",".tiff"), [], only_endnodes=True, visu=False)
     data_path = os.path.join(DIR_RESULTS, CSV_IMAGE)
-    data.to_csv(data_path, index=False)
+    data.to_csv(data_path, index=True)
 
     #group files by experiments and save experiements
     exp = group_files_by_experiments(data)
@@ -207,4 +207,4 @@ if __name__ == '__main__':
     exp.to_csv(exp_path, index=False)
 
     #execute the metrics
-    #main(data_path)
+    main(data_path)
