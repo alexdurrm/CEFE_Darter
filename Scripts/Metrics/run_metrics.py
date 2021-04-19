@@ -81,7 +81,15 @@ def load_info_from_filepath(file_path):
         dict_info[COL_TYPE] = FILE_TYPE.HABITAT.value
     #if the folder is the samuel folder
     elif [p for p in DIR_SAMUEL if p == directory]:
+        print("hlhlhl")
         specie, *_, fish = filename.split("_")
+        dict_info[COL_FISH_NUMBER] = fish.split('.')[0][1:]
+        dict_info[COL_FISH_SEX] = fish.split('.')[0][0]
+        dict_info[COL_SPECIES] = specie
+        dict_info[COL_TYPE] = FILE_TYPE.ORIG_FISH.value
+    elif [p for p in DIR_SAMUEL if p == os.path.split(head)[-1]]:
+        specie = directory
+        code_specie, *_, fish = filename.split("_")
         dict_info[COL_FISH_NUMBER] = fish.split('.')[0][1:]
         dict_info[COL_FISH_SEX] = fish.split('.')[0][0]
         dict_info[COL_SPECIES] = specie
@@ -197,7 +205,7 @@ if __name__ == '__main__':
         os.makedirs(DIR_RESULTS)
 
     #gather informations about the files and save them
-    data = get_files(main_file, args.depth, (".jpg",".png",".tiff"), [], only_endnodes=True, visu=False)
+    data = get_files(main_file, args.depth, (".jpg",".png",".tif",".tiff"), [], only_endnodes=True, visu=False)
     data_path = os.path.join(DIR_RESULTS, CSV_IMAGE)
     data.to_csv(data_path, index=True)
 
@@ -207,4 +215,4 @@ if __name__ == '__main__':
     exp.to_csv(exp_path, index=False)
 
     #execute the metrics
-    main(data_path)
+    #main(data_path)

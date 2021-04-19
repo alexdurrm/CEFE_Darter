@@ -3,7 +3,7 @@ from enum import Enum
 file used to centralize the names and other parameters used in CSV Results
 '''
 ### NAME OF THE CSV FILE WHICH STORES ALL THE METRICS
-DIR_RESULTS="Results"
+DIR_RESULTS="Results_AE"
 CSV_IMAGE="image_list.csv"
 CSV_EXPERIMENTS="experiments.csv"
 
@@ -13,7 +13,7 @@ DIR_STYLIZED_FISHES=["All_layers",
                     "Layers_3to5"]
 DIR_ORIGINAL_FISHES=["FISH_images"]
 DIR_ORIGINAL_HABITATS=["HABITAT_images"]
-DIR_SAMUEL=["crops"]
+DIR_SAMUEL=["crops", "Crops"]
 DIR_IGNORED=[]
 
 
