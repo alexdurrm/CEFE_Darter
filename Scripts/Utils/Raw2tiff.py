@@ -12,6 +12,7 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument("input", help="path of the file to open")
+parser.add_argument("--delete", type=str, help="say True if should deletre .CR2 afterward")
 args = parser.parse_args()
 
 path = args.input
@@ -21,7 +22,7 @@ files = os.listdir(path)
 outdir = os.path.join(path, "TIFF")
 if not(os.path.exists(outdir) and os.path.isdir(outdir)):
     os.makedirs(outdir)
-    
+
 count = 0
 for i in files:
     count += 1
@@ -41,3 +42,6 @@ for i in files:
     # rgb = raw.postprocess(use_camera_wb=True)           # waiting for Sam to send the proper parameters
     # print(rgb)
     imageio.imwrite(os.path.join(outdir, i[1:-4] + 'defWB' + '.tif'), rgb)
+    if args.delete=="True":
+        print("deleting {}".format(fnames))
+        os.remove(fnames)

@@ -64,7 +64,6 @@ class MotherMetric:
         del self.data
         self.data = pd.DataFrame()
 
-
     def function(self, image):
         '''
         perform the metric on the image
