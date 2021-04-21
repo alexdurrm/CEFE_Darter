@@ -28,7 +28,6 @@ class LBPHistMetrics(MotherMetric):
         P is the number of neighbors points to use
         R is the radius of the circle around the central pixel
         visu is to visualise the result
-        return the path to the saved image
         '''
         assert image.ndim==2, "image should be 2 dimensions: H,W, here{}".format(image.shape)
         df = pd.DataFrame()
@@ -93,15 +92,34 @@ class BestLBPMetrics(MotherMetric):
 
 
 if __name__=='__main__':
+    #default parameters
+    RESIZE=(None, None)
+    CHANNELS=CHANNEL.GRAY
+    IMG_TYPE=IMG.DARTER
+    POINTS=[8,16]
+    RADIUS=[2,4]
+    N_BINS=100
+
+    #parsing input
     parser = argparse.ArgumentParser()
     parser.add_argument("path", help="path of the image file to open")
     parser.add_argument("action", help="type of action needed", choices=["visu", "work"])
+    parser.add_argument("metric", help="metric to call, lbp calculates the full, best_lbp only remember the most comons", choices=["lbp", "best_lbp"])
+    parser.add_argument("-o", "--output_dir", default=DIR_RESULTS, help="directory where to put the csv output, default: {}".format(DIR_RESULTS))
+    parser.add_argument("-x", "--resize_X", default=RESIZE[0], type=int, help="shape to resize image x, default: {}".format(RESIZE[0]))
+    parser.add_argument("-y", "--resize_Y", default=RESIZE[1], type=int, help="shape to resize image y, default: {}".format(RESIZE[1]))
+    parser.add_argument("-n", "--n_bins", default=N_BINS, type=int, help="Number of bins into which cast the lbp values, or number of best lbp values to remember, default: {}".format(N_BINS))
     args = parser.parse_args()
+    resize = (args.resize_X, args.resize_Y)
     path = os.path.abspath(args.path)
 
-    preprocess = Preprocess(img_type=IMG.DARTER, img_channel=CHANNEL.GRAY)
-    metric = LBPHistMetrics(points=[8, 16], radius=[2,4], nbins=20, preprocess=preprocess)
-#    metric = BestLBPMetrics(points=[8, 16], radius=[2,4], n_best=20, preprocess=preprocess)
+    #prepare the metric
+    preprocess = Preprocess(img_type=IMG_TYPE, img_channel=CHANNELS, resize)
+
+    if args.metric=="lbp":
+        metric = LBPHistMetrics(points=POINTS, radius=RADIUS, nbins=args.nbins, preprocess=preprocess)
+    elif args.metric=="best_lbp":
+        metric = BestLBPMetrics(points=POINTS, radius=RADIUS, n_best=args.nbins, preprocess=preprocess)
 
     if args.action == "visu":
         metric.load()

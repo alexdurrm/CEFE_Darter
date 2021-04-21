@@ -51,26 +51,26 @@ class Autoencoder(Model):
 		]
 	)
 
-  @tf.function
-  def sample(self, eps=None):
-	if eps is None:
-	  eps = tf.random.normal(shape=(100, self.latent_dim))
-	return self.decode(eps, apply_sigmoid=True)
+	@tf.function
+	def sample(self, eps=None):
+		if eps is None:
+			eps = tf.random.normal(shape=(100, self.latent_dim))
+		return self.decode(eps, apply_sigmoid=True)
 
-  def encode(self, x):
-	mean, logvar = tf.split(self.encoder(x), num_or_size_splits=2, axis=1)
-	return mean, logvar
+	def encode(self, x):
+		mean, logvar = tf.split(self.encoder(x), num_or_size_splits=2, axis=1)
+		return mean, logvar
 
-  def reparameterize(self, mean, logvar):
-	eps = tf.random.normal(shape=mean.shape)
-	return eps * tf.exp(logvar * .5) + mean
+	def reparameterize(self, mean, logvar):
+		eps = tf.random.normal(shape=mean.shape)
+		return eps * tf.exp(logvar * .5) + mean
 
-  def decode(self, z, apply_sigmoid=False):
-	logits = self.decoder(z)
-	if apply_sigmoid:
-	  probs = tf.sigmoid(logits)
-	  return probs
-	return logits
+	def decode(self, z, apply_sigmoid=False):
+		logits = self.decoder(z)
+		if apply_sigmoid:
+			probs = tf.sigmoid(logits)
+			return probs
+		return logits
 
 	def show_predictions(self, sample_test, n=10):
 		"""
@@ -95,6 +95,7 @@ class Autoencoder(Model):
 			ax.get_xaxis().set_visible(False)
 			ax.get_yaxis().set_visible(False)
 		plt.show()
+		plt.savefig("{} predictions for test".format(self.name))
 
 
 if __name__ == '__main__':
@@ -145,6 +146,7 @@ if __name__ == '__main__':
 	plt.plot(history.history['val_loss'], label="val")
 	plt.legend()
 	plt.show()
+	plt.savefig("{} training losses".format(autoencoder.name))
 
 	#save the model
 	if not os.path.exists(args.output_dir):
@@ -154,7 +156,7 @@ if __name__ == '__main__':
 	#plot the predictions
 	autoencoder.show_predictions(test)
 
-    #plot examples samples
-    for i in range(10):
-        plt.imshow(autoencoder.sample(), cmap='gray')
-        plt.show()
+	#plot examples samples
+	for i in range(10):
+		plt.imshow(autoencoder.sample(), cmap='gray')
+		plt.show()

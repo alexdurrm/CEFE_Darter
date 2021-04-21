@@ -59,6 +59,7 @@ class Autoencoder(Model):
 			ax.get_xaxis().set_visible(False)
 			ax.get_yaxis().set_visible(False)
 		plt.show()
+		plt.savefig("{} predictions for test".format(self.name))
 
 
 if __name__ == '__main__':
@@ -109,6 +110,7 @@ if __name__ == '__main__':
 	plt.plot(history.history['val_loss'], label="val")
 	plt.legend()
 	plt.show()
+	plt.savefig("{} training losses".format(autoencoder.name))
 
 	#save the model
 	if not os.path.exists(args.output_dir):

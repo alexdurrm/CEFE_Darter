@@ -73,13 +73,22 @@ class DeepFeatureMetrics(MotherMetric):
         plt.show()
 
 if __name__ == '__main__':
+    #default parameters
+    INPUT_SHAPE = (1500, 512)
+
+    #parsing input
     parser = argparse.ArgumentParser()
     parser.add_argument("action", help="type of action needed", choices=["visu", "work"])
     parser.add_argument("path", help="path of the image file to open")
-    args = parser.parse_args()
+    parser.add_argument("-o", "--output_dir", default=DIR_RESULTS, help="directory where to put the csv output, default: {}".format(DIR_RESULTS))
+    parser.add_argument("-x", "--input_X", default=INPUT_SHAPE[0], type=int, help="shape to resize image X, default: {}".format(INPUT_SHAPE[0]))
+    parser.add_argument("-y", "--input_Y", default=INPUT_SHAPE[0], type=int, help="shape to resize image y, default: {}".format(INPUT_SHAPE[1]))
 
-    pr = Preprocess(resize=(1500, 512), normalize=True)
-    vgg16_model = DeepFeatureMetrics( VGG16(weights='imagenet', include_top=False), (1500, 512), pr, os.path.join(DIR_RESULTS,CSV_DEEP_FEATURES))
+    args = parser.parse_args()
+    input_shape = (args.input_X, args.input_Y)
+
+    pr = Preprocess(resize=input_shape, normalize=True)
+    vgg16_model = DeepFeatureMetrics( VGG16(weights='imagenet', include_top=False), input_shape, pr, os.path.join(args.output_dir, CSV_DEEP_FEATURES))
 
     if args.action == "visu":
         vgg16_model.load()

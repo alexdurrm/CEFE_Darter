@@ -151,17 +151,30 @@ def get_color_ratio(image, visu=False):
 
 
 if __name__=='__main__':
+    #default parameters
+    RESIZE=(None, None)
+    CHANNELS=CHANNEL.ALL
+    IMG_TYPE=IMG.DARTER
+
+    #parsing input
     parser = argparse.ArgumentParser()
     parser.add_argument("path", help="path of the image file to open")
     parser.add_argument("action", help="type of action needed", choices=["visu", "work"])
+    parser.add_argument("metric", help="metric to call, ", choices=["c_ratio", "moments"])
+    parser.add_argument("-o", "--output_dir", default=DIR_RESULTS, help="directory where to put the csv output, default: {}".format(DIR_RESULTS))
+    parser.add_argument("-x", "--resize_X", default=RESIZE[0], type=int, help="shape to resize image x, default: {}".format(RESIZE[0]))
+    parser.add_argument("-y", "--resize_Y", default=RESIZE[1], type=int, help="shape to resize image y, default: {}".format(RESIZE[1]))
     args = parser.parse_args()
     path = os.path.abspath(args.path)
+    resize = (args.resize_X, args.resize_Y)
 
-    # preprocess = Preprocess(img_type=IMG.DARTER, img_channel=CHANNEL.GRAY)
-    # metric = StatMetrics(preprocess=preprocess, path="Results\\stats.csv")
+    #prepare metric
+    preprocess = Preprocess(img_type=IMG_TYPE, img_channel=CHANNELS, resize=resize)
 
-    preprocess_all = Preprocess(img_type=IMG.DARTER, img_channel=CHANNEL.ALL)
-    metric = ColorRatioMetrics(preprocess_all, path=os.path.join(DIR_RESULTS, CSV_COLOR_RATIO))
+    if args.metric=="c_ratio":
+        metric = ColorRatioMetrics(preprocess, path=os.path.join(args.output_dir, CSV_COLOR_RATIO))
+    elif args.metric=="moments":
+        metric=StatMetrics(preprocess, path=os.path.join(args.output_dir, CSV_COLOR_RATIO))
 
     if args.action == "visu":
         metric.load()

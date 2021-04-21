@@ -42,14 +42,29 @@ class PHOGMetrics(MotherMetric):
 
 
 if __name__=='__main__':
+    #default parameters
+    RESIZE=(None, None)
+    CHANNELS=CHANNEL.GRAY
+    IMG_TYPE=IMG.RGB
+
+    ORIENTATIONS=8
+    LEVEL=2
+
+    #parsing input
     parser = argparse.ArgumentParser()
     parser.add_argument("path", help="path of the image file to open")
     parser.add_argument("action", help="type of action needed", choices=["visu", "work"])
+    parser.add_argument("-o", "--output_dir", default=DIR_RESULTS, help="directory where to put the csv output, default: {}".format(DIR_RESULTS))
+    parser.add_argument("-x", "--resize_X", default=RESIZE[0], type=int, help="shape to resize image x, default: {}".format(RESIZE[0]))
+    parser.add_argument("-y", "--resize_Y", default=RESIZE[1], type=int, help="shape to resize image y, default: {}".format(RESIZE[1]))
+    parser.add_argument("-n""--n_orientation", default=ORIENTATIONS, type=int, help="number of orientations to classify gradients, default: {}".format(ORIENTATIONS))
+    parser.add_argument("-l", "--level", default=LEVEL, type=int, help="Levels for the pyramidal hog, default: {}".format(LEVEL))
     args = parser.parse_args()
+    resize = (args.resize_X, args.resize_Y)
     path = os.path.abspath(args.path)
 
-    pr = Preprocess(img_type=IMG.RGB, img_channel=CHANNEL.GRAY)
-    metric = PHOGMetrics(orientations=40, level=2, preprocess=pr, path=os.path.join(DIR_RESULTS, CSV_PHOG))
+    pr = Preprocess(img_type=IMG_TYPE, img_channel=CHANNELS, resize=resize)
+    metric = PHOGMetrics(orientations=args.n_orientation, level=args.level, preprocess=pr, path=os.path.join(args.output_dir, CSV_PHOG))
 
     if args.action == "visu":
         metric.load()

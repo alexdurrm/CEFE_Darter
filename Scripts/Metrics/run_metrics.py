@@ -99,7 +99,7 @@ def load_info_from_filepath(file_path):
     return dict_info
 
 
-def main(data_path, verbosity=1):
+def main(data_path, output_dir):
     '''
     create a csv file or load an existing one
     update the values in this csv by running new metrics
@@ -116,51 +116,49 @@ def main(data_path, verbosity=1):
     process_darter_all = Preprocess(resize=resize, normalize=False, standardize=False, img_type=IMG.DARTER, img_channel=CHANNEL.ALL)
     process_RGB_all = Preprocess(resize=resize, normalize=True, standardize=False, img_type=IMG.RGB, img_channel=CHANNEL.ALL)
 
-    #initialize metrics used
-    vgg16_model = DeepFeatureMetrics( VGG16(weights='imagenet', include_top=False), resize, process_RGB_all, os.path.join(DIR_RESULTS, CSV_DEEP_FEATURES))
-    vgg19_model = DeepFeatureMetrics( VGG19(weights='imagenet', include_top=False), resize, process_RGB_all, os.path.join(DIR_RESULTS, CSV_DEEP_FEATURES))
-    fft_slope = FFTSlopes(fft_range, 512, process_darter_gray, os.path.join(DIR_RESULTS, CSV_FFT_SLOPE))
-    fft_bins = FFT_bins(fft_range, 512, process_darter_gray, os.path.join(DIR_RESULTS, CSV_FFT_BINS))
-    gabor_metric = GaborMetrics(gabor_angles, gabor_freq, process_darter_gray, os.path.join(DIR_RESULTS, CSV_GABOR))
-    glcm_metric = HaralickMetrics([2,4], gabor_angles, process_darter_gray, os.path.join(DIR_RESULTS, CSV_HARALICK))
-    phog_metric = PHOGMetrics(40, 2, process_darter_gray, os.path.join(DIR_RESULTS, CSV_PHOG))
-    lbp_metric = LBPHistMetrics([8, 16], [2,4], 100, process_darter_gray, os.path.join(DIR_RESULTS, CSV_LBP))
-    best_lbp_metric = BestLBPMetrics([8, 16], [2,4], 100, process_darter_gray, os.path.join(DIR_RESULTS, CSV_BEST_LBP))
-    stats_metric = StatMetrics(process_darter_gray, os.path.join(DIR_RESULTS, CSV_STATS_METRICS))
-    color_ratio = ColorRatioMetrics(process_darter_all, os.path.join(DIR_RESULTS, CSV_COLOR_RATIO))
-
-    # call the metrics
+    #call the metrics
+    vgg16_model = DeepFeatureMetrics( VGG16(weights='imagenet', include_top=False), resize, process_RGB_all, os.path.join(output_dir, CSV_DEEP_FEATURES))
     vgg16_model.metric_from_csv(data_path)
     vgg16_model.save()
 
-    vgg19_model.load()
+    vgg19_model = DeepFeatureMetrics( VGG19(weights='imagenet', include_top=False), resize, process_RGB_all, os.path.join(output_dir, CSV_DEEP_FEATURES))
+    vgg19_model.load()  #load in order to append the results from previous instead of overwriting it 
     vgg19_model.metric_from_csv(data_path)
     vgg19_model.save()
 
+    fft_slope = FFTSlopes(fft_range, 512, process_darter_gray, os.path.join(output_dir, CSV_FFT_SLOPE))
     fft_slope.metric_from_csv(data_path)
     fft_slope.save()
 
+    fft_bins = FFT_bins(fft_range, 512, process_darter_gray, os.path.join(output_dir, CSV_FFT_BINS))
     fft_bins.metric_from_csv(data_path)
     fft_bins.save()
 
+    gabor_metric = GaborMetrics(gabor_angles, gabor_freq, process_darter_gray, os.path.join(output_dir, CSV_GABOR))
     gabor_metric.metric_from_csv(data_path)
     gabor_metric.save()
 
+    glcm_metric = HaralickMetrics([2,4], gabor_angles, process_darter_gray, os.path.join(output_dir, CSV_HARALICK))
     glcm_metric.metric_from_csv(data_path)
     glcm_metric.save()
 
+    phog_metric = PHOGMetrics(40, 2, process_darter_gray, os.path.join(output_dir, CSV_PHOG))
     phog_metric.metric_from_csv(data_path)
     phog_metric.save()
 
+    lbp_metric = LBPHistMetrics([8, 16], [2,4], 100, process_darter_gray, os.path.join(output_dir, CSV_LBP))
     lbp_metric.metric_from_csv(data_path)
     lbp_metric.save()
 
+    best_lbp_metric = BestLBPMetrics([8, 16], [2,4], 100, process_darter_gray, os.path.join(output_dir, CSV_BEST_LBP))
     best_lbp_metric.metric_from_csv(data_path)
     best_lbp_metric.save()
 
+    stats_metric = StatMetrics(process_darter_gray, os.path.join(output_dir, CSV_STATS_METRICS))
     stats_metric.metric_from_csv(data_path)
     stats_metric.save()
 
+    color_ratio = ColorRatioMetrics(process_darter_all, os.path.join(output_dir, CSV_COLOR_RATIO))
     color_ratio.metric_from_csv(data_path)
     color_ratio.save()
 
@@ -192,27 +190,26 @@ def group_files_by_experiments(df_files):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("input", help="the path of the main directory containing the subdirs or the path of the csv to use.")
-    parser.add_argument("-v", "--verbosity", type=int, choices=[0, 1, 2], default=1,
-                    help="increase output verbosity, default is 1.")
     parser.add_argument("-d", "--depth", type=int, choices=[0, 1, 2, 3], default=2,
                     help="depth of the path searched, 0 is image, 1 is folder, 2:subfolders... not used if input is a csv file")
+    parser.add_argument("-o", "--output_dir", default=DIR_RESULTS, help="directory where to put the csv output, default: {}".format(DIR_RESULTS))
     args = parser.parse_args()
 
     main_file = os.path.abspath(args.input)
 
     #if the directory to store results do not exist create it
-    if not os.path.exists(DIR_RESULTS):
-        os.makedirs(DIR_RESULTS)
+    if not os.path.exists(args.output_dir):
+        os.makedirs(args.output_dir)
 
     #gather informations about the files and save them
     data = get_files(main_file, args.depth, (".jpg",".png",".tif",".tiff"), [], only_endnodes=True, visu=False)
-    data_path = os.path.join(DIR_RESULTS, CSV_IMAGE)
+    data_path = os.path.join(args.output_dir, CSV_IMAGE)
     data.to_csv(data_path, index=True)
 
     #group files by experiments and save experiements
     exp = group_files_by_experiments(data)
-    exp_path = os.path.join(DIR_RESULTS, CSV_EXPERIMENTS)
+    exp_path = os.path.join(args.output_dir, CSV_EXPERIMENTS)
     exp.to_csv(exp_path, index=False)
 
     #execute the metrics
-    #main(data_path)
+    #main(data_path, args.output_dir)

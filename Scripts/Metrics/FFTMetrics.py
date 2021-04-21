@@ -34,6 +34,27 @@ class FFTSlopes(FFTMetrics):
             df.loc[idx, [COL_F_SAMPLE_IDX, COL_F_SLOPE_SAMPLE, COL_F_WIN_SIZE, COL_FFT_RANGE_MIN, COL_FFT_RANGE_MAX]] = [idx, slope, self.sample_dim, *self.fft_range]
         return df
 
+    def visualize(self):
+        '''
+        used to plot the slopes of the images
+        '''
+        data_image = pd.read_csv(os.path.join(DIR_RESULTS, CSV_IMAGE), index_col=0)
+        merge_data = self.data.merge(data_image, on=COL_IMG_PATH)
+        sns.set_palette(sns.color_palette(FLAT_UI))
+        ax = sns.relplot(x=COL_F_SAMPLE_IDX, y=COL_F_SLOPE_SAMPLE, data=merge_data,
+                        units=COL_IMG_PATH,
+                        # col= ,
+                        hue=COL_DIRECTORY,
+                        #split=True,
+                        kind="line")
+
+        ax.set_ylabels('Slope of Fourier Power Spectrum ')
+        ax.set_yticklabels(fontstyle='italic')
+        plt.xticks(rotation=45)
+        plt.title("mean Fourrier slopes per folder")
+        plt.show()
+
+
 #### MEAN_FFT_SLOPES
 CSV_MEAN_FFT_SLOPE="mean_fft_slope.csv"
 COL_F_MEAN_SLOPE = "mean_fourier_slope"
@@ -118,15 +139,37 @@ class FFT_bins(FFTMetrics):
 
 
 if __name__=='__main__':
+    #default parameters
+    INPUT_SHAPE=(512,1536)
+    SAMPLE_DIM=120
+    FFT_RANGE=[10,110]
+
+    #parsing parameters
     parser = argparse.ArgumentParser()
     parser.add_argument("path", help="path of the image file to open")
     parser.add_argument("action", help="type of action needed", choices=["visu", "work"])
+    parser.add_argument("metric", help="type of metric", choices=["slope", "mean_slope", "fft"], help="slope get many slopes coefficient per image, mean_slope mean those slope values into 1, fft does not calculate the slope coefficient and return the whole line")
+    parser.add_argument("-o", "--output_dir", default=DIR_RESULTS, help="directory where to put the csv output, default: {}".format(DIR_RESULTS))
+    parser.add_argument("-x", "--resize_X", default=INPUT_SHAPE[0], type=int, help="shape to resize image x, default: {}".format(INPUT_SHAPE[0]))
+    parser.add_argument("-y", "--resize_Y", default=INPUT_SHAPE[1], type=int, help="shape to resize image y, default: {}".format(INPUT_SHAPE[1]))
+    parser.add_argument("-d", "--sample_dim", default=SAMPLE_DIM, type=int, help="size of the squared sample cropped from the image to calculate the fft, default: {}".format(SAMPLE_DIM))
+    parser.add_argument("-m", "--fft_range_min", default=FFT_RANGE[0], type=int, help="minimum freq used for fft, default: {}".format(FFT_RANGE[0]))
+    parser.add_argument("-M", "--fft_range_max", default=FFT_RANGE[1], type=int, help="maximum freq used for fft, default: {}".format(FFT_RANGE[1]))
     args = parser.parse_args()
+    input_shape = (args.resize_X, args.resize_Y)
+    fft_range = [args.fft_range_min, args.fft_range_max]
     path = os.path.abspath(args.path)
 
-    preprocess = Preprocess(img_type=IMG.DARTER, img_channel=CHANNEL.GRAY, resize=(512,1536))
-    metric = MeanFFTSlope(fft_range=[10,80], sample_dim=120, preprocess=preprocess, path=os.path.join(DIR_RESULTS, CSV_MEAN_FFT_SLOPE))
-    # metric = FFT_bins(fft_range=[10,110], sample_dim=512, preprocess=preprocess, path=os.path.join(DIR_RESULTS, CSV_FFT_BINS))
+    #preparing the metric
+    preprocess = Preprocess(img_type=IMG.DARTER, img_channel=CHANNEL.GRAY, resize=input_shape)
+
+    if args.metric == "slope":
+        meatric = FFTSlopes(fft_range=fft_range, sample_dim=args.sample_dim, preprocess=preprocess, path=os.path.join(args.output_dir, CSV_FFT_SLOPE))
+    elif args.metric="mean_slope":
+        metric = MeanFFTSlope(fft_range=fft_range, sample_dim=args.sample_dim, preprocess=preprocess, path=os.path.join(args.output_dir, CSV_MEAN_FFT_SLOPE))
+    elif args.metric=="fft":
+        metric = FFT_bins(fft_range=fft_range, sample_dim=args.sample_dim, preprocess=preprocess, path=os.path.join(args.output_dir, CSV_FFT_BINS))
+
 
     if args.action == "visu":
         metric.load()

@@ -120,14 +120,26 @@ def get_Haralick_descriptors(image, distances, angles, visu=False):
 
 
 if __name__=='__main__':
+    #default parameters
+    RESIZE=(None, None)
+    CHANNELS=CHANNEL.GRAY
+    IMG_TYPE=IMG.DARTER
+    DISTANCES=[2,4]
+    ANGLES=[0,45,90,135]
+
+    #parsing input
     parser = argparse.ArgumentParser()
     parser.add_argument("path", help="path of the image file to open")
     parser.add_argument("action", help="type of action needed", choices=["visu", "work"])
+    parser.add_argument("-o", "--output_dir", default=DIR_RESULTS, help="directory where to put the csv output, default: {}".format(DIR_RESULTS))
+    parser.add_argument("-x", "--resize_X", default=RESIZE[0], type=int, help="shape to resize image x, default: {}".format(RESIZE[0]))
+    parser.add_argument("-y", "--resize_Y", default=RESIZE[1], type=int, help="shape to resize image y, default: {}".format(RESIZE[1]))
     args = parser.parse_args()
+    resize = (args.resize_X, args.resize_Y)
     path = os.path.abspath(args.path)
 
-    preprocess = Preprocess(img_type=IMG.DARTER, img_channel=CHANNEL.GRAY)
-    metric = HaralickMetrics(distances=[2,4], angles=[0,45,90,135], preprocess=preprocess, path=os.path.join(DIR_RESULTS, CSV_HARALICK))
+    preprocess = Preprocess(img_type=IMG_TYPE, img_channel=CHANNELS, resize=resize)
+    metric = HaralickMetrics(distances=DISTANCES, angles=ANGLES, preprocess=preprocess, path=os.path.join(args.output_dir, CSV_HARALICK))
 
     if args.action == "visu":
         metric.load()
