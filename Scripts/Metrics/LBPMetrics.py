@@ -114,7 +114,7 @@ if __name__=='__main__':
     path = os.path.abspath(args.path)
 
     #prepare the metric
-    preprocess = Preprocess(img_type=IMG_TYPE, img_channel=CHANNELS, resize)
+    preprocess = Preprocess(resizeX=resize[0], resizeY=resize[1], img_type=IMG_TYPE, img_channel=CHANNELS)
 
     if args.metric=="lbp":
         metric = LBPHistMetrics(points=POINTS, radius=RADIUS, nbins=args.nbins, preprocess=preprocess)

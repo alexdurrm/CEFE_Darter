@@ -138,7 +138,7 @@ if __name__=='__main__':
     resize = (args.resize_X, args.resize_Y)
     path = os.path.abspath(args.path)
 
-    preprocess = Preprocess(img_type=IMG_TYPE, img_channel=CHANNELS, resize=resize)
+    preprocess = Preprocess(resizeX=resize[0], resizeY=resize[1], img_type=IMG_TYPE, img_channel=CHANNELS)
     metric = HaralickMetrics(distances=DISTANCES, angles=ANGLES, preprocess=preprocess, path=os.path.join(args.output_dir, CSV_HARALICK))
 
     if args.action == "visu":

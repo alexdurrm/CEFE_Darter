@@ -135,9 +135,9 @@ if __name__=='__main__':
 	normalize = eval(args.normalize)
 
 	print(args.type_img.name, args.type_img.value)
-	
+
 	image = imageio.imread(args.image_path)
-	pr = Preprocess(resizeX=args.resizeX, resizeY=args.resizeY, normalize=normalize, standardize=standardize, 
+	pr = Preprocess(resizeX=args.resizeX, resizeY=args.resizeY, normalize=normalize, standardize=standardize,
 		img_type=args.type_img, img_channel=args.channel_img)
 	#1st way to do
 	img_pr1 = pr(args.image_path)

@@ -87,7 +87,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     input_shape = (args.input_X, args.input_Y)
 
-    pr = Preprocess(resize=input_shape, normalize=True)
+    pr = Preprocess(resizeX=input_shape[0], resizeY=input_shape[1], normalize=True)
     vgg16_model = DeepFeatureMetrics( VGG16(weights='imagenet', include_top=False), input_shape, pr, os.path.join(args.output_dir, CSV_DEEP_FEATURES))
 
     if args.action == "visu":

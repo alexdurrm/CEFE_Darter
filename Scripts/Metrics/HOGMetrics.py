@@ -63,7 +63,7 @@ if __name__=='__main__':
     resize = (args.resize_X, args.resize_Y)
     path = os.path.abspath(args.path)
 
-    pr = Preprocess(img_type=IMG_TYPE, img_channel=CHANNELS, resize=resize)
+    pr = Preprocess(resizeX=resize[0], resizeY=resize[1], img_type=IMG_TYPE, img_channel=CHANNELS)
     metric = PHOGMetrics(orientations=args.n_orientation, level=args.level, preprocess=pr, path=os.path.join(args.output_dir, CSV_PHOG))
 
     if args.action == "visu":

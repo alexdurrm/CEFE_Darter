@@ -32,39 +32,81 @@ class AutoencoderMetrics(MotherMetric):
 
 	def visualize(self):
 		data_image = pd.read_csv(os.path.join(DIR_RESULTS, CSV_IMAGE), index_col=0)
-		merge = self.data.merge(data_image, on=COL_IMG_PATH)
+
+		# #plot differences in quality prediction for each network
+		# data_networks = self.data.loc[self.data[COL_ITERATION_AE]==0]
+		# data_merged = data_networks.merge(data_image, on=COL_IMG_PATH)
+
+		# sns.catplot(data=data_merged, x=COL_SPECIES, y=COL_MSE_AE,
+		# col=COL_MODEL_NAME_AE, row=COL_TYPE,
+		# hue=COL_FISH_SEX, split=True, kind='violin')
+		# plt.show()
+		# sns.catplot(data=data_merged, x=COL_SPECIES, y=COL_LATENT_DIST_AE,
+		# col=COL_MODEL_NAME_AE, row=COL_TYPE,
+		# hue=COL_FISH_SEX, split=True, kind='violin')
+		# plt.show()
+
+		# sns.relplot(data=data_merged, x=COL_MODEL_NAME_AE, y=COL_MSE_AE,
+		# col=COL_FISH_SEX, hue=COL_SPECIES)
+		# plt.show()
+		# sns.relplot(data=data_merged, x=COL_MODEL_NAME_AE, y=COL_LATENT_DIST_AE,
+		# col=COL_FISH_SEX, hue=COL_SPECIES)
+		# plt.show()
+
+
+		#specific plots for the network
+		data_network = self.data.loc[self.data[COL_MODEL_NAME_AE]==self.model.name]
+		merge = data_network.merge(data_image, on=COL_IMG_PATH)
 		merge_data = merge.loc[merge[COL_TYPE]==FILE_TYPE.ORIG_FISH.value]
 
-		sns.relplot(data=merge_data, x=COL_ITERATION_AE, y=COL_MSE_AE,
-			col=COL_TYPE, hue=COL_SPECIES,
-			kind="line", estimator=None, units=COL_IMG_PATH, alpha=0.5)
+		#plot violin dist by species
+		sns.catplot(data=merge_data, x=COL_SPECIES, y=COL_MSE_AE,
+		col=COL_MODEL_NAME_AE, row=COL_TYPE,
+		hue=COL_FISH_SEX, split=True, kind='violin')
 		plt.show()
-		sns.relplot(data=merge_data, x=COL_ITERATION_AE, y=COL_LATENT_DIST_AE,
-			col=COL_TYPE, hue=COL_SPECIES,
-			kind="line", estimator=None, units=COL_IMG_PATH, alpha=0.5)
-		plt.show()
-		sns.relplot(data=merge_data, x=COL_ITERATION_AE, y=COL_MSE_AE,
-			col=COL_TYPE, hue=COL_SPECIES,kind="line")
-		plt.show()
-		sns.relplot(data=merge_data, x=COL_ITERATION_AE, y=COL_LATENT_DIST_AE,
-			col=COL_TYPE, hue=COL_SPECIES, kind="line")
+		sns.catplot(data=merge_data, x=COL_SPECIES, y=COL_LATENT_DIST_AE,
+		col=COL_MODEL_NAME_AE, row=COL_TYPE,
+		hue=COL_FISH_SEX, split=True, kind='violin')
 		plt.show()
 
-		sns.relplot(data=merge_data, x=COL_ITERATION_AE, y=COL_MSE_PREV_AE,
-			col=COL_TYPE, hue=COL_SPECIES,
-			kind="line", estimator=None, units=COL_IMG_PATH, alpha=0.5)
+		# #plot individual divergences
+		# sns.relplot(data=merge_data, x=COL_ITERATION_AE, y=COL_MSE_AE,
+		# 	col=COL_TYPE, hue=COL_SPECIES,
+		# 	kind="line", estimator=None, units=COL_IMG_PATH, alpha=0.5).set_titles("{}".format(self.model.name))
+		# plt.show()
+		# sns.relplot(data=merge_data, x=COL_ITERATION_AE, y=COL_LATENT_DIST_AE,
+		# 	col=COL_TYPE, hue=COL_SPECIES,
+		# 	kind="line", estimator=None, units=COL_IMG_PATH, alpha=0.5).set_titles("{}".format(self.model.name))
+		# plt.show()
+
+		#plot grouped divergences
+		sns.relplot(data=merge_data, x=COL_ITERATION_AE, y=COL_MSE_AE,
+			col=COL_TYPE, hue=COL_SPECIES,kind="line").set_titles("{}".format(self.model.name))
 		plt.show()
-		sns.relplot(data=merge_data, x=COL_ITERATION_AE, y=COL_LATENT_DIST_PREV_AE,
-			col=COL_TYPE, hue=COL_SPECIES,
-			kind="line", estimator=None, units=COL_IMG_PATH, alpha=0.5)
+		# plt.savefig("grp_mse_div_{}".format(self.model.name))
+		sns.relplot(data=merge_data, x=COL_ITERATION_AE, y=COL_LATENT_DIST_AE,
+			col=COL_TYPE, hue=COL_SPECIES, kind="line").set_titles("{}".format(self.model.name))
 		plt.show()
-		sns.relplot(data=merge_data, x=COL_ITERATION_AE, y=COL_MSE_PREV_AE,
-			col=COL_TYPE, hue=COL_SPECIES,kind="line")
-		plt.show()
-		sns.relplot(data=merge_data, x=COL_ITERATION_AE, y=COL_LATENT_DIST_PREV_AE,
-			col=COL_TYPE, hue=COL_SPECIES, kind="line")
-		plt.show()
-		
+		# plt.savefig("grp_lat_div_{}".format(self.model.name))
+
+		# #plot individual diff with previous iteration
+		# sns.relplot(data=merge_data, x=COL_ITERATION_AE, y=COL_MSE_PREV_AE,
+		# 	col=COL_TYPE, hue=COL_SPECIES,
+		# 	kind="line", estimator=None, units=COL_IMG_PATH, alpha=0.5).set_titles("{}".format(self.model.name))
+		# plt.show()
+		# sns.relplot(data=merge_data, x=COL_ITERATION_AE, y=COL_LATENT_DIST_PREV_AE,
+		# 	col=COL_TYPE, hue=COL_SPECIES,
+		# 	kind="line", estimator=None, units=COL_IMG_PATH, alpha=0.5).set_titles("{}".format(self.model.name))
+		# plt.show()
+
+		# #plot grouped diff with previous iteration
+		# sns.relplot(data=merge_data, x=COL_ITERATION_AE, y=COL_MSE_PREV_AE,
+		# 	col=COL_TYPE, hue=COL_SPECIES,kind="line").set_titles("{}".format(self.model.name))
+		# plt.show()
+		# sns.relplot(data=merge_data, x=COL_ITERATION_AE, y=COL_LATENT_DIST_PREV_AE,
+		# 	col=COL_TYPE, hue=COL_SPECIES, kind="line").set_titles("{}".format(self.model.name))
+		# plt.show()
+
 
 	def function(self, image):
 		df = pd.DataFrame()
@@ -78,7 +120,7 @@ class AutoencoderMetrics(MotherMetric):
 		i=0
 		for pxl_shift ,latent_shift, pxl_diff, latent_diff in zip(shift_pxl, shift_latent, diff_pxl, diff_latent):
 			df.loc[i, params.columns] = params.iloc[0]
-			df.loc[i, [COL_MODEL_NAME_AE, COL_ITERATION_AE, COL_PRED_SIZE, COL_MSE_AE, COL_LATENT_DIST_AE, COL_MSE_PREV_AE, COL_LATENT_DIST_PREV_AE]] = [self.model.name, i, PREDICTION_SIZE, pxl, latent, pxl_diff, latent_diff]
+			df.loc[i, [COL_MODEL_NAME_AE, COL_ITERATION_AE, COL_PRED_SIZE, COL_MSE_AE, COL_LATENT_DIST_AE, COL_MSE_PREV_AE, COL_LATENT_DIST_PREV_AE]] = [self.model.name, i, PREDICTION_SIZE, pxl_shift, latent_shift, pxl_diff, latent_diff]
 			i+=1
 		return df
 
@@ -99,7 +141,7 @@ def fly_over_image(image, window, stride, return_coord=False):
 				yield sample
 
 
-def divergence(autoencoder, start, repetition, visu=False):
+def divergence(autoencoder, start, repetition, visu=True):
 	if start.ndim<4:
 		start=start[np.newaxis, ...]
 	start_latent = autoencoder.encoder(start)
@@ -116,8 +158,8 @@ def divergence(autoencoder, start, repetition, visu=False):
 	if visu: plt.figure(figsize=(20, 4))
 	for i in range(repetition):
 		if visu:
-            ax = plt.subplot(repetition//10, 10, i+1)
-            plt.imshow(prev_decoded[0])
+			ax = plt.subplot(repetition//10, 10, i+1)
+			plt.imshow(prev_pxl[0])
 
 		new_pxl = autoencoder.decoder(prev_latent)
 		new_latent = autoencoder.encoder(new_pxl)
@@ -125,19 +167,18 @@ def divergence(autoencoder, start, repetition, visu=False):
 		shift_pxl.append(np.mean(np.square(start - new_pxl), axis=(-1,-2,-3)))
 		shift_latent.append(np.mean(np.square(start_latent - new_latent), axis=(axis_latent)))
 
-		diff_pxl.apend(np.mean(np.square(prev_pxl - new_pxl), axis=(-1,-2,-3)))
+		diff_pxl.append(np.mean(np.square(prev_pxl - new_pxl), axis=(-1,-2,-3)))
 		diff_latent.append(np.mean(np.square(prev_latent - new_latent), axis=(axis_latent)))
 
 		prev_pxl = new_pxl#.numpy()
 		prev_latent = new_latent
-	if visu: 
+	if visu:
 		plt.show()
-		plt.savefig("divergence_{}_{}.png".format(autoencoder.name))
+		#plt.savefig("divergence_{}_{}.png".format(autoencoder.name))
 	return shift_pxl, shift_latent, diff_pxl, diff_latent
 
 
 if __name__ == '__main__':
-	#default parameters
 
 	#parameter parsing
 	parser = argparse.ArgumentParser()
@@ -147,7 +188,7 @@ if __name__ == '__main__':
 	parser.add_argument("-o", "--output_dir", default=DIR_RESULTS, help="directory where to put the csv output, default: {}".format(DIR_RESULTS))
 	args = parser.parse_args()
 
-	pr = Preprocess(resize=None, normalize=True, standardize=True, img_type=IMG.RGB, img_channel=CHANNEL.ALL)
+	pr = Preprocess(resizeX=None, resizeY=None, normalize=True, standardize=True, img_type=IMG.RGB, img_channel=CHANNEL.ALL)
 	model_name = os.path.split(args.path_model)[-1]
 	metric = AutoencoderMetrics(args.path_model, pr, os.path.join(args.output_dir, CSV_AE+model_name+".csv"))
 
@@ -155,5 +196,6 @@ if __name__ == '__main__':
 		metric.load()
 		metric.visualize()
 	elif args.action=="work":
+		metric.load()
 		metric.metric_from_csv(args.path_img)
 		metric.save()

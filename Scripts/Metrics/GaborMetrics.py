@@ -109,7 +109,7 @@ if __name__=='__main__':
     resize = (args.resize_X, args.resize_Y)
     path = os.path.abspath(args.path)
 
-    preprocess = Preprocess(img_type=IMG.DARTER, img_channel=CHANNEL.GRAY, resize=resize)
+    preprocess = Preprocess(resizeX=resize[0], resizeY=resize[1],img_type=IMG.DARTER, img_channel=CHANNEL.GRAY)
     metric = GaborMetrics(angles=[0,45,90,135], frequencies=[0.2, 0.4, 0.8], preprocess=preprocess, path=os.path.join(args.output_dir, CSV_GABOR))
 
     if args.action == "visu":

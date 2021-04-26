@@ -153,7 +153,7 @@ def get_color_ratio(image, visu=False):
 if __name__=='__main__':
     #default parameters
     RESIZE=(None, None)
-    CHANNELS=CHANNEL.ALL
+    CHANNELS=CHANNEL.GRAY
     IMG_TYPE=IMG.DARTER
 
     #parsing input
@@ -169,11 +169,16 @@ if __name__=='__main__':
     resize = (args.resize_X, args.resize_Y)
 
     #prepare metric
-    preprocess = Preprocess(img_type=IMG_TYPE, img_channel=CHANNELS, resize=resize)
 
     if args.metric=="c_ratio":
+        CHANNELS=CHANNEL.GRAY
+        IMG_TYPE=IMG.DARTER
+        preprocess = Preprocess(resizeX=resize[0], resizeY=resize[1], img_type=IMG_TYPE, img_channel=CHANNELS)
         metric = ColorRatioMetrics(preprocess, path=os.path.join(args.output_dir, CSV_COLOR_RATIO))
     elif args.metric=="moments":
+        CHANNELS=CHANNEL.GRAY
+        IMG_TYPE=IMG.DARTER
+        preprocess = Preprocess(resizeX=resize[0], resizeY=resize[1], img_type=IMG_TYPE, img_channel=CHANNELS)
         metric=StatMetrics(preprocess, path=os.path.join(args.output_dir, CSV_COLOR_RATIO))
 
     if args.action == "visu":

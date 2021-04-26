@@ -45,12 +45,12 @@ class MotherMetric:
 		'''
 		try:
 			if data_path:
-				self.data = pd.read_csv(data_path, index_col=0)
+				self.data = pd.read_csv(data_path, index_col=False)
 			else:
-				self.data = pd.read_csv(self.path, index_col=0)
+				self.data = pd.read_csv(self.path, index_col=False)
 		except FileNotFoundError:
 			print("nothing to load, continuing with current data")
-				
+
 	def save(self, output_path=None):
 		'''
 		save the data as csv

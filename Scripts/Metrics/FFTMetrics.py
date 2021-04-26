@@ -161,7 +161,7 @@ if __name__=='__main__':
     path = os.path.abspath(args.path)
 
     #preparing the metric
-    preprocess = Preprocess(img_type=IMG.DARTER, img_channel=CHANNEL.GRAY, resize=input_shape)
+    preprocess = Preprocess(resizeX=input_shape[0], resizeY=input_shape[1], img_type=IMG.DARTER, img_channel=CHANNEL.GRAY)
 
     if args.metric == "slope":
         meatric = FFTSlopes(fft_range=fft_range, sample_dim=args.sample_dim, preprocess=preprocess, path=os.path.join(args.output_dir, CSV_FFT_SLOPE))
