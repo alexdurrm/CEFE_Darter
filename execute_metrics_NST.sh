@@ -1,4 +1,21 @@
 #!/bin/bash
+
+#parameters
+DIR_RESULTS="Results/NST_metrics/"
+
+
+#list images
+python Scripts/Metrics/list_images.py both Images/StyleTransferImages/ -o $DIR_RESULTS -f .jpg .png -e True
+
+
+#deep features vgg16
+python Scripts/Metrics/DeepFeatureMetrics.py work ${DIR_RESULTS}image_list.csv -o $DIR_RESULTS -t RGB -c ALL -m vgg16
+
+
+#deep features vgg19
+python Scripts/Metrics/DeepFeatureMetrics.py work ${DIR_RESULTS}image_list.csv -o $DIR_RESULTS -t RGB -c ALL -m vgg19
+
+
 	#fft_range=(10, 110) #110 pour des fenetres 200x200!!!
 	# GLCM_DISTANCES=[1]
 	#gabor_angles=[0, 45, 90, 135]
@@ -9,16 +26,6 @@
 	process_darter_gray = Preprocess(resizeX=resize[0], resizeY=resize[1], normalize=False, standardize=False, img_type=IMG.DARTER, img_channel=CHANNEL.GRAY)
 	process_darter_all = Preprocess(resizeX=resize[0], resizeY=resize[1], normalize=False, standardize=False, img_type=IMG.DARTER, img_channel=CHANNEL.ALL)
 	process_RGB_all = Preprocess(resizeX=resize[0], resizeY=resize[1], normalize=True, standardize=False, img_type=IMG.RGB, img_channel=CHANNEL.ALL)
-
-	#call the metrics
-	vgg16_model = DeepFeatureMetrics( VGG16(weights='imagenet', include_top=False), resize, process_RGB_all, os.path.join(output_dir, CSV_DEEP_FEATURES))
-	vgg16_model.metric_from_csv(data_path)
-	vgg16_model.save()
-
-	vgg19_model = DeepFeatureMetrics( VGG19(weights='imagenet', include_top=False), resize, process_RGB_all, os.path.join(output_dir, CSV_DEEP_FEATURES))
-	vgg19_model.load()  #load in order to append the results from previous instead of overwriting it
-	vgg19_model.metric_from_csv(data_path)
-	vgg19_model.save()
 
 	fft_slope = FFTSlopes(fft_range, 512, process_darter_gray, os.path.join(output_dir, CSV_FFT_SLOPE))
 	fft_slope.metric_from_csv(data_path)

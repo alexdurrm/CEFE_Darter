@@ -4,18 +4,8 @@ import imageio
 import os
 import argparse
 from functools import partial
-from tensorflow.keras.applications.vgg16 import VGG16
-from tensorflow.keras.applications.vgg19 import VGG19
 
 from config import *
-from Preprocess import *
-from DeepFeatureMetrics import *
-from FFTMetrics import *
-from GaborMetrics import *
-from GLCMMetrics import *
-from HOGMetrics import *
-from LBPMetrics import *
-from ScalarMetrics import *
 
 ###############################################################
 ### File used to calculate metrics and save them in a csv file
@@ -129,8 +119,8 @@ if __name__ == '__main__':
 
 	#parsing parameters
 	parser = argparse.ArgumentParser()
-	parser.add_argument("input", help="The path of the main directory containing the subdirs or the path of the csv to use.")
 	parser.add_argument("action", choices=["list", "group", "both"], help="type of action needed, \"list\" gives a csv containing informations about the image files, \"group\" groups them into experiment categories, \"both\" do both")
+	parser.add_argument("input", help="The path of the main directory containing the subdirs or the path of the csv to use.")
 	parser.add_argument("-d", "--depth", type=int, choices=[0, 1, 2, 3], default=DEPTH, help="Depth of the path searched, 0 is image, 1 is folder, 2 is subfolders ,etc. default: {}".format(DEPTH))
 	parser.add_argument("-o", "--output_dir", default=DIR_RESULTS, help="Directory where to put the csv output, default: {}".format(DIR_RESULTS))
 	parser.add_argument("-f", "--formats", default=FORMATS, nargs="+", type=str, help="Image extensions accepted, default: {}".format(FORMATS))

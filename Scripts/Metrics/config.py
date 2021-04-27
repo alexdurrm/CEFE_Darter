@@ -9,8 +9,8 @@ CSV_EXPERIMENTS="experiments.csv"
 
 ### DIRECTORY NAMES
 DIR_STYLIZED_FISHES=["All_layers",
-                    "Layers_1and2",
-                    "Layers_3to5"]
+					"Layers_1and2",
+					"Layers_3to5"]
 DIR_ORIGINAL_FISHES=["FISH_images"]
 DIR_ORIGINAL_HABITATS=["HABITAT_images"]
 DIR_SAMUEL=["crops", "Crops"]
@@ -34,15 +34,15 @@ COL_IMG_HEIGHT="img_height"
 COL_IMG_EXT="image_extension"
 
 LIST_COLUMNS_IMG=[COL_IMG_PATH, COL_FILENAME, COL_TYPE, COL_DIRECTORY, COL_HABITAT,
-    COL_COLOR_CONTROL, COL_TV_LOSS, COL_LAYERS, COL_FISH_SEX, COL_FISH_NUMBER,
-    COL_SPECIES,COL_IMG_WIDTH,COL_IMG_HEIGHT,COL_IMG_EXT]
+	COL_COLOR_CONTROL, COL_TV_LOSS, COL_LAYERS, COL_FISH_SEX, COL_FISH_NUMBER,
+	COL_SPECIES,COL_IMG_WIDTH,COL_IMG_HEIGHT,COL_IMG_EXT]
 
 class FILE_TYPE(Enum):
-    ORIG_FISH="original fish"
-    STYLIZED_FISH="fish stylized"
-    HABITAT="habitat"
-    ELSE="else"
-    def __str__(self):
+	ORIG_FISH="original fish"
+	STYLIZED_FISH="fish stylized"
+	HABITAT="habitat"
+	ELSE="else"
+	def __str__(self):
 		return self.name
 
 ### COLUMN NAMES FOR CSV EXPERIMENTS

@@ -1,5 +1,6 @@
 import tensorflow.keras as K
 from tensorflow.keras.applications.vgg16 import VGG16
+from tensorflow.keras.applications.vgg19 import VGG19
 import pandas as pd
 import numpy as np
 import argparse
@@ -81,11 +82,13 @@ if __name__ == '__main__':
 	IMG_TYPE=IMG.RGB
 	IMG_CHANNEL=CHANNEL.ALL
 	VERBOSE=1
+	DEFAULT_NET="vgg16"
 
 	#parameter parsing
 	parser = argparse.ArgumentParser()
 	parser.add_argument("action", help="type of action needed", choices=["visu", "work"])
 	parser.add_argument("path_input", help="path of the image file to open")
+	parser.add_argument("-m", "--model", type=str, choices=["vgg16", "vgg19"], default=DEFAULT_NET, help="Neural network used to get the deep features, default: {}".format(DEFAULT_NET))
 	parser.add_argument("-x", "--input_X", default=INPUT_SHAPE[0], type=int, help="shape to resize image X, default: {}".format(INPUT_SHAPE[0]))
 	parser.add_argument("-y", "--input_Y", default=INPUT_SHAPE[0], type=int, help="shape to resize image y, default: {}".format(INPUT_SHAPE[1]))
 	parser.add_argument("-o", "--output_dir", default=DIR_RESULTS, help="directory where to put the csv output, default: {}".format(DIR_RESULTS))
@@ -101,11 +104,16 @@ if __name__ == '__main__':
 	#prepare metric
 	preprocess = Preprocess(resizeX=input_shape[0], resizeY=input_shape[1], normalize=args.normalize, standardize=args.standardize, img_type=args.type_img, img_channel=args.channel_img)
 	filepath = os.path.join(args.output_dir, CSV_DEEP_FEATURES)
-	vgg16_model = DeepFeatureMetrics( VGG16(weights='imagenet', include_top=False), input_shape, preprocess)
+
+	if args.model=="vgg16":
+		chosen_model = VGG16(weights='imagenet', include_top=False)
+	elif args.model == "vgg19":
+		chosen_model = VGG19(weights='imagenet', include_top=False)
+	metric = DeepFeatureMetrics( chosen_model, input_shape, preprocess)
 
 	if args.action == "visu":
-		vgg16_model.load(filepath)
-		vgg16_model.visualize()
+		metric.load(filepath)
+		metric.visualize()
 	elif args.action=="work":
-		vgg16_model.metric_from_csv(args.path_input)
-		vgg16_model.save(filepath)
+		metric.metric_from_csv(args.path_input)
+		metric.save(filepath)
