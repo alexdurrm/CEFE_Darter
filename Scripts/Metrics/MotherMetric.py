@@ -55,7 +55,6 @@ class MotherMetric:
 		self.data.to_csv(output_path, index=False)
 		print("saved at {}".format(output_path))
 
-
 	def clear(self):
 		'''
 		clear the data
