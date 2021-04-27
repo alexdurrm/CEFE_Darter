@@ -1,3 +1,6 @@
+#setup
+export PYTHONPATH="absolute/path/to/CEFE/"
+
 # CEFE_Darter
 **_Script/_** contains all the Scripts from this project.
 **_Script/Metrics/_** contains the python scripts used on images that output csv files in **_Result/_** directory.
