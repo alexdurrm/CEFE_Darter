@@ -1,0 +1,38 @@
+root of the project, where the bash are stored to automatize the call to the scripts
+
+projet/
+|   README.md
+|   info.txt
+|   conda_list
+|   exec_*.sh (all bash)
+|   ...
+|
+|___Scripts/
+|   |   info.txt
+|   |   AutoEncoders/
+|   |   |   ...
+|   |   Metrics/
+|   |   |   ...
+|   |   Notebooks/
+|   |   |   divergence.ipynb
+|   |   |   ...
+|   |   Tests/
+|   |   |   testScalar.py
+|   |   |   ...
+|   |   Utils/
+|   |   |   info.txt
+|   |   |   crop_fishes.py
+|   |   |   open_tiff.py.py
+|   |   |   Raw2tiff.py
+|   |   |   Tiff2Npy.py
+|   |   ...
+|
+|___Results/
+|   |   info.txt
+|   |   AE_***/
+|   |   NST_***/
+|   |   ...
+|
+|___Images
+    |   info.txt
+    |   ...

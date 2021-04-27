@@ -16,40 +16,40 @@ import cv2
 
 
 class Autoencoder(Model):
-  """Convolutional variational autoencoder."""
-
-  def __init__(self, name, latent_dim):
-	super(Autoencoder, self).__init__(name=name)
-	self.latent_dim = latent_dim
-	self.encoder = K.Sequential(
-		[
-			K.layers.InputLayer(input_shape=(28, 28, 1)),
-			K.layers.Conv2D(
-				filters=32, kernel_size=3, strides=(2, 2), activation='relu'),
-			K.layers.Conv2D(
-				filters=64, kernel_size=3, strides=(2, 2), activation='relu'),
-			K.layers.Flatten(),
-			# No activation
-			K.layers.Dense(latent_dim + latent_dim),
-		]
-	)
-
-	self.decoder = K.Sequential(
-		[
-			K.layers.InputLayer(input_shape=(latent_dim,)),
-			K.layers.Dense(units=7*7*32, activation=tf.nn.relu),
-			K.layers.Reshape(target_shape=(7, 7, 32)),
-			K.layers.Conv2DTranspose(
-				filters=64, kernel_size=3, strides=2, padding='same',
-				activation='relu'),
-			K.layers.Conv2DTranspose(
-				filters=32, kernel_size=3, strides=2, padding='same',
-				activation='relu'),
-			# No activation
-			K.layers.Conv2DTranspose(
-				filters=1, kernel_size=3, strides=1, padding='same'),
-		]
-	)
+	"""Convolutional variational autoencoder."""
+	def __init__(self, name, latent_dim, prediction_shape):
+		super(Autoencoder, self).__init__(name=name)
+		self.latent_dim = latent_dim
+		self.encoder = K.Sequential(
+			[
+				K.layers.Conv2D(
+					filters=32, kernel_size=3, strides=(2, 2), activation='relu'),	#(pred_shape-3+2*0)/2+1
+				K.layers.Conv2D(
+					filters=64, kernel_size=3, strides=(2, 2), activation='relu'), #((pred_shape-3+2*0)/2+1-3+2*0)/2+1
+				K.layers.Flatten(),
+				# No activation
+				K.layers.Dense(latent_dim*2),
+			]
+			#output shape of conv2D is [(W−K+2P)/S]+1
+		)
+		small_x = (prediction_shape[0]-3)//2 +1
+		small_y = (prediction_shape[1]-3)//2 +1
+		self.decoder = K.Sequential(
+			[
+				K.layers.InputLayer(input_shape=(latent_dim)),
+				K.layers.Dense(units=small_x*small_y*32, activation=tf.nn.relu),
+				K.layers.Reshape(target_shape=(7, 7, 32)),
+				K.layers.Conv2DTranspose(
+					filters=64, kernel_size=3, strides=2, padding='same',
+					activation='relu'),
+				K.layers.Conv2DTranspose(
+					filters=32, kernel_size=3, strides=2, padding='same',
+					activation='relu'),
+				# No activation
+				K.layers.Conv2DTranspose(
+					filters=prediction_shape[-1], kernel_size=3, strides=1, padding='same'),
+			]
+		)
 
 	@tf.function
 	def sample(self, eps=None):
@@ -62,7 +62,7 @@ class Autoencoder(Model):
 		return mean, logvar
 
 	def reparameterize(self, mean, logvar):
-		eps = tf.random.normal(shape=mean.shape)
+		eps = tf.random.normal(shape=tf.shape(mean))
 		return eps * tf.exp(logvar * .5) + mean
 
 	def decode(self, z, apply_sigmoid=False):
@@ -71,6 +71,12 @@ class Autoencoder(Model):
 			probs = tf.sigmoid(logits)
 			return probs
 		return logits
+
+	def call(self, x):
+		mean, logvar = self.encode(x)
+		reparam = self.reparameterize(mean, logvar)
+		decoded = self.decode(reparam)
+		return decoded
 
 	def show_predictions(self, sample_test, n=10):
 		"""
@@ -111,10 +117,10 @@ if __name__ == '__main__':
 	parser.add_argument("path_train", help="path of the training dataset to use")
 	parser.add_argument("path_test", help="path of the testing dataset to use")
 	parser.add_argument("--output_dir", default=DIR_SAVED_MODELS, help="path where to save the trained network, default {}".format(DIR_SAVED_MODELS))
+	parser.add_argument("-n", "--name", type=str, default=NETWORK_NAME, help="network name, default {}".format(NETWORK_NAME))
 	parser.add_argument("-l", "--latent_dim", type=int, default=LATENT_DIM, help="the latent dimention, default {}".format(LATENT_DIM))
 	parser.add_argument("-b", "--batch", type=int, default=BATCH_SIZE, help="batch size for training, default {}".format(BATCH_SIZE))
 	parser.add_argument("-e", "--epochs", type=int, default=EPOCHS, help="number of epochs max for training, default {}".format(EPOCHS))
-	parser.add_argument("-n", "--name", type=str, default=NETWORK_NAME, help="network name, default {}".format(NETWORK_NAME))
 	parser.add_argument("--loss", type=str, choices=['mse', 'ssim'], default=LOSS, help="network loss, default {}".format(LOSS))
 	args = parser.parse_args()
 
@@ -128,7 +134,7 @@ if __name__ == '__main__':
 
 	#prepare the network
 	network_name = "{}_{}_LD{}_pred{}x{}x{}".format(args.name, dataset_descriptor, args.latent_dim, *prediction_shape)
-	autoencoder = Autoencoder(network_name, args.latent_dim)
+	autoencoder = Autoencoder(network_name, args.latent_dim, prediction_shape)
 	autoencoder.compile(optimizer='adam', loss=args.loss)
 
 	#train the network
@@ -146,7 +152,7 @@ if __name__ == '__main__':
 	plt.plot(history.history['val_loss'], label="val")
 	plt.legend()
 	plt.show()
-	plt.savefig("{} training losses".format(autoencoder.name))
+	plt.savefig(os.path.join( DIR_SAVED_MODELS, "{} training losses.png".format(autoencoder.name)))
 
 	#save the model
 	if not os.path.exists(args.output_dir):

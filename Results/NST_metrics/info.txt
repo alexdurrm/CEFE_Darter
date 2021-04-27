@@ -1,0 +1,1 @@
+Store the result of different visual metrics to compare the influence of the Neural Style Transfer on the visual properties of the fishes

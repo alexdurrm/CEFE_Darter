@@ -1,0 +1,1 @@
+Directory to store all the scripts used to extract metrics from images

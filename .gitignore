@@ -1,2 +1,8 @@
 __pycache__/
 .*
+Images/*
+Scripts/AutoEncoders/TrainedModels/*
+Documents/
+Téléchargements/
+snap/
+anaconda3/

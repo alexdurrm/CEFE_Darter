@@ -1,6 +1,9 @@
 #setup
 export PYTHONPATH="absolute/path/to/CEFE/"
 
+you can create a new conda environment with:
+conda create --name <envname> --file conda_list
+
 # CEFE_Darter
 **_Script/_** contains all the Scripts from this project.
 **_Script/Metrics/_** contains the python scripts used on images that output csv files in **_Result/_** directory.
