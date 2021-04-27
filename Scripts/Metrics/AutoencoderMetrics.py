@@ -179,23 +179,42 @@ def divergence(autoencoder, start, repetition, visu=True):
 
 
 if __name__ == '__main__':
+	#DEFAULT PARAMETERS
+	RESIZE_X=None
+	RESIZE_Y=None
+	NORMALIZE=False
+	STANDARDIZE=False
+	IMG_TYPE=IMG.RGB
+	IMG_CHANNEL=CHANNEL.ALL
+	VERBOSE=1
 
 	#parameter parsing
 	parser = argparse.ArgumentParser()
 	parser.add_argument("action", help="type of action needed", choices=["visu", "work"])
-	parser.add_argument("path_img", help="path of the image file to open")
+	parser.add_argument("path_input", help="path of the image file to open")
 	parser.add_argument("path_model", help="path of the model used to infer")
+	parser.add_argument("-x", "--resizeX", default=RESIZE_X, type=int, help="Resize X to this value, default: {}".format(RESIZE_X))
+	parser.add_argument("-y", "--resizeY", default=RESIZE_Y, type=int, help="Resize Y to this value, default: {}".format(RESIZE_Y))
 	parser.add_argument("-o", "--output_dir", default=DIR_RESULTS, help="directory where to put the csv output, default: {}".format(DIR_RESULTS))
+	parser.add_argument("-n", "--normalize", default=str(NORMALIZE), type=str, help="if image should be normalized, default: {}".format(NORMALIZE))
+	parser.add_argument("-s", "--standardize", default=str(STANDARDIZE), type=str, help="if image should be standardized, default: {}".format(STANDARDIZE))
+	parser.add_argument("-v", "--verbose", default=VERBOSE, type=int, choices=[0,1,2], help="set the level of visualization, default: {}".format(VERBOSE))
+	parser.add_argument("-t", "--type_img", default=IMG_TYPE.name, type=lambda x: IMG[x], choices=list(IMG), help="the type of image needed, default: {}".format(IMG_TYPE))
+	parser.add_argument("-c", "--channel_img", default=IMG_CHANNEL.name, type=lambda x: CHANNEL[x], choices=list(CHANNEL), help="The channel used for the image, default: {}".format(IMG_CHANNEL))
 	args = parser.parse_args()
+	standardize = eval(args.standardize)
+	normalize = eval(args.normalize)
 
-	pr = Preprocess(resizeX=None, resizeY=None, normalize=True, standardize=True, img_type=IMG.RGB, img_channel=CHANNEL.ALL)
+	#prepare metric
+	pr = Preprocess(resizeX=args.resizeX, resizeY=args.resizeY, normalize=normalize, standardize=standardize, img_type=args.type_img, img_channel=args.channel_img)
 	model_name = os.path.split(args.path_model)[-1]
-	metric = AutoencoderMetrics(args.path_model, pr, os.path.join(args.output_dir, CSV_AE+model_name+".csv"))
+	filepath = os.path.join(args.output_dir, CSV_AE+model_name+".csv")
+	metric = AutoencoderMetrics(args.path_model, pr)
 
 	if args.action == "visu":
-		metric.load()
+		metric.load(filepath)
 		metric.visualize()
 	elif args.action=="work":
-		metric.load()
-		metric.metric_from_csv(args.path_img)
-		metric.save()
+		metric.load(filepath)
+		metric.metric_from_csv(args.path_input)
+		metric.save(filepath)

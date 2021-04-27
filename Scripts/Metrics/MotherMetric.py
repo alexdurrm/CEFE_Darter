@@ -8,17 +8,13 @@ class MotherMetric:
 	'''
 	Parent class for each metric, takes care of the data processing
 	'''
-	def __init__(self, preprocess=None, path=None):
+	def __init__(self, preprocess=None):
 		if preprocess:
 			self.preprocess = preprocess
 		else:
 			self.preprocess = Preprocess()
 		#if given a valid path load the data
 		self.data = pd.DataFrame()
-		if path and path.endswith(".csv"):
-			self.path = path
-			if os.path.isfile(path):
-				self.data = pd.read_csv(path)
 
 	def __call__(self, path=None):
 		'''
@@ -39,28 +35,26 @@ class MotherMetric:
 			value = self.function(image)
 			self.data = self.data.append(value, ignore_index=True)
 
-	def load(self, data_path=None):
+	def load(self, data_path):
 		'''
 		load a csv_file as class data
 		'''
 		try:
-			if data_path:
-				self.data = pd.read_csv(data_path, index_col=False)
-			else:
-				self.data = pd.read_csv(self.path, index_col=False)
+			self.data = pd.read_csv(data_path, index_col=False)
 		except FileNotFoundError:
 			print("nothing to load, continuing with current data")
 
-	def save(self, output_path=None):
+	def save(self, output_path):
 		'''
-		save the data as csv
+		save the data as csv, will erase previous
 		'''
-		if output_path:
-			self.data.to_csv(output_path, index=False)
-			print("saved at {}".format(output_path))
-		else:
-			self.data.to_csv(self.path, index=False)
-			print("saved at {}".format(self.path))
+		#if the directory to store results do not exist create it
+		directory = os.path.dirname(output)
+		if not os.path.exists(directory):
+			os.makedirs(directory)
+		self.data.to_csv(output_path, index=False)
+		print("saved at {}".format(output_path))
+
 
 	def clear(self):
 		'''

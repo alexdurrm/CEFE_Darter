@@ -34,15 +34,6 @@ class CHANNEL(Enum):
 	def __str__(self):
 		return self.name
 
-#DEFAULT PARAMETERS
-RESIZE_X=None
-RESIZE_Y=None
-NORMALIZE=False
-STANDARDIZE=False
-IMG_TYPE=IMG.RGB
-IMG_CHANNEL=CHANNEL.ALL
-VERBOSE=1
-
 
 class Preprocess:
 	'''
@@ -50,7 +41,7 @@ class Preprocess:
 	it stores the preprocessed image so that we can fetch it multiple times without reprocessing everytime
 	it also stores the parameters used to preprocess the image
 	'''
-	def __init__(self, resizeX=RESIZE_X, resizeY=RESIZE_Y, normalize=NORMALIZE, standardize=STANDARDIZE, img_type=IMG_TYPE, img_channel=IMG_CHANNEL):
+	def __init__(self, resizeX, resizeY, normalize, standardize, img_type, img_channel):
 		'''
 		initialise a process
 		'''
@@ -87,7 +78,7 @@ class Preprocess:
 			if self.img_channel == CHANNEL.GRAY:
 				image = image[:, :, 0] + image[:, :, 1]
 			elif self.img_channel == CHANNEL.ALL:
-				image = image[:,:,0:2]
+				image = image
 			elif self.img_channel == CHANNEL.C3:
 				raise ValueError("channel 3 and darter type are not compatible parameters")
 			else:
@@ -119,28 +110,32 @@ class Preprocess:
 
 
 if __name__=='__main__':
+	#DEFAULT PARAMETERS
+	RESIZE_X=None
+	RESIZE_Y=None
+	NORMALIZE=False
+	STANDARDIZE=False
+	IMG_TYPE=IMG.RGB
+	IMG_CHANNEL=CHANNEL.ALL
+	VERBOSE=1
 
 	#parsing command
 	parser = argparse.ArgumentParser()
-	parser.add_argument("image_path", help="path of the image file to open")
+	parser.add_argument("input_path", help="path of the file to open")
 	parser.add_argument("-x", "--resizeX", default=RESIZE_X, type=int, help="Resize X to this value, default: {}".format(RESIZE_X))
 	parser.add_argument("-y", "--resizeY", default=RESIZE_Y, type=int, help="Resize Y to this value, default: {}".format(RESIZE_Y))
-	parser.add_argument("-n", "--normalize", default=str(NORMALIZE), type=str, help="if image should be normalized, default: {}".format(NORMALIZE))
-	parser.add_argument("-s", "--standardize", default=str(STANDARDIZE), type=str, help="if image should be standardized, default: {}".format(STANDARDIZE))
+	parser.add_argument("-n", "--normalize", default=NORMALIZE, type=lambda x: bool(eval(x)), help="if image should be normalized, default: {}".format(NORMALIZE))
+	parser.add_argument("-s", "--standardize", default=STANDARDIZE, type=lambda x: bool(eval(x)), help="if image should be standardized, default: {}".format(STANDARDIZE))
 	parser.add_argument("-v", "--verbose", default=VERBOSE, type=int, choices=[0,1,2], help="set the level of visualization, default: {}".format(VERBOSE))
 	parser.add_argument("-t", "--type_img", default=IMG_TYPE.name, type=lambda x: IMG[x], choices=list(IMG), help="the type of image needed, default: {}".format(IMG_TYPE))
 	parser.add_argument("-c", "--channel_img", default=IMG_CHANNEL.name, type=lambda x: CHANNEL[x], choices=list(CHANNEL), help="The channel used for the image, default: {}".format(IMG_CHANNEL))
 	args = parser.parse_args()
-	standardize = eval(args.standardize)
-	normalize = eval(args.normalize)
 
-	print(args.type_img.name, args.type_img.value)
-
-	image = imageio.imread(args.image_path)
-	pr = Preprocess(resizeX=args.resizeX, resizeY=args.resizeY, normalize=normalize, standardize=standardize,
+	image = imageio.imread(args.input_path)
+	pr = Preprocess(resizeX=args.resizeX, resizeY=args.resizeY, normalize=args.normalize, standardize=args.standardize,
 		img_type=args.type_img, img_channel=args.channel_img)
 	#1st way to do
-	img_pr1 = pr(args.image_path)
+	img_pr1 = pr(args.input_path)
 	#2nd way to do
 	img_pr2 = pr.get_image()
 

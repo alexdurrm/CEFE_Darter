@@ -42,6 +42,8 @@ class FILE_TYPE(Enum):
     STYLIZED_FISH="fish stylized"
     HABITAT="habitat"
     ELSE="else"
+    def __str__(self):
+		return self.name
 
 ### COLUMN NAMES FOR CSV EXPERIMENTS
 COL_CONTENT_EXP_PATH="exp_fish_path"
