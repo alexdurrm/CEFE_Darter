@@ -1,4 +1,5 @@
 import tensorflow.keras as K
+from tensorflow.image import ssim
 from tensorflow.keras.applications.vgg16 import VGG16
 import pandas as pd
 import numpy as np
@@ -23,6 +24,8 @@ COL_MSE_AE="MSE_compared_to_start"
 COL_MSE_PREV_AE="MSE_compared_to_previous_step"
 COL_LATENT_DIST_AE="latent_distance_to_start"
 COL_LATENT_DIST_PREV_AE="latent_distance_to_previous_step"
+
+COL_SSIM_AE="SSIM_compared_to_start"
 COL_SSIM_PREV_AE="SSIM_compared_to_previous_step"
 
 class AutoencoderMetrics(MotherMetric):
@@ -108,19 +111,19 @@ class AutoencoderMetrics(MotherMetric):
 		# plt.show()
 
 
-	def function(self, image):
+	def function(self, image, verbose):
 		df = pd.DataFrame()
 		params = self.preprocess.get_params()
 
 		image = image[(image.shape[0]-PREDICTION_SIZE)//2 : (image.shape[0]+PREDICTION_SIZE)//2,
 		 			(image.shape[1]-PREDICTION_SIZE)//2 : (image.shape[1]+PREDICTION_SIZE)//2]	#crop in the middle
 
-		shift_pxl, shift_latent, diff_pxl, diff_latent = divergence(self.model, image, 50)
+		shift_mse, shift_latent, shift_ssim, diff_mse, diff_latent, diff_ssim = divergence(self.model, image, 50)
 
 		i=0
-		for pxl_shift ,latent_shift, pxl_diff, latent_diff in zip(shift_pxl, shift_latent, diff_pxl, diff_latent):
+		for values in zip(shift_mse, shift_latent, shift_ssim, diff_mse, diff_latent, diff_ssim):
 			df.loc[i, params.columns] = params.iloc[0]
-			df.loc[i, [COL_MODEL_NAME_AE, COL_ITERATION_AE, COL_PRED_SIZE, COL_MSE_AE, COL_LATENT_DIST_AE, COL_MSE_PREV_AE, COL_LATENT_DIST_PREV_AE]] = [self.model.name, i, PREDICTION_SIZE, pxl_shift, latent_shift, pxl_diff, latent_diff]
+			df.loc[i, [COL_MODEL_NAME_AE, COL_ITERATION_AE, COL_PRED_SIZE, COL_MSE_AE, COL_LATENT_DIST_AE, COL_SSIM_AE, COL_MSE_PREV_AE, COL_LATENT_DIST_PREV_AE, COL_SSIM_PREV_AE]] = [self.model.name, i, PREDICTION_SIZE, *values]
 			i+=1
 		return df
 
@@ -141,18 +144,20 @@ def fly_over_image(image, window, stride, return_coord=False):
 				yield sample
 
 
-def divergence(autoencoder, start, repetition, visu=True):
+def divergence(autoencoder, start, repetition, visu=False):
 	if start.ndim<4:
 		start=start[np.newaxis, ...]
 	start_latent = autoencoder.encoder(start)
 	prev_pxl = start
-	shift_pxl = []
+	shift_pxl_mse = []
+	shift_pxl_ssim = []
 
 	prev_latent = start_latent
 	shift_latent = []
 	axis_latent = tuple(i for i in range(-1, -start_latent.ndim, -1))
 
-	diff_pxl = []
+	diff_pxl_mse = []
+	diff_pxl_ssim = []
 	diff_latent = []
 
 	if visu: plt.figure(figsize=(20, 4))
@@ -163,19 +168,55 @@ def divergence(autoencoder, start, repetition, visu=True):
 
 		new_pxl = autoencoder.decoder(prev_latent)
 		new_latent = autoencoder.encoder(new_pxl)
-
-		shift_pxl.append(np.mean(np.square(start - new_pxl), axis=(-1,-2,-3)))
+		#diff to start
+		shift_pxl_mse.append(np.mean(np.square(start - new_pxl), axis=(-1,-2,-3)))
+		shift_pxl_ssim.append(ssim(start, new_pxl, max_val=1))
 		shift_latent.append(np.mean(np.square(start_latent - new_latent), axis=(axis_latent)))
-
-		diff_pxl.append(np.mean(np.square(prev_pxl - new_pxl), axis=(-1,-2,-3)))
+		#diff to prev
+		diff_pxl_mse.append(np.mean(np.square(prev_pxl - new_pxl), axis=(-1,-2,-3)))
+		diff_pxl_ssim.append(ssim(prev_pxl, new_pxl, max_val=1))
 		diff_latent.append(np.mean(np.square(prev_latent - new_latent), axis=(axis_latent)))
 
-		prev_pxl = new_pxl#.numpy()
+		prev_pxl = new_pxl
 		prev_latent = new_latent
 	if visu:
 		plt.show()
-		#plt.savefig("divergence_{}_{}.png".format(autoencoder.name))
-	return shift_pxl, shift_latent, diff_pxl, diff_latent
+		plt.savefig(os.path.join(DIR_RESULTS, "visu_divergence_{}.png".format(autoencoder.name)))
+	return shift_pxl_mse, shift_latent, shift_pxl_ssim, diff_pxl_mse, diff_latent, diff_pxl_ssim
+
+
+def get_heat_prediction_fish(img, prediction_size, visu=False):
+    heatmap_mse = np.zeros_like(img)
+    ponderation = np.ones_like(img)
+    batch = []
+	stride = (prediction_size[0]//5, prediction_size[1]//5)
+    for sample in fly_over_image(img, prediction_size, stride, False):
+        batch += [sample]
+
+    batch = np.array(batch)
+
+    prediction = autoencoder.predict_on_batch(batch)
+    mse = K.losses.MSE(batch, prediction)
+
+    i = 0
+    for x1, x2, y1, y2 in fly_over_image(img, prediction_size, stride, True):
+        heatmap_mse[x1:x2, y1:y2, 0] += mse[i]
+        ponderation[x1:x2, y1:y2, 0] += 1
+        i+=1
+	heatmap = np.divide(heatmap_mse, ponderation)
+	if visu:
+		plt.imshow(heatmap, cmap="")
+		plt.title("mean mse heatmap")
+		plt.colorbar()
+    return heatmap
+
+
+def save_heatmaps(images, filepath, pred_size, visu=False):
+	heatmap = []
+	for img in images:
+		heatmap += [get_heat_prediction_fish(img, pred_size, visu)]
+		heatmap = np.array(heatmap)
+		np.save(filepath, heatmap)
 
 
 if __name__ == '__main__':
@@ -193,20 +234,18 @@ if __name__ == '__main__':
 	parser.add_argument("action", help="type of action needed", choices=["visu", "work"])
 	parser.add_argument("path_input", help="path of the image file to open")
 	parser.add_argument("path_model", help="path of the model used to infer")
+	parser.add_argument("-o", "--output_dir", default=DIR_RESULTS, help="directory where to put the csv output, default: {}".format(DIR_RESULTS))
 	parser.add_argument("-x", "--resizeX", default=RESIZE_X, type=int, help="Resize X to this value, default: {}".format(RESIZE_X))
 	parser.add_argument("-y", "--resizeY", default=RESIZE_Y, type=int, help="Resize Y to this value, default: {}".format(RESIZE_Y))
-	parser.add_argument("-o", "--output_dir", default=DIR_RESULTS, help="directory where to put the csv output, default: {}".format(DIR_RESULTS))
-	parser.add_argument("-n", "--normalize", default=str(NORMALIZE), type=str, help="if image should be normalized, default: {}".format(NORMALIZE))
-	parser.add_argument("-s", "--standardize", default=str(STANDARDIZE), type=str, help="if image should be standardized, default: {}".format(STANDARDIZE))
+	parser.add_argument("-n", "--normalize", default=NORMALIZE, type=lambda x: bool(eval(x)), help="if image should be normalized, default: {}".format(NORMALIZE))
+	parser.add_argument("-s", "--standardize", default=STANDARDIZE, type=lambda x: bool(eval(x)), help="if image should be standardized, default: {}".format(STANDARDIZE))
 	parser.add_argument("-v", "--verbose", default=VERBOSE, type=int, choices=[0,1,2], help="set the level of visualization, default: {}".format(VERBOSE))
 	parser.add_argument("-t", "--type_img", default=IMG_TYPE.name, type=lambda x: IMG[x], choices=list(IMG), help="the type of image needed, default: {}".format(IMG_TYPE))
 	parser.add_argument("-c", "--channel_img", default=IMG_CHANNEL.name, type=lambda x: CHANNEL[x], choices=list(CHANNEL), help="The channel used for the image, default: {}".format(IMG_CHANNEL))
 	args = parser.parse_args()
-	standardize = eval(args.standardize)
-	normalize = eval(args.normalize)
 
 	#prepare metric
-	pr = Preprocess(resizeX=args.resizeX, resizeY=args.resizeY, normalize=normalize, standardize=standardize, img_type=args.type_img, img_channel=args.channel_img)
+	pr = Preprocess(resizeX=args.resizeX, resizeY=args.resizeY, normalize=args.normalize, standardize=args.standardize, img_type=args.type_img, img_channel=args.channel_img)
 	model_name = os.path.split(args.path_model)[-1]
 	filepath = os.path.join(args.output_dir, CSV_AE+model_name+".csv")
 	metric = AutoencoderMetrics(args.path_model, pr)
@@ -216,5 +255,5 @@ if __name__ == '__main__':
 		metric.visualize()
 	elif args.action=="work":
 		metric.load(filepath)
-		metric.metric_from_csv(args.path_input)
+		metric.metric_from_csv(args.path_input, verbose=args.verbose)
 		metric.save(filepath)

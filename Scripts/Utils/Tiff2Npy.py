@@ -45,41 +45,56 @@ def rgb_2_darter(image):
 
 	return im_out
 
-def normalize(set_img):
-	set_img = (set_img - np.mean(set_img)) / np.std(set_img)
-	set_img = (set_img - np.min(set_img)) / (np.max(set_img) - np.min(set_img)).astype(np.float32)
-	return set_img
-
-def preprocess_habitat_image(image, new_shape, color_channels):
+def preprocess_habitat_image(set_img, color_channels, visu=0):
 	"""
-	given an image, its new shape, and a specified number of color channels
+	given an image and a specified number of color channels
 	return the transformed image
 	"""
-	image = cv2.resize(image, dsize=(new_shape[::-1]), interpolation=cv2.INTER_CUBIC)
-	if color_channels==1:
-		image = rgb_2_darter(image)
-		image = image[..., 0]+image[..., 1]
-		image = image[..., np.newaxis]
-	elif color_channels==2:
-		image = rgb_2_darter(image)
-		image = image/np.max(image)
-	elif color_channels==3:
-		image = image/np.max(image)
-	else:
-		raise ValueError
-	return image
+	for i, image in enumerate(set_img):
+		if color_channels==1:
+			image = rgb_2_darter(image)
+			image = image[..., 0]+image[..., 1]
+			image = image[..., np.newaxis]
+		elif color_channels==2:
+			image = rgb_2_darter(image)
+		set_img[i] = image
+	set_img = (set_img - np.mean(set_img)) / np.std(set_img)
+	set_img = (set_img - np.min(set_img)) / (np.max(set_img) - np.min(set_img)).astype(np.float32)
+	for i in range(visu):
+		plt.imshow(habitat_img[i], cmap='gray')
+		plt.show()
+	return set_img
 
-def augment(set_img, prediction_shape):
+def augment(set_img, prediction_shape, levels, visu=0):
 	"""
-	given a set of images returns an augmented set of images, by adding the symmetric version of the image
+	prediction shape is the shape of the output crops
+	given a set of images returns an augmented set of images, by adding the symmetric version of the image and multiple crops
 	"""
 	augmented = []
+	xy_ratio_pred = pred_shape[0]/pred_shape[1]
 	for img in set_img:
-		for sample in fly_over_image(img, prediction_shape, prediction_shape):
-			augmented += [sample, np.flip(sample, axis=(-2))]
+		for level in levels:
+			#calculate the biggest window possible for this level
+			crop_max = (img.shape[0]//(2**level), img.shape[1]//(2**level))
+			xy_ratio_lvl = crop_max[0]/crop_max[1]
+			if xy_ratio_pred == xy_ratio_lvl:
+				level_crop = crop_max
+			elif xy_ratio_pred < xy_ratio_lvl:
+				level_crop = (xy_ratio_pred*crop_max[1], crop_max[1])
+			else:
+				level_crop = (crop_max[0], int(crop_max[0]/xy_ratio_pred))
+
+			#for each image return crops from slinding window and corresponding mirror
+			for sample in fly_over_image(img, level_crop, level_crop):
+				sample = cv2.resize(sample, prediction_shape[:,:,-1], interpolation=cv2.INTER_CUBIC)
+				augmented += [sample, np.flip(sample, axis=(-2))]
+	for i in range(visu*10):
+		plt.imshow(habitat_img[i], cmap='gray')
+		plt.show()
+	print("augmentation gone from {} to {} images".format(len(set_img), len(augmented)))
 	return np.array(augmented)
 
-def get_datasets(glob_path, resize_shape, pred_shape, color_channels, visu=0):
+def get_datasets(glob_path, presize_shape, pred_shape, color_channels, levels, visu=0):
 	"""
 	given a glob for all images to include in the dataset
 	and some parameters for preprocessing
@@ -90,27 +105,27 @@ def get_datasets(glob_path, resize_shape, pred_shape, color_channels, visu=0):
 	total = len(habitat_path)
 	print("number of images for training: {}".format(total))
 	#load all images and preprocess them
-	habitat_img = np.empty(shape=(len(habitat_path), *resize_shape, color_channels))
+	habitat_img = []
 	for i, path in enumerate(habitat_path):
 		print("\r{}/{}".format(i, total), end='')
-		img = imageio.imread(path)
-		habitat_img[i] = preprocess_habitat_image(img, resize_shape, color_channels)
-	if visu:
-		for i in range(5):
-			plt.imshow(habitat_img[i], cmap='gray')
-			plt.show()
+		image = imageio.imread(path)
+		#if there is a presize givent
+		if presize_shape[0] or presize_shape[1]:
+			rX = presize_shape[0] if presize_shape[0] else image.shape[0]
+			rY = presize_shape[1] if presize_shape[1] else image.shape[1]
+			image = cv2.resize(image, dsize=(rY, rX), interpolation=cv2.INTER_CUBIC)
+		habitat_img.append(image)
+
+	for i in range(visu):
+		plt.imshow(habitat_img[i], cmap='gray')
+		plt.show()
 	#split in train and test
 	train, test = train_test_split(habitat_img, train_size=0.9, shuffle=True)
 	#augment and normalize train and test
-	test = augment(test, pred_shape)
-	train = augment(train, pred_shape)
-	test = normalize(test)
-	train = normalize(train)
-	#show one of these images
-	if visu:
-		for i in range(5):
-			plt.imshow(train[np.random.randint(0, len(train))], cmap='gray')
-			plt.show()
+	test = augment(test, pred_shape, levels, visu)
+	train = augment(train, pred_shape, levels, visu)
+	test = preprocess(test, color_channels, visu)
+	train = preprocess(train, color_channels, visu)
 	return (train, test)
 
 
@@ -121,9 +136,11 @@ if __name__=='__main__':
 	and save them into the specified output directory
 	"""
 	#default parameters
-	RESIZE_SHAPE = (600, 900)
-	CROP_SHAPE = 128
+	PRESIZE_SHAPE = (None, None)
+	CROP_SHAPE = (128, 128)
 	CHANNELS = 3
+	LEVELS = 3
+	VERBOSE = 0
 
 	#parsing input parameters
 	parser = argparse.ArgumentParser()
@@ -132,17 +149,18 @@ if __name__=='__main__':
 	parser.add_argument("output", help="output directory where to save the dataset")
 	parser.add_argument("-c", "--channels", type=int, choices=[1,2,3], default=CHANNELS,
 		help="Number of channels to train on: 1 will be in darter gray luminance space,2 will be darter visualization, 3 will be in rgb, default is {}".format(CHANNELS))
-	parser.add_argument("-s", "--shape", type=int, default=CROP_SHAPE, help="shape of the final image used as a square network input/output, default is {}".format(CROP_SHAPE))
-	parser.add_argument("-v", "--verbose", type=int, default=0, help="verbose, how much we should display, square, default is 0")
+	parser.add_argument("-s", "--shape", type=int, nargs=2, default=CROP_SHAPE, help="shape of the final image used as a network input/output, default is {}".format(CROP_SHAPE))
+	parser.add_argument("-p", "--presize", type=int, nargs=2, default=PRESIZE_SHAPE, help="shape to which resize the original image before its croping and all, default is {}".format(PRESIZE_SHAPE))
+	parser.add_argument("-l", "--levels", type=int, default=LEVELS, help="Number of levels to which zoom the data during augmentation, default is {}".format(LEVELS))
+	parser.add_argument("-v", "--verbose", type=int, default=VERBOSE, help="verbose, how much images we should display, square, default is {}".format(VERBOSE))
 	args = parser.parse_args()
 
 	#preparing data
-	crop_shape = (args.shape, args.shape)
-	train, test = get_datasets(args.glob, RESIZE_SHAPE, crop_shape, args.channels, visu=args.verbose)
+	train, test = get_datasets(args.glob, PRESIZE_SHAPE, args.shape, args.channels, args.levels, visu=args.verbose)
 	print("Shape train: {} \nShape test: {}".format(train.shape, test.shape))
 
 	#saving
 	output_dir = args.output
-	name_data = "{}_presize{}x{}_pred{}x{}x{}".format(args.name, *RESIZE_SHAPE, *crop_shape, args.channels)
+	name_data = "{}_presize{}x{}_L{}_pred{}x{}x{}".format(args.name, *RESIZE_SHAPE, levels, *crop_shape, args.channels)
 	np.save(os.path.join(output_dir, "Train_"+name_data), train)
 	np.save(os.path.join(output_dir, "Test_"+name_data), test)

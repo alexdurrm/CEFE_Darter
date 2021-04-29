@@ -18,17 +18,17 @@ class Autoencoder(Model):
 		super(Autoencoder, self).__init__(name=name)
 		self.latent_dim = latent_dim
 		self.encoder = K.Sequential([
-			Conv2D(latent_dim, kernel_size=(2,2), padding="same"),
-			MaxPool2D(pool_size=(2,2), padding="same"),
-			Conv2D(latent_dim//2, kernel_size=(2,2), padding="same"),
-			MaxPool2D(pool_size=(2,2), padding="same"),
-			Conv2D(latent_dim//4, kernel_size=(2,2), padding="same"),
+			Conv2D(latent_dim, kernel_size=(3,3), padding="same"),
+			MaxPool2D(pool_size=(3,3), padding="same"),
+			Conv2D(latent_dim//2, kernel_size=(3,3), padding="same"),
+			MaxPool2D(pool_size=(3,3), padding="same"),
+			Conv2D(latent_dim//4, kernel_size=(3,3), padding="same"),
 		])
 		self.decoder = K.Sequential([
-			UpSampling2D(size=(2,2)),
-			Conv2DTranspose(filters=color_channels, kernel_size=(2,2), padding="same"),
-			UpSampling2D(size=(2,2)),
-			Conv2DTranspose(filters=color_channels, kernel_size=(2,2), padding="same")
+			UpSampling2D(size=(3,3)),
+			Conv2DTranspose(filters=color_channels//2, kernel_size=(3,3), padding="same"),
+			UpSampling2D(size=(3,3)),
+			Conv2DTranspose(filters=color_channels, kernel_size=(3,3), padding="same")
 		])
 
 	def call(self, x):
@@ -36,30 +36,27 @@ class Autoencoder(Model):
 		decoded = self.decoder(encoded)
 		return decoded
 
-	def show_predictions(self, sample_test, n=10):
+	def show_predictions(self, sample_test, n, saving_dir=None):
 		"""
 		plot test sample images and their reconstruction by the network
 		"""
 		prediction = self.call(sample_test)
-		plt.figure(figsize=(20, 4))
-		plt.title("{} reconstructions".format(self.name))
 		for i in range(n):
 			rdm = np.random.randint(0, len(sample_test))
+			plt.figure()
+			plt.title("{} reconstructions img {}".format(self.name, rdm))
 			# display original
-			ax = plt.subplot(3, n, i + 1)
+			ax = plt.subplot(1, 2, 1)
 			plt.imshow(sample_test[rdm], cmap='gray')
 			plt.title("original")
-			ax.get_xaxis().set_visible(False)
-			ax.get_yaxis().set_visible(False)
 
 			# display reconstruction
-			ax = plt.subplot(2, n, i + 1 + n)
+			ax = plt.subplot(1, 2, 2)
 			plt.imshow(prediction[rdm], cmap='gray')
 			plt.title("reconstructed")
-			ax.get_xaxis().set_visible(False)
-			ax.get_yaxis().set_visible(False)
-		plt.show()
-		plt.savefig("{} predictions for test".format(self.name))
+			plt.show()
+		if saving_dir:
+			plt.savefig(os.path.join(saving_dir,"{} reconstructions img {}".format(self.name, rdm)))
 
 
 if __name__ == '__main__':
@@ -70,6 +67,7 @@ if __name__ == '__main__':
 	EPOCHS=30
 	NETWORK_NAME="Convolutional"
 	LOSS='mse'
+	VERBOSE=10
 
 	parser = argparse.ArgumentParser()
 	parser.add_argument("path_train", help="path of the training dataset to use")
@@ -80,6 +78,7 @@ if __name__ == '__main__':
 	parser.add_argument("-e", "--epochs", type=int, default=EPOCHS, help="number of epochs max for training, default {}".format(EPOCHS))
 	parser.add_argument("-n", "--name", type=str, default=NETWORK_NAME, help="network name, default {}".format(NETWORK_NAME))
 	parser.add_argument("--loss", type=str, choices=['mse', 'ssim'], default=LOSS, help="network loss, default {}".format(LOSS))
+	parser.add_argument("-v", "--verbose", default=VERBOSE, type=int, help="set number of predictions to show, if no result directory is given the graphs are not saved, default: {}".format(VERBOSE))
 	args = parser.parse_args()
 
 	#prepare the data
@@ -88,7 +87,7 @@ if __name__ == '__main__':
 	assert train.shape[1:]==test.shape[1:], "train and test should contain images of similar shape, here {} and {}".format(train.shape[1:], test.shape[1:])
 
 	prediction_shape = train.shape[1:]
-	_, dataset_descriptor, presize, pred_shape = os.path.split(args.path_train)[-1].split('_') #get the descriptor of the dataset
+	dataset_descriptor, *_ = os.path.split(args.path_train)[-1].split('_') #get the descriptor of the dataset
 
 	#prepare the network
 	network_name = "{}_{}_LD{}_pred{}x{}x{}".format(args.name, dataset_descriptor, args.latent_dim, *prediction_shape)
@@ -105,17 +104,17 @@ if __name__ == '__main__':
 		shuffle= True
 		)
 
+	#save the model
+	if not os.path.exists(args.output_dir):
+		os.makedirs(args.output_dir)
+		autoencoder.save(os.path.join(args.output_dir, autoencoder.name), overwrite=True)
+
 	#plot the training
 	plt.plot(history.history['loss'], label="train")
 	plt.plot(history.history['val_loss'], label="val")
 	plt.legend()
 	plt.show()
-	plt.savefig("{} training losses".format(autoencoder.name))
-
-	#save the model
-	if not os.path.exists(args.output_dir):
-		os.makedirs(args.output_dir)
-	autoencoder.save(os.path.join(args.output_dir, autoencoder.name), overwrite=True)
+	plt.savefig(os.path.join(args.output_dir, "{} training losses".format(autoencoder.name)))
 
 	#plot the predictions
-	autoencoder.show_predictions(test)
+	autoencoder.show_predictions(sample_test=test, n=args.verbose, saving_dir=args.output_dir)
