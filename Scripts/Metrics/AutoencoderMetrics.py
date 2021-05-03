@@ -1,3 +1,4 @@
+from scipy.stats import kurtosis, entropy
 import tensorflow.keras as K
 from tensorflow.image import ssim
 from tensorflow.keras.applications.vgg16 import VGG16
@@ -12,6 +13,7 @@ import cv2
 from MotherMetric import MotherMetric
 from Preprocess import *
 from config import *
+from ScalarMetrics import get_gini
 
 PREDICTION_SIZE=128
 
@@ -28,17 +30,38 @@ COL_LATENT_DIST_PREV_AE="latent_distance_to_previous_step"
 COL_SSIM_AE="SSIM_compared_to_start"
 COL_SSIM_PREV_AE="SSIM_compared_to_previous_step"
 
+COL_GINI_AE="gini_pxl_space"
+COL_KURTO_AE="kurtois_pxl_space"
+COL_ENTRO_AE="entropy_pxl_space"
+COL_GINI_LATENT_AE="gini_latent_space"
+COL_KURTO_LATENT_AE="kurtois_latent_space"
+COL_ENTRO_LATENT_AE="entropy_latent_space"
+
 class AutoencoderMetrics(MotherMetric):
 	def __init__(self, model_path, *args, **kwargs):
 		self.model = K.models.load_model(model_path)
 		super().__init__(*args, **kwargs)
 
 	def visualize(self):
-		data_image = pd.read_csv(os.path.join(DIR_RESULTS, CSV_IMAGE), index_col=0)
+		data_image = pd.read_csv(os.path.join(DIR_RESULTS, CSV_IMAGE), index_col=0) 
 
 		# #plot differences in quality prediction for each network
-		# data_networks = self.data.loc[self.data[COL_ITERATION_AE]==0]
-		# data_merged = data_networks.merge(data_image, on=COL_IMG_PATH)
+		data_networks_first_iter = self.data.loc[self.data[COL_ITERATION_AE]==0]
+		data_merged = data_networks_first_iter.merge(data_image, on=COL_IMG_PATH)
+		
+		#plot metrics for iteration 1
+		sns.relplot(data=data_merged, x=COL_SPECIES, y=COL_ENTRO_AE, hue=COL_MODEL_NAME_AE)
+		plt.show()
+		sns.relplot(data=data_merged, x=COL_SPECIES, y=COL_ENTRO_LATENT_AE, hue=COL_MODEL_NAME_AE)
+		plt.show()
+		sns.relplot(data=data_merged, x=COL_SPECIES, y=COL_KURTO_AE, hue=COL_MODEL_NAME_AE)
+		plt.show()
+		sns.relplot(data=data_merged, x=COL_SPECIES, y=COL_KURTO_LATENT_AE, hue=COL_MODEL_NAME_AE)
+		plt.show()
+		sns.relplot(data=data_merged, x=COL_SPECIES, y=COL_GINI_AE, hue=COL_MODEL_NAME_AE)
+		plt.show()
+		sns.relplot(data=data_merged, x=COL_SPECIES, y=COL_GINI_LATENT_AE, hue=COL_MODEL_NAME_AE)
+		plt.show()
 
 		# sns.catplot(data=data_merged, x=COL_SPECIES, y=COL_MSE_AE,
 		# col=COL_MODEL_NAME_AE, row=COL_TYPE,
@@ -58,18 +81,43 @@ class AutoencoderMetrics(MotherMetric):
 
 
 		#specific plots for the network
-		data_network = self.data.loc[self.data[COL_MODEL_NAME_AE]==self.model.name]
-		merge = data_network.merge(data_image, on=COL_IMG_PATH)
+		data_my_network = self.data.loc[self.data[COL_MODEL_NAME_AE]==self.model.name]
+		merge = data_my_network.merge(data_image, on=COL_IMG_PATH)
 		merge_data = merge.loc[merge[COL_TYPE]==FILE_TYPE.ORIG_FISH.value]
 
-		#plot violin dist by species
-		sns.catplot(data=merge_data, x=COL_SPECIES, y=COL_MSE_AE,
-		col=COL_MODEL_NAME_AE, row=COL_TYPE,
-		hue=COL_FISH_SEX, split=True, kind='violin')
+		# #plot violin dist by species
+		# sns.catplot(data=merge_data, x=COL_SPECIES, y=COL_MSE_AE,
+		# col=COL_MODEL_NAME_AE, row=COL_TYPE,
+		# hue=COL_FISH_SEX, split=True, kind='violin')
+		# plt.show()
+		# sns.catplot(data=merge_data, x=COL_SPECIES, y=COL_LATENT_DIST_AE,
+		# col=COL_MODEL_NAME_AE, row=COL_TYPE,
+		# hue=COL_FISH_SEX, split=True, kind='violin')
+		# plt.show()
+
+		#plot evolution of the metrics
+		sns.relplot(data=merge_data, x=COL_ITERATION_AE, y=COL_ENTRO_AE, hue=COL_SPECIES, 
+			kind='line', estimator=None, units=COL_IMG_PATH).set_titles("{}".format(self.model.name))
 		plt.show()
-		sns.catplot(data=merge_data, x=COL_SPECIES, y=COL_LATENT_DIST_AE,
-		col=COL_MODEL_NAME_AE, row=COL_TYPE,
-		hue=COL_FISH_SEX, split=True, kind='violin')
+
+		sns.relplot(data=merge_data, x=COL_ITERATION_AE, y=COL_GINI_AE, hue=COL_SPECIES, 
+			kind='line', estimator=None, units=COL_IMG_PATH).set_titles("{}".format(self.model.name))
+		plt.show()
+
+		sns.relplot(data=merge_data, x=COL_ITERATION_AE, y=COL_KURTO_AE, hue=COL_SPECIES, 
+			kind='line', estimator=None, units=COL_IMG_PATH).set_titles("{}".format(self.model.name))
+		plt.show()
+
+		sns.relplot(data=merge_data, x=COL_ITERATION_AE, y=COL_ENTRO_LATENT_AE, hue=COL_SPECIES, 
+			kind='line', estimator=None, units=COL_IMG_PATH).set_titles("{}".format(self.model.name))
+		plt.show()
+
+		sns.relplot(data=merge_data, x=COL_ITERATION_AE, y=COL_GINI_LATENT_AE, hue=COL_SPECIES, 
+			kind='line', estimator=None, units=COL_IMG_PATH).set_titles("{}".format(self.model.name))
+		plt.show()
+
+		sns.relplot(data=merge_data, x=COL_ITERATION_AE, y=COL_KURTO_LATENT_AE, hue=COL_SPECIES, 
+			kind='line', estimator=None, units=COL_IMG_PATH).set_titles("{}".format(self.model.name))
 		plt.show()
 
 		# #plot individual divergences
@@ -118,12 +166,15 @@ class AutoencoderMetrics(MotherMetric):
 		image = image[(image.shape[0]-PREDICTION_SIZE)//2 : (image.shape[0]+PREDICTION_SIZE)//2,
 		 			(image.shape[1]-PREDICTION_SIZE)//2 : (image.shape[1]+PREDICTION_SIZE)//2]	#crop in the middle
 
-		shift_mse, shift_latent, shift_ssim, diff_mse, diff_latent, diff_ssim = divergence(self.model, image, 50)
+		values_stats , values_div = divergence(self.model, image, 50)
+		
 
 		i=0
-		for values in zip(shift_mse, shift_latent, shift_ssim, diff_mse, diff_latent, diff_ssim):
+		for value_stat, value_div in zip(values_stats , values_div):
 			df.loc[i, params.columns] = params.iloc[0]
-			df.loc[i, [COL_MODEL_NAME_AE, COL_ITERATION_AE, COL_PRED_SIZE, COL_MSE_AE, COL_LATENT_DIST_AE, COL_SSIM_AE, COL_MSE_PREV_AE, COL_LATENT_DIST_PREV_AE, COL_SSIM_PREV_AE]] = [self.model.name, i, PREDICTION_SIZE, *values]
+			df.loc[i, [COL_MODEL_NAME_AE, COL_ITERATION_AE, COL_PRED_SIZE]]=[self.model.name, i, PREDICTION_SIZE]
+			df.loc[i, [COL_MSE_AE, COL_LATENT_DIST_AE, COL_SSIM_AE, COL_MSE_PREV_AE, COL_LATENT_DIST_PREV_AE, COL_SSIM_PREV_AE]] = [*value_div]
+			df.loc[i, [COL_GINI_AE, COL_KURTO_AE, COL_ENTRO_AE, COL_GINI_LATENT_AE, COL_KURTO_LATENT_AE, COL_ENTRO_LATENT_AE]] = [*value_stat]
 			i+=1
 		return df
 
@@ -168,6 +219,13 @@ def divergence(autoencoder, start, repetition, visu=False):
 
 		new_pxl = autoencoder.decoder(prev_latent)
 		new_latent = autoencoder.encoder(new_pxl)
+		#store the stat values
+		gini_pxl_space.append(get_gini(prev_pxl))
+		kurtois_pxl_space.append(kurtosis(prev_pxl, axis=None))
+		entropy_pxl_space.append(entropy(prev_pxl, axis=None))
+		gini_latent_space.append(get_gini(prev_latent))
+		kurtois_latent_space.append(kurtosis(prev_latent, axis=None))
+		entropy_latent_space.append(entropy(prev_latent, axis=None))
 		#diff to start
 		shift_pxl_mse.append(np.mean(np.square(start - new_pxl), axis=(-1,-2,-3)))
 		shift_pxl_ssim.append(ssim(start, new_pxl, max_val=1))
@@ -182,8 +240,9 @@ def divergence(autoencoder, start, repetition, visu=False):
 	if visu:
 		plt.show()
 		plt.savefig(os.path.join(DIR_RESULTS, "visu_divergence_{}.png".format(autoencoder.name)))
-	return shift_pxl_mse, shift_latent, shift_pxl_ssim, diff_pxl_mse, diff_latent, diff_pxl_ssim
-
+	values_div = (shift_pxl_mse, shift_latent, shift_pxl_ssim, diff_pxl_mse, diff_latent, diff_pxl_ssim)
+	values_stat = (gini_pxl_space, kurtois_pxl_space, entropy_pxl_space, gini_latent_space, kurtois_latent_space, entropy_latent_space)
+	return (values_stat, values_div)
 
 def get_heat_prediction_fish(img, prediction_size, visu=False):
     heatmap_mse = np.zeros_like(img)

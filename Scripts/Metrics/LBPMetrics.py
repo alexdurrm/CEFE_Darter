@@ -105,6 +105,7 @@ if __name__=='__main__':
 	#parsing parameters
 	parser = argparse.ArgumentParser()
 	parser.add_argument("action", help="type of action needed", choices=["visu", "work"])
+	parser.add_argument("metric", choices=["lbp", "best_lbp"], help="type of metric: lbp returns a specified number of bins corresponding to binary patterns, best_lbp returns only the most activated patterns")
 	parser.add_argument("input_path", help="path of the image file to open")
 	parser.add_argument("-o", "--output_dir", default=DIR_RESULTS, help="directory where to put the csv output, default: {}".format(DIR_RESULTS))
 	parser.add_argument("-p", "--points", nargs="+", type=int, default=POINTS, help="Number of points used in pair with radius, default: {}".format(POINTS))

@@ -19,7 +19,9 @@ from ScalarMetrics import get_gini
 CSV_DEEP_FEATURES="deep_features.csv"
 COL_MODEL_NAME="model_name_deep_features"
 COL_PATH_DEEP_FEATURES="path_deep_features"
-COL_SPARSENESS_DF="sparseness_deep_features"
+COL_SPARSENESS_DF="gini_deep_features"
+COL_ENTROPY_DF="deep_feature_entropy"
+COL_KURTOSIS_DF="deep_feature_kurtosis"
 COL_LAYER_DF="layer_deep_feature"
 class DeepFeatureMetrics(MotherMetric):
 	def __init__(self, base_model, input_shape, *args, **kwargs):
@@ -51,6 +53,13 @@ class DeepFeatureMetrics(MotherMetric):
 		sparseness=[get_gini(f[0]) for f in deep_features]
 		return sparseness
 
+	def get_layers_stats(self, image):
+		deep_features = self.get_deep_features(image)
+		sparseness=[get_gini(f[0]) for f in deep_features]
+		kurtosis = [kurtosis(f[0], axis=None)]
+		entropy = [entropy(f[0], axis=None)]
+		return sparseness, kurtosis, entropy
+
 	def function(self, image):
 		gini = self.get_layers_gini(image)
 		params = self.preprocess.get_params()
@@ -73,6 +82,12 @@ class DeepFeatureMetrics(MotherMetric):
 		sns.relplot(data=merge_data, x=COL_LAYER_DF, y=COL_SPARSENESS_DF, hue=COL_DIRECTORY, col=COL_MODEL_NAME, kind="line", units=COL_IMG_PATH, estimator=None, alpha=0.25)
 		plt.show()
 
+		sns.relplot(data=merge_data, x=COL_LAYER_DF, y=COL_ENTROPY_DF, hue=COL_DIRECTORY, col=COL_MODEL_NAME, kind="line", units=COL_IMG_PATH, estimator=None, alpha=0.25)
+		plt.show()
+
+		sns.relplot(data=merge_data, x=COL_LAYER_DF, y=COL_KURTOSIS_DF, hue=COL_DIRECTORY, col=COL_MODEL_NAME, kind="line", units=COL_IMG_PATH, estimator=None, alpha=0.25)
+		plt.show()
+
 if __name__ == '__main__':
 
 	#DEFAULT PARAMETERS
@@ -88,7 +103,7 @@ if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument("action", help="type of action needed", choices=["visu", "work"])
 	parser.add_argument("path_input", help="path of the image file to open")
-	parser.add_argument("-m", "--model", type=str, choices=["vgg16", "vgg19"], default=DEFAULT_NET, help="Neural network used to get the deep features, default: {}".format(DEFAULT_NET))
+	parser.add_argument("-m", "--model", type=str, choices=["vgg16", "vgg19"], default=DEFAULT_NET, help="Neural network used to get the deep features, can be a path or a name like \"vgg16\" or \"vgg19\", default: {}".format(DEFAULT_NET))
 	parser.add_argument("-x", "--input_X", default=INPUT_SHAPE[0], type=int, help="shape to resize image X, default: {}".format(INPUT_SHAPE[0]))
 	parser.add_argument("-y", "--input_Y", default=INPUT_SHAPE[0], type=int, help="shape to resize image y, default: {}".format(INPUT_SHAPE[1]))
 	parser.add_argument("-o", "--output_dir", default=DIR_RESULTS, help="directory where to put the csv output, default: {}".format(DIR_RESULTS))
@@ -109,7 +124,10 @@ if __name__ == '__main__':
 		chosen_model = VGG16(weights='imagenet', include_top=False)
 	elif args.model == "vgg19":
 		chosen_model = VGG19(weights='imagenet', include_top=False)
+	else:
+		chosen_model = K.models.load_model(args.model)
 	metric = DeepFeatureMetrics( chosen_model, input_shape, preprocess)
+
 
 	if args.action == "visu":
 		metric.load(filepath)

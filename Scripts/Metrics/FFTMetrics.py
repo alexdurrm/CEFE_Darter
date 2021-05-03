@@ -152,8 +152,8 @@ if __name__=='__main__':
 	#parsing parameters
 	parser = argparse.ArgumentParser()
 	parser.add_argument("action", help="type of action needed", choices=["visu", "work"])
-	parser.add_argument("input_path", help="path of the image file to open")
 	parser.add_argument("metric", choices=["slope", "mean_slope", "fft"], help="type of metric: slope get many slopes coefficient per image, mean_slope mean those slope values into 1, fft does not calculate the slope coefficient and return the whole line")
+	parser.add_argument("input_path", help="path of the image file to open")
 	parser.add_argument("-o", "--output_dir", default=DIR_RESULTS, help="directory where to put the csv output, default: {}".format(DIR_RESULTS))
 	parser.add_argument("-x", "--resize_X", default=INPUT_SHAPE[0], type=int, help="shape to resize image x, default: {}".format(INPUT_SHAPE[0]))
 	parser.add_argument("-y", "--resize_Y", default=INPUT_SHAPE[1], type=int, help="shape to resize image y, default: {}".format(INPUT_SHAPE[1]))
