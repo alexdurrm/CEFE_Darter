@@ -8,6 +8,7 @@ from Preprocess import *
 from config import *
 
 #local binary Pattern
+CSV_LBP_NAME="local binary patterns"
 CSV_LBP="lbp.csv"
 
 COL_POINTS_LBP="points_LBP"
@@ -20,8 +21,8 @@ class LBPHistMetrics(MotherMetric):
 		self.points = points
 		self.radius = radius
 		self.nbins = nbins
-
 		super().__init__(*args, **kwargs)
+		self.data.index.name = CSV_LBP_NAME
 
 	def function(self, image, visu=False):
 		'''
@@ -57,6 +58,7 @@ class LBPHistMetrics(MotherMetric):
 		return df
 
 
+CSV_BEST_LBP_NAME="best_lbp"
 CSV_BEST_LBP="best_lbp.csv"
 class BestLBPMetrics(MotherMetric):
 	def __init__(self, points, radius, n_best=20, *args, **kwargs):
@@ -65,6 +67,7 @@ class BestLBPMetrics(MotherMetric):
 		self.radius = radius
 		self.n_best = n_best
 		super().__init__(*args, **kwargs)
+		self.data.index.name = CSV_BEST_LBP_NAME
 
 	def function(self, image, visu=False):
 		'''

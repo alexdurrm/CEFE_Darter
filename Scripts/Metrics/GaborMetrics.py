@@ -10,6 +10,7 @@ from Preprocess import *
 from config import *
 
 #GABOR
+CSV_GABOR_NAME="gabor filters"
 CSV_GABOR="gabor.csv"
 COL_GABOR_ANGLES="gabor_angles"
 COL_GABOR_FREQ="gabor_frequencies"
@@ -19,6 +20,7 @@ class GaborMetrics(MotherMetric):
 		self.angles = angles
 		self.frequencies = frequencies
 		super().__init__(*args, **kwargs)
+		self.data.index.name=CSV_GABOR_NAME
 
 	def function(self, image):
 		params = self.preprocess.get_params()

@@ -40,7 +40,7 @@ class MotherMetric:
 		load a csv_file as class data
 		'''
 		try:
-			self.data = pd.read_csv(data_path, index_col=False)
+			self.data = pd.read_csv(data_path, index_col=0)
 		except FileNotFoundError:
 			print("nothing to load, continuing with current data")
 
@@ -52,7 +52,7 @@ class MotherMetric:
 		directory = os.path.dirname(output)
 		if not os.path.exists(directory):
 			os.makedirs(directory)
-		self.data.to_csv(output_path, index=False)
+		self.data.to_csv(output_path, index=True)
 		print("saved at {}".format(output_path))
 
 	def clear(self):

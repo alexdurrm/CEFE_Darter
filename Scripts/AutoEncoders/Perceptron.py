@@ -58,21 +58,28 @@ if __name__ == '__main__':
 	#default parameters
 	DIR_SAVED_MODELS ="Scripts/AutoEncoders/TrainedModels"
 	LATENT_DIM=20
+	LATENT_DIM_SPACE = [2,5,10,20,40,80,160]
 	BATCH_SIZE=50
 	EPOCHS=30
 	NETWORK_NAME="Perceptron"
 	LOSS='mse'
 
 	parser = argparse.ArgumentParser()
+	subparsers = parser.add_subparsers(title="command", dest="command", help='action to perform')
 	parser.add_argument("path_train", help="path of the training dataset to use")
 	parser.add_argument("path_test", help="path of the testing dataset to use")
 	parser.add_argument("--output_dir", default=DIR_SAVED_MODELS, help="path where to save the trained network, default {}".format(DIR_SAVED_MODELS))
-	parser.add_argument("-l", "--latent_dim", type=int, default=LATENT_DIM, help="the latent dimention, default {}".format(LATENT_DIM))
 	parser.add_argument("-b", "--batch", type=int, default=BATCH_SIZE, help="batch size for training, default {}".format(BATCH_SIZE))
 	parser.add_argument("-e", "--epochs", type=int, default=EPOCHS, help="number of epochs max for training, default {}".format(EPOCHS))
 	parser.add_argument("-n", "--name", type=str, default=NETWORK_NAME, help="network name, default {}".format(NETWORK_NAME))
 	parser.add_argument("--loss", type=str, choices=['mse', 'ssim'], default=LOSS, help="network loss, default {}".format(LOSS))
 	parser.add_argument("-v", "--verbose", default=VERBOSE, type=int, help="set number of predictions to show, if no result directory is given the graphs are not saved, default: {}".format(VERBOSE))
+	#specific parameters for multiple trainings with diverse latent dims
+	LD_parser = subparsers.add_parser("LD_selection")
+	LD_parser.add_argument("-l", "--latent_dim", type=int, nargs="+", default=LATENT_DIM_SPACE, help="the latent dimension that will be tested, default {}".format(LATENT_DIM_SPACE))
+	#specific parameters for a simple training	
+	training_parser = subparsers.add_parser("training")
+	training_parser.add_argument("-l", "--latent_dim", type=int, default=LATENT_DIM, help="the latent dimention, default {}".format(LATENT_DIM))
 	args = parser.parse_args()
 
 	#prepare the data
@@ -82,32 +89,45 @@ if __name__ == '__main__':
 	prediction_shape = train.shape[1:]
 	dataset_descriptor, *_ = os.path.split(args.path_train)[-1].split('_') #get the descriptor of the dataset
 
-	#prepare the network
-	network_name = "{}_{}_LD{}_pred{}x{}x{}".format(args.name, dataset_descriptor, args.latent_dim, *prediction_shape)
-	autoencoder = Autoencoder(network_name, args.latent_dim, prediction_shape)
-	autoencoder.compile(optimizer='adam', loss=args.loss)
+	if args.command=="LD_selection":
+		list_LD = args.latent_dim
+	elif args.command=="training":
+		list_LD = [args.latent_dim]
+	histories = []
+	fig, ax = plt.subplots()
+	for i, latent_dim in enumerate(list_LD):
+		#prepare the network
+		network_name = "{}_{}_LD{}_pred{}x{}x{}".format(args.name, dataset_descriptor, args.latent_dim, *prediction_shape)
+		autoencoder = Autoencoder(network_name, args.latent_dim, prediction_shape)
+		autoencoder.compile(optimizer='adam', loss=args.loss)
 
-	#train the network
-	callback = K.callbacks.EarlyStopping(monitor='val_loss', patience=5)
-	history = autoencoder.fit(x=train, y=train,
-		batch_size=args.batch,
-		validation_data=(test, test),
-		epochs= args.epochs,
-		callbacks= callback,
-		shuffle= True
-		)
+		#train the network
+		callback = K.callbacks.EarlyStopping(monitor='val_loss', patience=5)
+		histories.append(autoencoder.fit(x=train, y=train,
+			batch_size=args.batch,
+			validation_data=(test, test),
+			epochs= args.epochs,
+			callbacks= callback,
+			shuffle= True
+			))
 
-	#save the model
-	if not os.path.exists(args.output_dir):
-		os.makedirs(args.output_dir)
-		autoencoder.save(os.path.join(args.output_dir, autoencoder.name), overwrite=True)
+		#save the model
+		if not os.path.exists(args.output_dir):
+			os.makedirs(args.output_dir)
+			autoencoder.save(os.path.join(args.output_dir, autoencoder.name), overwrite=True)
 
-	#plot the training
-	plt.plot(history.history['loss'], label="train")
-	plt.plot(history.history['val_loss'], label="val")
-	plt.legend()
+		#plot the training
+		plt.plot(histories[i].history['loss'], label="train")
+		plt.plot(histories[i].history['val_loss'], label="val")
+
+		#plot the predictions
+		autoencoder.show_predictions(sample_test=test, n=args.verbose, saving_dir=args.output_dir)
+		
+	if args.command=="LD_selection":
+		name_without_ld = '_'.join([*network_name.split("_")[:2], *network_name.split("_")[3:]])
+		name_figure = "training losses per latent dim\n network {}".format(name_without_ld)
+	elif args.command=="training":
+		name_figure = "{} training losses".format(autoencoder.name)
+	ax.legend()
+	fig.savefig(os.path.join(args.output_dir, name_figure))
 	plt.show()
-	plt.savefig(os.path.join(args.output_dir, "{} training losses".format(autoencoder.name)))
-
-	#plot the predictions
-	autoencoder.show_predictions(sample_test=test, n=args.verbose, saving_dir=args.output_dir)

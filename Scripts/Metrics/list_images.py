@@ -11,30 +11,6 @@ from config import *
 ### File used to calculate metrics and save them in a csv file
 ###############################################################
 
-def get_files(main_path, max_depth, types_allowed, ignored_folders, only_endnodes, visu=False):
-	'''
-	initiate a dataframe with minimum values in it
-	max_depth is the depth of the search: 0 is for a file, 1 is to search one directory, 2 is dir and subdirs...
-	only_endnodes is whether or not to ignore files that are not located at the endnode of the directory tree
-	ignored_folders is a list of folders to ignore
-	'''
-	if main_path.endswith(".csv"):  #load the csv file if there is one
-		return pd.read_csv(main_path, index_col=0)
-	assert max_depth>=0, "You should not give a depth lower than 0"
-	data = pd.DataFrame(columns=LIST_COLUMNS_IMG)
-	to_visit=[(main_path, 0)]
-	while to_visit:
-		path, depth = to_visit.pop()
-		if os.path.isdir(path) and depth<max_depth and (not [i for i in ignored_folders if i in path]):
-			to_visit += [(os.path.join(path, next), depth+1) for next in os.listdir(path)]
-		elif os.path.isfile(path) and path.endswith(types_allowed):
-			if depth==max_depth or not only_endnodes:
-				if visu: print("ADDING {}".format(path))
-				dict_info = load_info_from_filepath(path)
-				data.loc[os.path.abspath(path), [*dict_info.keys()]] = [*dict_info.values()]
-	return data
-
-
 def load_info_from_filepath(file_path):
 	'''
 	Given an absolute file path
@@ -94,6 +70,7 @@ def group_files_by_experiments(df_files):
 	a link between the path of the style image and the path of the content image
 	'''
 	experiments = pd.DataFrame(columns=LIST_COLUMNS_EXP)
+	experiments.index.name = CSV_EXPERIMENTS_NAME
 	fishes = df_files[df_files[COL_TYPE]==FILE_TYPE.ORIG_FISH.value][[COL_IMG_PATH, COL_FISH_NUMBER, COL_FISH_SEX, COL_SPECIES]]
 	habitat = df_files[df_files[COL_TYPE]==FILE_TYPE.HABITAT.value][[COL_IMG_PATH, COL_HABITAT]]
 
@@ -108,6 +85,29 @@ def group_files_by_experiments(df_files):
 		habitat_path = COL_IMG_PATH+"_hab"
 		experiments = experiments[[fish_path, habitat_path]].reset_index().rename(columns={'index':COL_EXP_ID, fish_path:COL_CONTENT_EXP_PATH, habitat_path:COL_STYLE_EXP_PATH})
 	return experiments
+
+
+def get_files(main_path, max_depth, types_allowed, ignored_folders, only_endnodes, visu=False):
+	'''
+	initiate a dataframe with minimum values in it
+	max_depth is the depth of the search: 0 is for a file, 1 is to search one directory, 2 is dir and subdirs...
+	only_endnodes is whether or not to ignore files that are not located at the endnode of the directory tree
+	ignored_folders is a list of folders to ignore
+	'''
+	assert max_depth>=0, "You should not give a depth lower than 0"
+	data = pd.DataFrame(columns=LIST_COLUMNS_IMG)
+	data.index.name = CSV_IMAGE_NAME
+	to_visit=[(main_path, 0)]
+	while to_visit:
+		path, depth = to_visit.pop()
+		if os.path.isdir(path) and depth<max_depth and (not [i for i in ignored_folders if i in path]):
+			to_visit += [(os.path.join(path, next), depth+1) for next in os.listdir(path)]
+		elif os.path.isfile(path) and path.endswith(types_allowed):
+			if depth==max_depth or not only_endnodes:
+				if visu: print("ADDING {}".format(path))
+				dict_info = load_info_from_filepath(path)
+				data.loc[len(data), [*dict_info.keys()]] = [*dict_info.values()]
+	return data
 
 
 if __name__ == '__main__':
@@ -143,4 +143,4 @@ if __name__ == '__main__':
 		#group files by experiments and save experiments
 		exp = group_files_by_experiments(data)
 		exp_path = os.path.join(args.output_dir, CSV_EXPERIMENTS)
-		exp.to_csv(exp_path, index=False)
+		exp.to_csv(exp_path, index=True)

@@ -5,7 +5,9 @@ file used to centralize the names and other parameters used in CSV Results
 ### NAME OF THE CSV FILE WHICH STORES ALL THE METRICS
 DIR_RESULTS="Results_AE"
 CSV_IMAGE="image_list.csv"
+CSV_IMAGE_NAME="image_list"
 CSV_EXPERIMENTS="experiments.csv"
+CSV_EXPERIMENTS_NAME="experiments"
 
 ### DIRECTORY NAMES
 DIR_STYLIZED_FISHES=["All_layers",

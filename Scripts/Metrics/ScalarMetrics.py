@@ -12,6 +12,7 @@ from config import *
 
 
 ###statistical values
+CSV_STATS_NAME="statistical values"
 CSV_STATS_METRICS="statistical_metrics.csv"
 COL_STAT_MEAN="mean_stat"
 COL_STAT_STD="std_stat"
@@ -23,6 +24,10 @@ class StatMetrics(MotherMetric):
 	'''
 	Class used to calculate a list of statistical moments of an image
 	'''
+	def __init__(self, *args, **kwargs):
+		super().__init__(*args, **kwargs)
+		self.data.index.name=CSV_STATS_NAME
+
 	def function(self, image):
 		df = self.preprocess.get_params()
 		metrics = get_statistical_features(image)
@@ -98,12 +103,17 @@ def get_gini(array, visu=False):
 
 
 ###COLOR RATIO
+CSV_C_RATIO_NAME="color_ratio"
 CSV_COLOR_RATIO="color_ratio.csv"
 COL_COLOR_RATIO="color_ratio"
 class ColorRatioMetrics(MotherMetric):
 	'''
 	Class used to calculate the ratio between 2 color channels of an image
 	'''
+	def __init__(self, *args, **kwargs):
+		super().__init__(*args, **kwargs)
+		self.data.index.name=CSV_C_RATIO_NAME
+
 	def function(self, image):
 		df = self.preprocess.get_params()
 		df.loc[0,COL_COLOR_RATIO]=[get_color_ratio(image)]

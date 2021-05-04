@@ -16,7 +16,7 @@ from config import *
 from ScalarMetrics import get_gini
 
 PREDICTION_SIZE=128
-
+CSV_AE_NAME="autoencoder"
 CSV_AE="metricAE_"
 COL_MODEL_NAME_AE="autoencoder_name"
 COL_PRED_SIZE="prediction_size"
@@ -41,6 +41,7 @@ class AutoencoderMetrics(MotherMetric):
 	def __init__(self, model_path, *args, **kwargs):
 		self.model = K.models.load_model(model_path)
 		super().__init__(*args, **kwargs)
+		self.data.index.name = CSV_AE_NAME
 
 	def visualize(self):
 		data_image = pd.read_csv(os.path.join(DIR_RESULTS, CSV_IMAGE), index_col=0) 
@@ -164,7 +165,7 @@ class AutoencoderMetrics(MotherMetric):
 		params = self.preprocess.get_params()
 
 		image = image[(image.shape[0]-PREDICTION_SIZE)//2 : (image.shape[0]+PREDICTION_SIZE)//2,
-		 			(image.shape[1]-PREDICTION_SIZE)//2 : (image.shape[1]+PREDICTION_SIZE)//2]	#crop in the middle
+					(image.shape[1]-PREDICTION_SIZE)//2 : (image.shape[1]+PREDICTION_SIZE)//2]	#crop in the middle
 
 		values_stats , values_div = divergence(self.model, image, 50)
 		
@@ -245,29 +246,29 @@ def divergence(autoencoder, start, repetition, visu=False):
 	return (values_stat, values_div)
 
 def get_heat_prediction_fish(img, prediction_size, visu=False):
-    heatmap_mse = np.zeros_like(img)
-    ponderation = np.ones_like(img)
-    batch = []
+	heatmap_mse = np.zeros_like(img)
+	ponderation = np.ones_like(img)
+	batch = []
 	stride = (prediction_size[0]//5, prediction_size[1]//5)
-    for sample in fly_over_image(img, prediction_size, stride, False):
-        batch += [sample]
+	for sample in fly_over_image(img, prediction_size, stride, False):
+		batch += [sample]
 
-    batch = np.array(batch)
+	batch = np.array(batch)
 
-    prediction = autoencoder.predict_on_batch(batch)
-    mse = K.losses.MSE(batch, prediction)
+	prediction = autoencoder.predict_on_batch(batch)
+	mse = K.losses.MSE(batch, prediction)
 
-    i = 0
-    for x1, x2, y1, y2 in fly_over_image(img, prediction_size, stride, True):
-        heatmap_mse[x1:x2, y1:y2, 0] += mse[i]
-        ponderation[x1:x2, y1:y2, 0] += 1
-        i+=1
+	i = 0
+	for x1, x2, y1, y2 in fly_over_image(img, prediction_size, stride, True):
+		heatmap_mse[x1:x2, y1:y2, 0] += mse[i]
+		ponderation[x1:x2, y1:y2, 0] += 1
+		i+=1
 	heatmap = np.divide(heatmap_mse, ponderation)
 	if visu:
 		plt.imshow(heatmap, cmap="")
 		plt.title("mean mse heatmap")
 		plt.colorbar()
-    return heatmap
+	return heatmap
 
 
 def save_heatmaps(images, filepath, pred_size, visu=False):
