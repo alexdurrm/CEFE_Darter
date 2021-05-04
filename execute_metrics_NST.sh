@@ -29,6 +29,6 @@ python Scripts/Metrics/LBPMetrics.py work best_lbp ${DIR_RESULTS}image_list.csv 
 
 #statistical features
 python Scripts/Metrics/ScalarMetrics.py work c_ratio ${DIR_RESULTS}image_list.csv -o $DIR_RESULTS -t DARTER -c ALL
-python Scripts/Metrics/ScalarMetrics.py work moments ${DIR_RESULTS}image_list.csv -o $DIR_RESULTS -t DARTER -c ALL
+python Scripts/Metrics/ScalarMetrics.py work moments ${DIR_RESULTS}image_list.csv -o $DIR_RESULTS -t DARTER -c GRAY
 
 echo "DONE"

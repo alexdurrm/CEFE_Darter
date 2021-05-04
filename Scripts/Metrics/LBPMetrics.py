@@ -128,10 +128,10 @@ if __name__=='__main__':
 	preprocess = Preprocess(resizeX=args.resize_X, resizeY=args.resize_Y, normalize=args.normalize, standardize=args.standardize, img_type=args.type_img, img_channel=args.channel_img)
 	if args.metric=="lbp":
 		file_path = os.path.join(args.output_dir, CSV_LBP)
-		metric = LBPHistMetrics(points=args.points, radius=args.radius, nbins=args.nbins, preprocess=preprocess)
+		metric = LBPHistMetrics(points=args.points, radius=args.radius, nbins=args.bins, preprocess=preprocess)
 	elif args.metric=="best_lbp":
 		file_path = os.path.join(args.output_dir, CSV_BEST_LBP)
-		metric = BestLBPMetrics(points=args.points, radius=args.radius, n_best=args.nbins, preprocess=preprocess)
+		metric = BestLBPMetrics(points=args.points, radius=args.radius, n_best=args.bins, preprocess=preprocess)
 
 	if args.action == "visu":
 		metric.load(file_path)

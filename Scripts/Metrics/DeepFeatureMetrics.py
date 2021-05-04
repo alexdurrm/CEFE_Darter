@@ -25,6 +25,11 @@ COL_ENTROPY_DF="deep_feature_entropy"
 COL_KURTOSIS_DF="deep_feature_kurtosis"
 COL_LAYER_DF="layer_deep_feature"
 class DeepFeatureMetrics(MotherMetric):
+	"""
+	DeepFeatureMetrics is a class used to calculate and store
+	different metrics derived from the neurons activation of a specific neural net
+	to a given image 
+	"""
 	def __init__(self, base_model, input_shape, *args, **kwargs):
 		self.base_model = base_model
 		self.input_shape = input_shape

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-species=("barrenense" "blennioides" "caeruleum" "camurum" "extra" "gracile" "olmestedi" "punctulatum" "pyrrhogaster" "swaini")
+species=("barrenense" "caeruleum" "camurum" "chlorosomum" "gracile" "olmstedi" "punctulatum" "pyrrhogaster" "swaini" "zonale" "zonistium")
 
 for i in ${species[@]};
 do

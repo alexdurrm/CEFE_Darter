@@ -49,7 +49,7 @@ class MotherMetric:
 		save the data as csv, will erase previous
 		'''
 		#if the directory to store results do not exist create it
-		directory = os.path.dirname(output)
+		directory = os.path.dirname(output_path)
 		if not os.path.exists(directory):
 			os.makedirs(directory)
 		self.data.to_csv(output_path, index=True)
