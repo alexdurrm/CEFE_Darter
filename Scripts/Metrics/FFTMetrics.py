@@ -9,7 +9,7 @@ from Preprocess import *
 from FourierAnalysisMaster.pspec import get_pspec
 from config import *
 
-CSV_NAME=""
+
 COL_F_WIN_SIZE="window_size_F"
 COL_FFT_RANGE_MIN="freq_range_Min_F"
 COL_FFT_RANGE_MAX="freq_range_Max_F"
@@ -18,10 +18,8 @@ class FFTMetrics(MotherMetric):
 		self.fft_range = fft_range
 		self.sample_dim = sample_dim
 		super().__init__(*args, **kwargs)
-		self.data.index.name = CSV_NAME
 
 ###FFT SLOPE
-CSV_FFT_SLOPE_NAME="slope fft"
 CSV_FFT_SLOPE="FFT_slopes.csv"
 COL_F_SLOPE_SAMPLE="slope_sample_F"
 COL_F_SAMPLE_IDX="sample_idx_F"
@@ -58,7 +56,6 @@ class FFTSlopes(FFTMetrics):
 
 
 #### MEAN_FFT_SLOPES
-CSV_MEAN_FFT_SLOPE_NAME="mean fft slope"
 CSV_MEAN_FFT_SLOPE="mean_fft_slope.csv"
 COL_F_MEAN_SLOPE = "mean_fourier_slope"
 COL_F_N_SAMPLE = "samples_used_F"
@@ -107,7 +104,6 @@ def get_FFT_slopes(image, fft_range, sample_dim, verbose=1):
 
 
 ### FFT
-CSV_FFT_BINS_NAME="bins fft"
 CSV_FFT_BINS = "fft_bins.csv"
 COL_FREQ_F = "frequency_F"
 COL_AMPL_F = "amplitude_F"
@@ -180,15 +176,12 @@ if __name__=='__main__':
 		img_type=args.type_img, img_channel=args.channel_img)
 
 	if args.metric == "slope":
-		CSV_NAME = CSV_FFT_SLOPE_NAME
 		file_path = os.path.join(args.output_dir, CSV_FFT_SLOPE)
 		metric = FFTSlopes(fft_range=fft_range, sample_dim=args.sample_dim, preprocess=preprocess)
 	elif args.metric=="mean_slope":
-		CSV_NAME = CSV_MEAN_FFT_SLOPE_NAME
 		file_path = os.path.join(args.output_dir, CSV_MEAN_FFT_SLOPE)
 		metric = MeanFFTSlope(fft_range=fft_range, sample_dim=args.sample_dim, preprocess=preprocess)
 	elif args.metric=="fft":
-		CSV_NAME = CSV_FFT_BINS_NAME
 		file_path = os.path.join(args.output_dir, CSV_FFT_BINS)
 		metric = FFT_bins(fft_range=fft_range, sample_dim=args.sample_dim, preprocess=preprocess)
 

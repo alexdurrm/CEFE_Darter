@@ -13,7 +13,6 @@ from config import *
 
 
 #GLCM
-CSV_HARALICK_NAME="haralick descriptors"
 CSV_HARALICK="haralick.csv"
 
 COL_GLCM_MEAN="GLCM_mean"
@@ -35,7 +34,6 @@ class HaralickMetrics(MotherMetric):
 		self.distances = distances
 		self.angles = angles
 		super().__init__(*args, **kwargs)
-		self.data.index.name = CSV_HARALICK_NAME
 
 	def function(self, image):
 		image = image.astype(np.uint8)

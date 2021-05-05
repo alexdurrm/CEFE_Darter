@@ -16,7 +16,6 @@ from config import *
 from ScalarMetrics import get_gini
 
 PREDICTION_SIZE=128
-CSV_AE_NAME="autoencoder"
 CSV_AE="metricAE_"
 COL_MODEL_NAME_AE="autoencoder_name"
 COL_PRED_SIZE="prediction_size"
@@ -41,7 +40,6 @@ class AutoencoderMetrics(MotherMetric):
 	def __init__(self, model_path, *args, **kwargs):
 		self.model = K.models.load_model(model_path)
 		super().__init__(*args, **kwargs)
-		self.data.index.name = CSV_AE_NAME
 
 	def visualize(self):
 		data_image = pd.read_csv(os.path.join(DIR_RESULTS, CSV_IMAGE), index_col=0) 

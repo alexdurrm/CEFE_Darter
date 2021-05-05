@@ -10,7 +10,6 @@ from PHOG.anna_phog import anna_phog
 from config import *
 
 #PHOG
-CSV_PHOG_NAME="pyramidal hog"
 CSV_PHOG="phog.csv"
 COL_PHOG_LEVELS="phog_level"
 COL_PHOG_ORIENTATIONS="phog_bins"
@@ -21,7 +20,6 @@ class PHOGMetrics(MotherMetric):
 		self.orientations=orientations
 		self.level=level
 		super().__init__(*args, **kwargs)
-		self.data.index.name=CSV_PHOG_NAME
 
 	def function(self, image):
 		df = pd.DataFrame()

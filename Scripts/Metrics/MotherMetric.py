@@ -8,13 +8,15 @@ class MotherMetric:
 	'''
 	Parent class for each metric, takes care of the data processing
 	'''
-	def __init__(self, preprocess=None):
+	def __init__(self, preprocess=None, load_from=None):
 		if preprocess:
 			self.preprocess = preprocess
 		else:
 			self.preprocess = Preprocess()
 		#if given a valid path load the data
 		self.data = pd.DataFrame()
+		if load_from:
+			self.load(load_from)
 
 	def __call__(self, path=None):
 		'''

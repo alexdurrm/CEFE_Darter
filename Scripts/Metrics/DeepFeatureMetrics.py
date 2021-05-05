@@ -16,10 +16,8 @@ from ScalarMetrics import get_gini
 
 
 #deep features
-CSV_DF_NAME="deep_features"
 CSV_DEEP_FEATURES="deep_features.csv"
 COL_MODEL_NAME="model_name_deep_features"
-COL_PATH_DEEP_FEATURES="path_deep_features"
 COL_SPARSENESS_DF="gini_deep_features"
 COL_ENTROPY_DF="deep_feature_entropy"
 COL_KURTOSIS_DF="deep_feature_kurtosis"
@@ -37,7 +35,6 @@ class DeepFeatureMetrics(MotherMetric):
 		self.base_model.layers[0] = input_tensor
 		self.deep_features = K.Model(inputs=self.base_model.input, outputs=[l.output for l in self.base_model.layers[1:]])
 		super().__init__(*args, **kwargs)
-		self.data.index.name = CSV_DF_NAME
 
 	def get_deep_features(self, image, visu=False):
 		'''

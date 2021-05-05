@@ -8,12 +8,10 @@ from Preprocess import *
 from config import *
 
 #local binary Pattern
-CSV_LBP_NAME="local binary patterns"
 CSV_LBP="lbp.csv"
-
 COL_POINTS_LBP="points_LBP"
 COL_RADIUS_LBP="radius_LBP"
-COL_VALUE_LBP="value_LBP"
+COL_BIN_LBP="bin_val_LBP"
 COL_COUNT_LBP="count_LBP_value"
 class LBPHistMetrics(MotherMetric):
 	def __init__(self, points, radius, nbins, *args, **kwargs):
@@ -22,7 +20,6 @@ class LBPHistMetrics(MotherMetric):
 		self.radius = radius
 		self.nbins = nbins
 		super().__init__(*args, **kwargs)
-		self.data.index.name = CSV_LBP_NAME
 
 	def function(self, image, visu=False):
 		'''
@@ -38,9 +35,9 @@ class LBPHistMetrics(MotherMetric):
 		for P, R in zip(self.points, self.radius):
 			lbp_image = local_binary_pattern(image, P, R)
 			vals, bins = np.histogram(lbp_image, bins=self.nbins)
-			for bin, val in zip(bins, vals):
+			for vbin, val in zip(bins, vals):
 				df.loc[idx, params.columns] = params.iloc[0]
-				df.loc[idx, [COL_POINTS_LBP, COL_RADIUS_LBP, COL_VALUE_LBP, COL_COUNT_LBP]] = [P, R, bin, val]
+				df.loc[idx, [COL_POINTS_LBP, COL_RADIUS_LBP, COL_BIN_LBP, COL_COUNT_LBP]] = [P, R, vbin, val]
 				idx+=1
 			if visu:
 				fig, (ax0, ax1, ax2) = plt.subplots(figsize=(6, 12), nrows=3)
@@ -58,8 +55,9 @@ class LBPHistMetrics(MotherMetric):
 		return df
 
 
-CSV_BEST_LBP_NAME="best_lbp"
 CSV_BEST_LBP="best_lbp.csv"
+COL_RANK_LBP="rank_lbp_value"
+COL_VALUE_LBP="value_LBP"
 class BestLBPMetrics(MotherMetric):
 	def __init__(self, points, radius, n_best=20, *args, **kwargs):
 		assert len(points)==len(radius), "points and radius are used zipped, should be the same length"
@@ -67,7 +65,6 @@ class BestLBPMetrics(MotherMetric):
 		self.radius = radius
 		self.n_best = n_best
 		super().__init__(*args, **kwargs)
-		self.data.index.name = CSV_BEST_LBP_NAME
 
 	def function(self, image, visu=False):
 		'''
@@ -88,7 +85,7 @@ class BestLBPMetrics(MotherMetric):
 			for rank, lbp in enumerate(best_lbp):
 				lbp_val, lbp_count = lbp
 				df.loc[idx, params.columns] = params.iloc[0]
-				df.loc[idx, [COL_POINTS_LBP, COL_RADIUS_LBP, COL_VALUE_LBP, COL_COUNT_LBP]] = [P, R, lbp_val, lbp_count]
+				df.loc[idx, [COL_POINTS_LBP, COL_RADIUS_LBP, COL_RANK_LBP, COL_VALUE_LBP, COL_COUNT_LBP]] = [P, R, rank, lbp_val, lbp_count]
 				idx+=1
 		return df
 

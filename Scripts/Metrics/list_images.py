@@ -70,7 +70,6 @@ def group_files_by_experiments(df_files):
 	a link between the path of the style image and the path of the content image
 	'''
 	experiments = pd.DataFrame(columns=LIST_COLUMNS_EXP)
-	experiments.index.name = CSV_EXPERIMENTS_NAME
 	fishes = df_files[df_files[COL_TYPE]==FILE_TYPE.ORIG_FISH.value][[COL_IMG_PATH, COL_FISH_NUMBER, COL_FISH_SEX, COL_SPECIES]]
 	habitat = df_files[df_files[COL_TYPE]==FILE_TYPE.HABITAT.value][[COL_IMG_PATH, COL_HABITAT]]
 
@@ -96,7 +95,6 @@ def get_files(main_path, max_depth, types_allowed, ignored_folders, only_endnode
 	'''
 	assert max_depth>=0, "You should not give a depth lower than 0"
 	data = pd.DataFrame(columns=LIST_COLUMNS_IMG)
-	data.index.name = CSV_IMAGE_NAME
 	to_visit=[(main_path, 0)]
 	while to_visit:
 		path, depth = to_visit.pop()
