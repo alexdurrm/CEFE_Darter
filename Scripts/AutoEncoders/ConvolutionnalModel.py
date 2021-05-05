@@ -18,17 +18,17 @@ class Autoencoder(Model):
 		super(Autoencoder, self).__init__(name=name)
 		self.latent_dim = latent_dim
 		self.encoder = K.Sequential([
-			Conv2D(latent_dim, kernel_size=(3,3), padding="same"),
-			MaxPool2D(pool_size=(3,3), padding="same"),
-			Conv2D(latent_dim//2, kernel_size=(3,3), padding="same"),
-			MaxPool2D(pool_size=(3,3), padding="same"),
-			Conv2D(latent_dim//4, kernel_size=(3,3), padding="same"),
+			Conv2D(latent_dim, kernel_size=(2,2), padding="same"),
+			MaxPool2D(pool_size=(2,2), padding="same"),
+			Conv2D(latent_dim, kernel_size=(2,2), padding="same"),
+			MaxPool2D(pool_size=(2,2), padding="same"),
+			Conv2D(latent_dim, kernel_size=(2,2), padding="same"),
 		])
 		self.decoder = K.Sequential([
-			UpSampling2D(size=(3,3)),
-			Conv2DTranspose(filters=color_channels//2, kernel_size=(3,3), padding="same"),
-			UpSampling2D(size=(3,3)),
-			Conv2DTranspose(filters=color_channels, kernel_size=(3,3), padding="same")
+			UpSampling2D(size=(2,2)),
+			Conv2DTranspose(filters=latent_dim, kernel_size=(2,2), padding="same"),
+			UpSampling2D(size=(2,2)),
+			Conv2DTranspose(filters=color_channels, kernel_size=(2,2), padding="same")
 		])
 
 	def call(self, x):

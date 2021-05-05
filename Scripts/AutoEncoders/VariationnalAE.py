@@ -94,6 +94,7 @@ if __name__ == '__main__':
 	EPOCHS=30
 	NETWORK_NAME="Convolutional"
 	LOSS='mse'
+	VERBOSE=0
 
 	parser = argparse.ArgumentParser()
 	subparsers = parser.add_subparsers(title="command", dest="command", help='action to perform')

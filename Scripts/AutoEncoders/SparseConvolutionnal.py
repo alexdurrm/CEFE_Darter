@@ -77,7 +77,7 @@ if __name__ == '__main__':
 	EPOCHS=30
 	NETWORK_NAME="SparseConvolutionnal"
 	LOSS='mse'
-	VERBOSE=10
+	VERBOSE=0
 	L1_REGULIZER=0.001
 
 	parser = argparse.ArgumentParser()
