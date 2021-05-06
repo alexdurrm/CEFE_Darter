@@ -51,17 +51,18 @@ def preprocess_habitat_image(set_img, color_channels, visu=0):
 	return the transformed image
 	"""
 	print("\n")
-	for i, image in enumerate(set_img):
+	for i, img in enumerate(set_img):
 		print("\rpreprocess {}/{}".format(i+1, len(set_img)), end='')
+		image = img.copy()
 		if color_channels==1:
 			image = rgb_2_darter(image)
 			image = image[..., 0]+image[..., 1]
 			image = image[..., np.newaxis]
 		elif color_channels==2:
 			image = rgb_2_darter(image)
-		set_img[i] = image.copy()
+		set_img[i] = image
 	set_img = (set_img - np.mean(set_img)) / np.std(set_img)
-	set_img = (set_img - np.min(set_img)) / (np.max(set_img) - np.min(set_img)).astype(np.float32)
+	set_img = ((set_img - np.min(set_img)) / (np.max(set_img) - np.min(set_img))).astype(np.float32)
 	print("\n")
 	for i in range(visu):
 		plt.imshow(set_img[i], cmap='gray')

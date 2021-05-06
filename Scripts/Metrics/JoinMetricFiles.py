@@ -14,7 +14,6 @@ from PHOGMetrics import *
 from ScalarMetrics import *
 
 if __name__ == '__main__':
-
 	#parsing parameters
 	parser = argparse.ArgumentParser()
 	parser.add_argument("input_files", nargs="+", type=str, help="Files to join")
@@ -30,6 +29,9 @@ if __name__ == '__main__':
 
 	img_info_there=False #become true if a file contains informations about the images
 
+	#for each given file load it and if it recognize the file prepare it
+	#so that every column correspond to a metric with its parameters
+	#and every line corresponds to an image file
 	for file_path in args.input_files:
 		file = pd.read_csv(file_path, index_col=0)
 		f_type = os.path.split(file_path)[-1]
