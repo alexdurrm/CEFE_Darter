@@ -133,7 +133,7 @@ if __name__ == '__main__':
 		#save the model
 		if not os.path.exists(args.output_dir):
 			os.makedirs(args.output_dir)
-			autoencoder.save(os.path.join(args.output_dir, autoencoder.name), overwrite=True)
+        autoencoder.save(os.path.join(args.output_dir, autoencoder.name), overwrite=True)
 
 		#plot the training
 		plt.plot(histories[i].history['loss'], label="train")
