@@ -26,7 +26,7 @@ class DeepFeatureMetrics(MotherMetric):
 	"""
 	DeepFeatureMetrics is a class used to calculate and store
 	different metrics derived from the neurons activation of a specific neural net
-	to a given image 
+	to a given image
 	"""
 	def __init__(self, base_model, input_shape, *args, **kwargs):
 		self.base_model = base_model
@@ -58,19 +58,21 @@ class DeepFeatureMetrics(MotherMetric):
 
 	def get_layers_stats(self, image):
 		deep_features = self.get_deep_features(image)
-		sparseness=[get_gini(f[0]) for f in deep_features]
+		gini = [get_gini(f[0]) for f in deep_features]
 		kurtosis = [kurtosis(f[0], axis=None)]
 		entropy = [entropy(f[0], axis=None)]
-		return sparseness, kurtosis, entropy
+		return (gini, kurtosis, entropy)
 
 	def function(self, image):
-		gini = self.get_layers_gini(image)
+		gini, kurtosis, entropy = self.get_layers_stats(image)
 		params = self.preprocess.get_params()
 
 		df = pd.DataFrame()
-		for layer_idx , gini in enumerate(gini):
+		layer_idx=0
+		for g, k, e in zip(gini, kurtosis, entropy):
 			df.loc[layer_idx, params.columns] = params.iloc[0]
-			df.loc[layer_idx, [COL_MODEL_NAME, COL_SPARSENESS_DF, COL_LAYER_DF]] = [self.base_model.name, gini, layer_idx]
+			df.loc[layer_idx, [COL_MODEL_NAME, COL_LAYER_DF, COL_SPARSENESS_DF, COL_KURTOSIS_DF, COL_ENTROPY_DF]] = [self.base_model.name, layer_idx, g, k, e]
+			layer_idx+=1
 		return df
 
 	def visualize(self):

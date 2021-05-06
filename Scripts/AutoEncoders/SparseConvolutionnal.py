@@ -51,21 +51,22 @@ class Autoencoder(Model):
 		"""
 		prediction = self.call(sample_test)
 		for i in range(n):
-			rdm = np.random.randint(0, len(sample_test))
-			plt.figure()
-			plt.title("{} reconstructions img {}".format(self.name, rdm))
+			# rdm = np.random.randint(0, len(sample_test))
+			idx = 15*i
+			fig=plt.figure()
+			plt.title("{} reconstructions img {}".format(self.name, idx))
 			# display original
-			ax = plt.subplot(1, 2, 1)
-			plt.imshow(sample_test[rdm], cmap='gray')
+			fig.add_subplot(1, 2, 1)
+			plt.imshow(sample_test[idx], cmap='gray')
 			plt.title("original")
 
 			# display reconstruction
-			ax = plt.subplot(1, 2, 2)
-			plt.imshow(prediction[rdm], cmap='gray')
+			fig.add_subplot(1, 2, 2)
+			plt.imshow(prediction[idx], cmap='gray')
 			plt.title("reconstructed")
-			plt.show()
-		if saving_dir:
-			plt.savefig(os.path.join(saving_dir,"{} reconstructions img {}".format(self.name, rdm)))
+			# plt.show()
+			if saving_dir:
+				plt.savefig(os.path.join(saving_dir,"{} reconstructions img {}".format(self.name, idx)))
 
 
 if __name__ == '__main__':
@@ -77,7 +78,7 @@ if __name__ == '__main__':
 	EPOCHS=30
 	NETWORK_NAME="SparseConvolutionnal"
 	LOSS='mse'
-	VERBOSE=0
+	VERBOSE=5
 	L1_REGULIZER=0.001
 
 	parser = argparse.ArgumentParser()
@@ -94,7 +95,7 @@ if __name__ == '__main__':
 	#specific parameters for multiple trainings with diverse latent dims
 	LD_parser = subparsers.add_parser("LD_selection")
 	LD_parser.add_argument("-l", "--latent_dim", type=int, nargs="+", default=LATENT_DIM_SPACE, help="the latent dimension that will be tested, default {}".format(LATENT_DIM_SPACE))
-	#specific parameters for a simple training	
+	#specific parameters for a simple training
 	training_parser = subparsers.add_parser("training")
 	training_parser.add_argument("-l", "--latent_dim", type=int, default=LATENT_DIM, help="the latent dimention, default {}".format(LATENT_DIM))
 	args = parser.parse_args()
@@ -112,41 +113,44 @@ if __name__ == '__main__':
 		list_LD = args.latent_dim
 	elif args.command=="training":
 		list_LD = [args.latent_dim]
-	histories = []
-	fig, ax = plt.subplots()
-	for i, latent_dim in enumerate(list_LD):
+	losses = []
+	val_losses = []
+	for latent_dim in list_LD:
 		#prepare the network
-		network_name = "{}_{}_LD{}_pred{}x{}x{}".format(args.name, dataset_descriptor, args.latent_dim, *prediction_shape)
-		autoencoder = Autoencoder(network_name, args.latent_dim, prediction_shape[-1], args.regulizer_l1)
+		network_name = "{}_{}_LD{}_pred{}x{}x{}".format(args.name, dataset_descriptor, latent_dim, *prediction_shape)
+		autoencoder = Autoencoder(network_name, latent_dim, prediction_shape[-1], args.regulizer_l1)
 		autoencoder.compile(optimizer='adam', loss=args.loss)
 
 		#train the network
-		callback = K.callbacks.EarlyStopping(monitor='val_loss', patience=5)
-		histories.append(autoencoder.fit(x=train, y=train,
+		callbacks = [K.callbacks.EarlyStopping(monitor='val_loss', patience=4),
+					K.callbacks.EarlyStopping(monitor='loss', patience=4)]
+		history = autoencoder.fit(x=train, y=train,
 			batch_size=args.batch,
 			validation_data=(test, test),
 			epochs= args.epochs,
-			callbacks= callback,
+			callbacks= callbacks,
 			shuffle= True
-			))
-
-		#save the model
-		if not os.path.exists(args.output_dir):
-			os.makedirs(args.output_dir)
-        autoencoder.save(os.path.join(args.output_dir, autoencoder.name), overwrite=True)
-
-		#plot the training
-		plt.plot(histories[i].history['loss'], label="train")
-		plt.plot(histories[i].history['val_loss'], label="val")
+			)
+		losses.append(history.history['loss'])
+		val_losses.append(history.history['val_loss'])
 
 		#plot the predictions
 		autoencoder.show_predictions(sample_test=test, n=args.verbose, saving_dir=args.output_dir)
-		
-	if args.command=="LD_selection":
-		name_without_ld = '_'.join([*network_name.split("_")[:2], *network_name.split("_")[3:]])
-		name_figure = "training losses per latent dim\n network {}".format(name_without_ld)
-	elif args.command=="training":
-		name_figure = "{} training losses".format(autoencoder.name)
-	ax.legend()
-	fig.savefig(os.path.join(args.output_dir, name_figure))
-	plt.show()
+
+	#plot the training
+	fig=plt.figure()
+	for loss in losses:
+		plt.plot(loss)
+	plt.legend(list_LD)
+	plt.savefig(os.path.join(args.output_dir,"{} losses training".format(autoencoder.name)))
+	fig=plt.figure()
+	for v_loss in val_losses:
+		plt.plot(v_loss)
+	plt.legend(list_LD)
+	plt.savefig(os.path.join(args.output_dir,"{} losses testing".format(autoencoder.name)))
+
+	#save the model
+	if args.command=="training":
+		if not os.path.exists(args.output_dir):
+			os.makedirs(args.output_dir)
+		autoencoder.save(os.path.join(args.output_dir, autoencoder.name), overwrite=True)
