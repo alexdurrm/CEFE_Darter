@@ -17,7 +17,7 @@ if __name__ == '__main__':
 
 	#parsing parameters
 	parser = argparse.ArgumentParser()
-	parser.add_argument("-i", "--input_files", nargs="+", type=str, help="Files to join")
+	parser.add_argument("input_files", nargs="+", type=str, help="Files to join")
 	parser.add_argument("-o", "--output_dir", type=str, default=DIR_RESULTS, help="output directory, default: {}".format(DIR_RESULTS))
 	args = parser.parse_args()
 
@@ -120,7 +120,7 @@ if __name__ == '__main__':
 
 		merged_df = merged_df.merge(file, how="outer", on=path_and_params_col)
 
-	if
+	if img_info_there:
 		merged_df = merged_df.pivot(index=img_info_col, columns=[COL_NORMALIZE, COL_STANDARDIZE, COL_IMG_TYPE, COL_IMG_CHANNEL, COL_IMG_RESIZE_X, COL_IMG_RESIZE_Y])
 	else:
 		merged_df = merged_df.pivot(index=COL_IMG_PATH, columns=[COL_NORMALIZE, COL_STANDARDIZE, COL_IMG_TYPE, COL_IMG_CHANNEL, COL_IMG_RESIZE_X, COL_IMG_RESIZE_Y])
