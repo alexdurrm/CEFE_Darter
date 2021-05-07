@@ -12,6 +12,7 @@ from glob import glob
 import imageio
 import cv2
 
+from CommonAE import *
 
 class Autoencoder(Model):
 	def __init__(self, name, latent_dim, pred_shape):
@@ -31,28 +32,11 @@ class Autoencoder(Model):
 		decoded = self.decoder(encoded)
 		return decoded
 
-	def show_predictions(self, sample_test, n, saving_dir=None):
-		"""
-		plot test sample images and their reconstruction by the network
-		"""
-		prediction = self.predict(sample_test)
-		fig, axs = plt.subplots(nrows=2, ncols=n, sharex=True, sharey=True, squeeze=False)
-		fig.suptitle("reconstructions {}".format(self.name))
-		for i in range(n):
-			idx=i*15
-			axs[1, i+1].imshow(sample_test[idx], cmap='gray')
-			axs[1, i+1].set_title("original {}".format(idx))
-
-			axs[2, i+1].imshow(prediction[idx], cmap='gray')
-			axs[2, i+1].set_title("reconstructed {}".format(idx))
-		if saving_dir:
-			plt.show()
-			plt.savefig(os.path.join(saving_dir,"reconstructions {}".format(self.name)))
 
 
 if __name__ == '__main__':
 	#default parameters
-	DIR_SAVED_MODELS ="Scripts/AutoEncoders/TrainedModels"
+	DIR_SAVED_MODELS ="Results/AE_tif_mixed_bright"
 	LATENT_DIM=20
 	LATENT_DIM_SPACE = [2,5,10,20,40,80,160]
 	BATCH_SIZE=50
@@ -86,21 +70,35 @@ if __name__ == '__main__':
 	prediction_shape = train.shape[1:]
 	dataset_descriptor, *_ = os.path.split(args.path_train)[-1].split('_') #get the descriptor of the dataset
 
+
 	if args.command=="LD_selection":
 		list_LD = args.latent_dim
 	elif args.command=="training":
 		list_LD = [args.latent_dim]
+
+	#prepare directory output
+	if not os.path.exists(args.output_dir):
+		os.makedirs(args.output_dir)
+	output_dir = os.path.join(args.output_dir, args.network_name)
+	if not os.path.exists(output_dir):
+		os.makedirs(output_dir)
+
 	losses = []
 	val_losses = []
 	for latent_dim in list_LD:
+		K.backend.clear_session()
+
 		#prepare the network
 		network_name = "{}_{}_LD{}_pred{}x{}x{}".format(args.name, dataset_descriptor, latent_dim, *prediction_shape)
 		autoencoder = Autoencoder(network_name, latent_dim, prediction_shape)
 		autoencoder.compile(optimizer='adam', loss=args.loss)
 
-		#train the network
+		#prepare callbacks
 		callbacks = [K.callbacks.EarlyStopping(monitor='val_loss', patience=4),
-					K.callbacks.EarlyStopping(monitor='loss', patience=4)]
+					K.callbacks.EarlyStopping(monitor='loss', patience=4),
+					SavePredictionSample(n_samples=5, val_data=test[0:5*20:5], saving_dir=output_dir)]
+
+		#train the network
 		history = autoencoder.fit(x=train, y=train,
 			batch_size=args.batch,
 			validation_data=(test, test),
@@ -112,22 +110,24 @@ if __name__ == '__main__':
 		val_losses.append(history.history['val_loss'])
 
 		#plot the predictions
-		autoencoder.show_predictions(sample_test=test, n=args.verbose, saving_dir=args.output_dir)
+		autoencoder.show_predictions(sample_test=test, n=args.verbose, saving_dir=output_dir)
 
-	#plot the training
-	fig=plt.figure()
-	for loss in losses:
-		plt.plot(loss)
-	plt.legend(list_LD)
-	plt.savefig(os.path.join(args.output_dir,"{} losses training".format(autoencoder.name)))
-	fig=plt.figure()
-	for v_loss in val_losses:
-		plt.plot(v_loss)
-	plt.legend(list_LD)
-	plt.savefig(os.path.join(args.output_dir,"{} losses testing".format(autoencoder.name)))
+	#plot the training losses
+	plot_training_losses(losses, val_losses, list_LD, 
+		"losses for different latent dims", 
+		os.path.join(output_dir,"losses {}".format(autoencoder.name)))
+
+	#plot the best validation for each latent dim
+	best_losses=[]
+	best_val_losses=[]
+	for val_loss, loss in zip(val_losses, losses):
+		best_losses.append(min(loss))
+		best_val_losses.append(min(val_loss))
+	plot_loss_per_ld(best_losses, best_val_losses, 
+		title="best losses per latent dim for {}".format(autoencoder.name),
+		save_path=os.path.join(output_dir, "best losses {}".format(autoencoder.name))
+		)
 
 	#save the model
 	if args.command=="training":
-		if not os.path.exists(args.output_dir):
-			os.makedirs(args.output_dir)
-		autoencoder.save(os.path.join(args.output_dir, autoencoder.name), overwrite=True)
+		autoencoder.save(os.path.join(output_dir, autoencoder.name), overwrite=True)
