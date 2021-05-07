@@ -38,17 +38,17 @@ class Autoencoder(Model):
 
 
 class SavePredictionSample(K.callbacks.Callback):
-	def __init__(self, n_samples, saving_dir):
-		self.n_samples=n_samples
-		self.saving_dir=saving_dir
+	def __init__(self, n_samples, val_data, saving_dir):
 		super().__init__()
+		self.n_samples=n_samples
+		self.validation_data = val_data
+		self.saving_dir = saving_dir
+
 
 	def on_epoch_end(self, epoch, logs=None):
-		space = 15
-		sample = self.validation_data[0 : space*self.n_samples : space]
-		outputs = self.model.predict(sample)
-		title = "reconstructions epoch {} model {}".format(epoch, self.name)
-		show_predictions(sample, outputs, self.n_samples, title, self.saving_dir)
+		outputs = self.model.predict(self.validation_data)
+		title = "reconstructions epoch {} model {}".format(epoch, self.model.name)
+		show_predictions(self.validation_data, outputs, self.n_samples, title, self.saving_dir)
 
 
 def show_predictions(sample_test, prediction, n, title, saving_dir=None):
@@ -58,11 +58,11 @@ def show_predictions(sample_test, prediction, n, title, saving_dir=None):
 	fig, axs = plt.subplots(nrows=2, ncols=n, sharex=True, sharey=True, squeeze=False)
 	fig.suptitle(title)
 	for i in range(n):
-		axs[1][i+1].imshow(sample_test[i], cmap='gray')
-		axs[1][i+1].set_title("original {}".format(i))
+		axs[0][i].imshow(sample_test[i], cmap='gray')
+		axs[0][i].set_title("original {}".format(i))
 
-		axs[2][i+1].imshow(prediction[i], cmap='gray')
-		axs[2][i+1].set_title("reconstructed {}".format(i))
+		axs[1][i].imshow(prediction[i], cmap='gray')
+		axs[1][i].set_title("reconstructed {}".format(i))
 	plt.show()
 	if saving_dir:
 		plt.savefig(os.path.join(saving_dir, title))
@@ -117,6 +117,8 @@ if __name__ == '__main__':
 	losses = []
 	val_losses = []
 	for latent_dim in list_LD:
+		K.backend.clear_session()
+
 		#prepare the network
 		network_name = "{}_{}_LD{}_pred{}x{}x{}".format(args.name, dataset_descriptor, latent_dim, *prediction_shape)
 		autoencoder = Autoencoder(network_name, latent_dim, prediction_shape[-1])
@@ -125,7 +127,7 @@ if __name__ == '__main__':
 		#train the network
 		callbacks = [K.callbacks.EarlyStopping(monitor='val_loss', patience=4),
 					K.callbacks.EarlyStopping(monitor='loss', patience=4),
-					SavePredictionSample(n_samples=5, saving_dir=args.output_dir)]
+					SavePredictionSample(n_samples=5, val_data=test[0:5*20:5] ,saving_dir=args.output_dir)]
 
 		history = autoencoder.fit(x=train, y=train,
 			batch_size=args.batch,
@@ -134,6 +136,7 @@ if __name__ == '__main__':
 			callbacks=callbacks,
 			shuffle= True
 			)
+
 		losses.append(history.history['loss'])
 		val_losses.append(history.history['val_loss'])
 
@@ -141,14 +144,25 @@ if __name__ == '__main__':
 	#plot the training
 	fig, axs = plt.subplots(nrows=2, ncols=1, sharex=True, sharey=True, squeeze=False)
 	fig.suptitle("losses for different latent dims")
-	axs[1][1].set_title("training losses")
-	axs[2][1].set_title("validation losses")
-	for ld, loss, val_loss in zip(list_LD, losses, val_losses):
-		axs[1][1].plot(loss, labels=str(ld))
-		axs[2][1].plot(val_loss, labels=str(ld))
-	plt.legend()
-	plt.savefig(os.path.join(args.output_dir,"{} losses ".format(autoencoder.name)))
+	axs[0][0].set_title("training losses")
+	axs[1][0].set_title("validation losses")
+	for loss, val_loss in zip(losses, val_losses):
+		axs[0][0].plot(loss)
+		axs[1][0].plot(val_loss)
+	plt.legend(list_LD)
+	plt.show()
+	plt.savefig(os.path.join(args.output_dir,"losses {}".format(autoencoder.name)))
 
+	#plot the best validation for each latent dim
+	best_losses=[]
+	for val_loss in val_losses:
+		best_losses.append(min(val_loss))
+	plt.plot(list_LD, best_losses)
+	plt.xlabel("latent_dim")
+	plt.ylabel("best loss")
+	plt.title("best losses per latent dim for {}".format(autoencoder.name))
+	plt.show()
+	plt.savefig(os.path.join(args.output_dir, "best losses {}".format(autoencoder.name)))
 
 	#save the model
 	if args.command=="training":
