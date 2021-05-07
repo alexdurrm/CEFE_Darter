@@ -51,6 +51,11 @@ def preprocess_habitat_image(set_img, color_channels, visu=0):
 	return the transformed image
 	"""
 	print("\n")
+	print(set_img.shape)
+	mean = np.mean(set_img)
+	std = np.std(set_img)
+	mini = np.min(set_img)
+	maxi = np.max(set_img)
 	for i, img in enumerate(set_img):
 		print("\rpreprocess {}/{}".format(i+1, len(set_img)), end='')
 		image = img.copy()
@@ -61,8 +66,8 @@ def preprocess_habitat_image(set_img, color_channels, visu=0):
 		elif color_channels==2:
 			image = rgb_2_darter(image)
 		set_img[i] = image
-	set_img = (set_img - np.mean(set_img)) / np.std(set_img)
-	set_img = ((set_img - np.min(set_img)) / (np.max(set_img) - np.min(set_img))).astype(np.float32)
+	set_img = (set_img - mean) / std
+	set_img = ((set_img - mini) / (maxi - mini)).astype(np.float32)
 	print("\n")
 	for i in range(visu):
 		plt.imshow(set_img[i], cmap='gray')
@@ -132,10 +137,11 @@ def get_datasets(glob_path, presize_shape, pred_shape, color_channels, levels, n
 	#augment and normalize train and test
 	test = augment(test, pred_shape, levels, visu)
 	train = augment(train, pred_shape, levels, visu)
+	print(train.shape, test.shape)
 	test = preprocess_habitat_image(test, color_channels, visu)
 	train = preprocess_habitat_image(train, color_channels, visu)
 	print("end get dataset")
-	return (train, test)
+	return train, test
 
 
 if __name__=='__main__':

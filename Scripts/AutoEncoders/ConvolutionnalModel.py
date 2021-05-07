@@ -84,7 +84,7 @@ if __name__ == '__main__':
 	#prepare directory output
 	if not os.path.exists(args.output_dir):
 		os.makedirs(args.output_dir)
-	output_dir = os.path.join(args.output_dir, args.network_name)
+	output_dir = os.path.join(args.output_dir, args.name)
 	if not os.path.exists(output_dir):
 		os.makedirs(output_dir)
 
@@ -126,7 +126,7 @@ if __name__ == '__main__':
 	for val_loss, loss in zip(val_losses, losses):
 		best_losses.append(min(loss))
 		best_val_losses.append(min(val_loss))
-	plot_loss_per_ld(best_losses, best_val_losses, 
+	plot_loss_per_ld(best_losses, best_val_losses, list_LD, 
 		title="best losses per latent dim for {}".format(autoencoder.name),
 		save_path=os.path.join(output_dir, "best losses {}".format(autoencoder.name))
 		)

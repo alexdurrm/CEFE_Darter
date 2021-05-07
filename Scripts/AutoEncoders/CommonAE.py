@@ -1,5 +1,6 @@
-import matplotlib.pyplot as plt 
-from tensorflow.keras.Callback import Callback
+import os
+import matplotlib.pyplot as plt
+from tensorflow.keras.callbacks import Callback
 
 
 class SavePredictionSample(Callback):
@@ -45,7 +46,7 @@ def plot_training_losses(losses, val_losses, labels, title="losses train and tes
 	if save_path:
 		plt.savefig(save_path)
 
-def plot_loss_per_ld(best_losses, best_val_losses, title="", save_path=None)
+def plot_loss_per_ld(best_losses, best_val_losses, list_LD, title="", save_path=None):
 	fig, axs = plt.subplots(nrows=2, ncols=1, sharex=True, sharey=True, squeeze=False)
 	fig.suptitle(title)
 
