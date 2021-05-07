@@ -60,7 +60,7 @@ class Autoencoder(Model):
 		"""
 		plot test sample images and their reconstruction by the network
 		"""
-		prediction = self.call(sample_test)
+		prediction = self.predict(sample_test)
 		for i in range(n):
 			# rdm = np.random.randint(0, len(sample_test))
 			idx = 15*i

@@ -22,27 +22,27 @@ class Autoencoder(Model):
 		self.latent_dim = latent_dim
 		self.encoder = K.Sequential([
 			Conv2D(latent_dim, kernel_size=(3,3), padding="same"),
-			MaxPool2D(pool_size=(3,3), padding="same"),
-			Conv2D(latent_dim//2, kernel_size=(3,3), padding="same"),
-			MaxPool2D(pool_size=(3,3), padding="same"),
-			Conv2D(latent_dim//4, kernel_size=(3,3), padding="same"),
+			MaxPool2D(pool_size=(2,2), padding="same"),
+			Conv2D(latent_dim*2, kernel_size=(3,3), padding="same"),
+			MaxPool2D(pool_size=(2,2), padding="same"),
+			Conv2D(latent_dim*2, kernel_size=(3,3), padding="same"),
 		])
 		self.decoder = K.Sequential([
-			UpSampling2D(size=(3,3)),
-			Conv2DTranspose(filters=prediction_shape[-1]//2, kernel_size=(3,3), padding="same"),
-			UpSampling2D(size=(3,3)),
+			UpSampling2D(size=(2,2)),
+			Conv2DTranspose(filters=latent_dim*2, kernel_size=(3,3), padding="same"),
+			UpSampling2D(size=(2,2)),
 			Conv2DTranspose(filters=prediction_shape[-1], kernel_size=(3,3), padding="same")
 		])
 
 
 	@tf.function
-	def sample(self, eps=None):
+	def sample(self, img_shape, eps=None):
 		if eps is None:
-			eps = tf.random.normal(shape=(100, self.latent_dim))
+			eps = tf.random.normal(shape=(1, img_shape[0]//4, img_shape[1]//4, self.latent_dim))
 		return self.decode(eps, apply_sigmoid=True)
 
 	def encode(self, x):
-		mean, logvar = tf.split(self.encoder(x), num_or_size_splits=2, axis=1)
+		mean, logvar = tf.split(self.encoder(x), num_or_size_splits=2, axis=3)
 		return mean, logvar
 
 	def reparameterize(self, mean, logvar):
@@ -66,7 +66,7 @@ class Autoencoder(Model):
 		"""
 		plot test sample images and their reconstruction by the network
 		"""
-		prediction = self.call(sample_test)
+		prediction = self.predict(sample_test)
 		for i in range(n):
 			# rdm = np.random.randint(0, len(sample_test))
 			idx = 15*i
@@ -126,6 +126,9 @@ if __name__ == '__main__':
 		list_LD = args.latent_dim
 	elif args.command=="training":
 		list_LD = [args.latent_dim]
+	#prepare the result directory
+	if not os.path.exists(args.output_dir):
+		os.makedirs(args.output_dir)
 	losses = []
 	val_losses = []
 	for latent_dim in list_LD:
@@ -152,10 +155,9 @@ if __name__ == '__main__':
 
 		#plot examples samples
 		for i in range(args.verbose):
-			plt.imshow(autoencoder.sample(), cmap='gray')
+			plt.imshow(autoencoder.sample(prediction_shape)[0], cmap='gray')
 			plt.show()
-			if graph_directory:
-				plt.savefig(os.path.join(graph_directory, "{} sampling {}".format(autoencoder.name, i)))
+			plt.savefig(os.path.join(args.output_dir, "{} sampling {}".format(autoencoder.name, i)))
 
 	#plot the training
 	fig=plt.figure()
@@ -171,6 +173,4 @@ if __name__ == '__main__':
 
 	#save the model
 	if args.command=="training":
-		if not os.path.exists(args.output_dir):
-			os.makedirs(args.output_dir)
 		autoencoder.save(os.path.join(args.output_dir, autoencoder.name), overwrite=True)
