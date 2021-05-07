@@ -35,24 +35,19 @@ class Autoencoder(Model):
 		"""
 		plot test sample images and their reconstruction by the network
 		"""
-		prediction = self.call(sample_test)
+		prediction = self.predict(sample_test)
+		fig, axs = plt.subplots(nrows=2, ncols=n, sharex=True, sharey=True, squeeze=False)
+		fig.suptitle("reconstructions {}".format(self.name))
 		for i in range(n):
-			# rdm = np.random.randint(0, len(sample_test))
-			idx = 15*i
-			fig=plt.figure()
-			plt.title("{} reconstructions img {}".format(self.name, idx))
-			# display original
-			fig.add_subplot(1, 2, 1)
-			plt.imshow(sample_test[idx], cmap='gray')
-			plt.title("original")
+			idx=i*15
+			axs[1, i+1].imshow(sample_test[idx], cmap='gray')
+			axs[1, i+1].set_title("original {}".format(idx))
 
-			# display reconstruction
-			fig.add_subplot(1, 2, 2)
-			plt.imshow(prediction[idx], cmap='gray')
-			plt.title("reconstructed")
-			# plt.show()
-			if saving_dir:
-				plt.savefig(os.path.join(saving_dir,"{} reconstructions img {}".format(self.name, idx)))
+			axs[2, i+1].imshow(prediction[idx], cmap='gray')
+			axs[2, i+1].set_title("reconstructed {}".format(idx))
+		if saving_dir:
+			plt.show()
+			plt.savefig(os.path.join(saving_dir,"reconstructions {}".format(self.name)))
 
 
 if __name__ == '__main__':
