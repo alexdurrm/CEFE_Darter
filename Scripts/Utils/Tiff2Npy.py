@@ -52,10 +52,6 @@ def preprocess_habitat_image(set_img, color_channels, visu=0):
 	"""
 	print("\n")
 	print(set_img.shape)
-	mean = np.mean(set_img)
-	std = np.std(set_img)
-	mini = np.min(set_img)
-	maxi = np.max(set_img)
 	for i, img in enumerate(set_img):
 		print("\rpreprocess {}/{}".format(i+1, len(set_img)), end='')
 		image = img.copy()
@@ -66,6 +62,10 @@ def preprocess_habitat_image(set_img, color_channels, visu=0):
 		elif color_channels==2:
 			image = rgb_2_darter(image)
 		set_img[i] = image
+	maxi = np.max(set_img)
+	mini = np.min(set_img)
+	mean = np.mean(set_img)
+	std = np.std(set_img)
 	set_img = (set_img - mean) / std
 	set_img = ((set_img - mini) / (maxi - mini)).astype(np.float32)
 	print("\n")

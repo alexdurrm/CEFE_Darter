@@ -15,6 +15,7 @@ if __name__=='__main__':
 		assert dataset.shape[-1]==3 or dataset.shape[-1]==1, "image channel should be either 1 or 3 dims, here :{}".format(dataset.shape[-1])
 	else:
 		raise Exception("Bad number of dimension for this data, should be 3 or 4, here {}".format(dataset.ndim))
+	print(dataset.shape, np.min(dataset), np.max(dataset))
 	for i, img in enumerate(dataset):
 		plt.imshow(img, cmap="gray")
 		plt.title("img n°{}, min: {}, max: {}".format(i, np.min(img), np.max(img)))
