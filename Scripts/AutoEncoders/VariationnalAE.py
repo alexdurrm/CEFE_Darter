@@ -32,7 +32,7 @@ class Autoencoder(Model):
 			UpSampling2D(size=(2,2)),
 			Conv2DTranspose(filters=latent_dim*2, kernel_size=(3,3), padding="same"),
 			UpSampling2D(size=(2,2)),
-			Conv2DTranspose(filters=prediction_shape[-1], kernel_size=(3,3), padding="same")
+			Conv2DTranspose(filters=prediction_shape[-1], kernel_size=(3,3), padding="same", activation='sigmoid')
 		])
 
 

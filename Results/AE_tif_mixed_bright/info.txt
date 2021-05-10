@@ -1,1 +1,0 @@
-Store the results and metrics of different autoencoders trained on a specific environment

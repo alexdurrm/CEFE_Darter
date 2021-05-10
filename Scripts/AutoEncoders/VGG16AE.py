@@ -50,7 +50,7 @@ class Autoencoder(Model):
 			Conv2D(64, 3, activation = 'relu', padding = 'same', name = 'conv10_1'),
 			Conv2D(64, 3, activation = 'relu', padding = 'same', name = 'conv10_2'),
 
-			Conv2D(pred_shape[-1], 3, activation = 'relu', padding = 'same', name = 'conv11'),
+			Conv2D(pred_shape[-1], 3, activation = 'relu', padding = 'same', name = 'conv11', activation='sigmoid'),
 		])
 
 	def call(self, x):

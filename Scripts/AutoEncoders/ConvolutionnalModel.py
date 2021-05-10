@@ -30,7 +30,7 @@ class Autoencoder(Model):
 			UpSampling2D(size=(2,2)),
 			Conv2DTranspose(filters=latent_dim, kernel_size=(2,2), padding="same"),
 			UpSampling2D(size=(2,2)),
-			Conv2DTranspose(filters=color_channels, kernel_size=(2,2), padding="same")
+			Conv2DTranspose(filters=color_channels, kernel_size=(2,2), padding="same", activation='sigmoid')
 		])
 
 	def call(self, x):
