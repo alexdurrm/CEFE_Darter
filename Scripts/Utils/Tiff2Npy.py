@@ -52,23 +52,24 @@ def preprocess_habitat_image(set_img, color_channels, visu=0):
 	"""
 	print("\n")
 	print(set_img.shape)
-	for i, img in enumerate(set_img):
-		print("\rpreprocess {}/{}".format(i+1, len(set_img)), end='')
-		image = img.copy()
+	for i in range(len(set_img)):
+		print("preprocess {}/{}".format(i+1, len(set_img)))
+		image = set_img[i].copy()
 		if color_channels==1:
 			image = rgb_2_darter(image)
 			image = image[..., 0]+image[..., 1]
 			image = image[..., np.newaxis]
 		elif color_channels==2:
 			image = rgb_2_darter(image)
-		set_img[i] = image
-	maxi = np.max(set_img)
-	mini = np.min(set_img)
+	set_img = set_img.astype(np.float32)
 	mean = np.mean(set_img)
 	std = np.std(set_img)
 	set_img = (set_img - mean) / std
-	set_img = ((set_img - mini) / (maxi - mini)).astype(np.float32)
+	mini = np.min(set_img)
+	maxi = np.max(set_img)
+	set_img = ((set_img - mini) / (maxi - mini))
 	print("\n")
+	assert np.max(set_img)<=1 and np.min(set_img)>=0, "bad normalization,{} {} instead of {} {}".format(np.min(set_img), np.max(set_img), mini, maxi)
 	for i in range(visu):
 		plt.imshow(set_img[i], cmap='gray')
 		plt.show()
