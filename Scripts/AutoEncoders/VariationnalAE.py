@@ -71,7 +71,7 @@ if __name__ == '__main__':
 	LATENT_DIM_SPACE = [2,5,10,20,40,80,160]
 	BATCH_SIZE=50
 	EPOCHS=30
-	NETWORK_NAME="Convolutional"
+	NETWORK_NAME="Variationnal"
 	LOSS='mse'
 	VERBOSE=5
 
