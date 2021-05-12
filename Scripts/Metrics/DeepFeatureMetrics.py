@@ -21,6 +21,7 @@ COL_MODEL_NAME="model_name_deep_features"
 COL_SPARSENESS_DF="gini_deep_features"
 COL_ENTROPY_DF="deep_feature_entropy"
 COL_KURTOSIS_DF="deep_feature_kurtosis"
+COL_MEAN_DF="deep_feature_mean"
 COL_LAYER_DF="layer_deep_feature"
 class DeepFeatureMetrics(MotherMetric):
 	"""
@@ -61,17 +62,18 @@ class DeepFeatureMetrics(MotherMetric):
 		gini = [get_gini(f[0]) for f in deep_features]
 		kurtosis = [kurtosis(f[0], axis=None)]
 		entropy = [entropy(f[0], axis=None)]
-		return (gini, kurtosis, entropy)
+		mean = [np.mean(f[0], axis=None)]
+		return (gini, kurtosis, entropy, mean)
 
 	def function(self, image):
-		gini, kurtosis, entropy = self.get_layers_stats(image)
+		gini, kurtosis, entropy, mean = self.get_layers_stats(image)
 		params = self.preprocess.get_params()
 
 		df = pd.DataFrame()
 		layer_idx=0
-		for g, k, e in zip(gini, kurtosis, entropy):
+		for g, k, e, m in zip(gini, kurtosis, entropy, mean):
 			df.loc[layer_idx, params.columns] = params.iloc[0]
-			df.loc[layer_idx, [COL_MODEL_NAME, COL_LAYER_DF, COL_SPARSENESS_DF, COL_KURTOSIS_DF, COL_ENTROPY_DF]] = [self.base_model.name, layer_idx, g, k, e]
+			df.loc[layer_idx, [COL_MODEL_NAME, COL_LAYER_DF, COL_SPARSENESS_DF, COL_KURTOSIS_DF, COL_ENTROPY_DF, COL_MEAN_DF]] = [self.base_model.name, layer_idx, g, k, e, m]
 			layer_idx+=1
 		return df
 

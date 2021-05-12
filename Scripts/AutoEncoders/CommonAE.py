@@ -29,9 +29,10 @@ def show_predictions(sample_test, prediction, n, title, saving_dir=None):
 
 		axs[1][i].imshow(prediction[i], cmap='gray')
 		axs[1][i].set_title("reconstructed {}".format(i))
-	plt.show()
 	if saving_dir:
 		plt.savefig(os.path.join(saving_dir, title))
+	#plt.show()
+	plt.close()
 
 def plot_training_losses(losses, val_losses, labels, title="losses train and test", save_path=None):
 	fig, axs = plt.subplots(nrows=2, ncols=1, sharex=True, sharey=True, squeeze=False)
@@ -42,9 +43,10 @@ def plot_training_losses(losses, val_losses, labels, title="losses train and tes
 		axs[0][0].plot(loss)
 		axs[1][0].plot(val_loss)
 	plt.legend(labels)
-	plt.show()
 	if save_path:
 		plt.savefig(save_path)
+	#plt.show()
+	plt.close()
 
 def plot_loss_per_ld(best_losses, best_val_losses, list_LD, title="", save_path=None):
 	fig, axs = plt.subplots(nrows=2, ncols=1, sharex=True, sharey=True, squeeze=False)
@@ -59,6 +61,7 @@ def plot_loss_per_ld(best_losses, best_val_losses, list_LD, title="", save_path=
 	axs[1][0].set_ylabel("best loss")
 	axs[1][0].set_xlabel("latent_dim")
 
-	plt.show()
 	if save_path:
 		plt.savefig(save_path)
+	#plt.show()
+	plt.close()

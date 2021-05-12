@@ -147,8 +147,9 @@ if __name__ == '__main__':
 		for i in range(args.verbose):
 			axs[i].imshow(samples[i], cmap='gray')
 			axs[i].set_title("sample {}".format(i))
-		plt.show()
 		plt.savefig(os.path.join(output_dir, "{} sampling".format(autoencoder.name)))
+		#plt.show()
+		plt.close()
 
 	#plot the training losses
 	plot_training_losses(losses, val_losses, list_LD,

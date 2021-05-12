@@ -56,7 +56,7 @@ if __name__ == '__main__':
 
 		elif f_type == CSV_DEEP_FEATURES:
 			print("merging file {} as {} type".format(file_path, CSV_DEEP_FEATURES))
-			file = file.pivot(index=path_and_params_col, columns=[COL_MODEL_NAME, COL_LAYER_DF], values=[COL_SPARSENESS_DF, COL_ENTROPY_DF, COL_KURTOSIS_DF])
+			file = file.pivot(index=path_and_params_col, columns=[COL_MODEL_NAME, COL_LAYER_DF], values=[COL_SPARSENESS_DF, COL_ENTROPY_DF, COL_KURTOSIS_DF, COL_MEAN_DF])
 			merged_df.columns = ["_".join(map(str, col )) if isinstance(col, tuple) else col for col in merged_df.columns]
 			file.reset_index(inplace=True)
 
