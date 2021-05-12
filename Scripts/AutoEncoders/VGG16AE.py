@@ -95,7 +95,7 @@ if __name__ == '__main__':
 	assert train.shape[1:]==test.shape[1:], "train and test should contain images of similar shape, here {} and {}".format(train.shape[1:], test.shape[1:])
 
 	prediction_shape = train.shape[1:]
-	dataset_descriptor, *_ = os.path.split(args.path_train)[-1].split('_') #get the descriptor of the dataset
+	_,dataset_descriptor, *_ = os.path.split(args.path_train)[-1].split('_') #get the descriptor of the dataset
 
 	if args.command=="LD_selection":
 		list_LD = args.latent_dim
@@ -105,9 +105,6 @@ if __name__ == '__main__':
 	#prepare directory output
 	if not os.path.exists(args.output_dir):
 		os.makedirs(args.output_dir)
-	output_dir = os.path.join(args.output_dir, args.name)
-	if not os.path.exists(output_dir):
-		os.makedirs(output_dir)
 
 	losses = []
 	val_losses = []
@@ -118,6 +115,11 @@ if __name__ == '__main__':
 		network_name = "{}_{}_LD{}_pred{}x{}x{}".format(args.name, dataset_descriptor, latent_dim, *prediction_shape)
 		autoencoder = Autoencoder(network_name, latent_dim, prediction_shape)
 		autoencoder.compile(optimizer='adam', loss=args.loss)
+
+		#prepare the output path
+		output_dir = os.path.join(args.output_dir, network_name)
+		if not os.path.exists(output_dir):
+			os.makedirs(output_dir)
 
 		#prepare callbacks
 		callbacks = [K.callbacks.EarlyStopping(monitor='val_loss', patience=4),
@@ -136,8 +138,8 @@ if __name__ == '__main__':
 		val_losses.append(history.history['val_loss'])
 
 	#plot the training losses
-	plot_training_losses(losses, val_losses, list_LD, 
-		"losses for different latent dims", 
+	plot_training_losses(losses, val_losses, list_LD,
+		"losses for different latent dims",
 		os.path.join(output_dir,"losses {}".format(autoencoder.name)))
 
 	#plot the best validation for each latent dim

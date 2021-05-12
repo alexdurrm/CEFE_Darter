@@ -53,7 +53,7 @@ def plot_loss_per_ld(best_losses, best_val_losses, list_LD, title="", save_path=
 	axs[0][0].set_title("training losses")
 	axs[0][0].plot(list_LD, best_losses)
 	axs[0][0].set_ylabel("best loss")
-	
+
 	axs[1][0].set_title("validation losses")
 	axs[1][0].plot(list_LD, best_val_losses)
 	axs[1][0].set_ylabel("best loss")
