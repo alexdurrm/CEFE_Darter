@@ -35,6 +35,7 @@ COL_ENTRO_AE="entropy_pxl_space"
 COL_GINI_LATENT_AE="gini_latent_space"
 COL_KURTO_LATENT_AE="kurtois_latent_space"
 COL_ENTRO_LATENT_AE="entropy_latent_space"
+COL_MEAN_ACTIVATION_AE="mean_activation_latent_space"
 
 class AutoencoderMetrics(MotherMetric):
 	def __init__(self, model_path, *args, **kwargs):
@@ -173,7 +174,7 @@ class AutoencoderMetrics(MotherMetric):
 			df.loc[i, params.columns] = params.iloc[0]
 			df.loc[i, [COL_MODEL_NAME_AE, COL_ITERATION_AE, COL_PRED_SIZE]]=[self.model.name, i, PREDICTION_SIZE]
 			df.loc[i, [COL_MSE_AE, COL_LATENT_DIST_AE, COL_SSIM_AE, COL_MSE_PREV_AE, COL_LATENT_DIST_PREV_AE, COL_SSIM_PREV_AE]] = [*value_div]
-			df.loc[i, [COL_GINI_AE, COL_KURTO_AE, COL_ENTRO_AE, COL_GINI_LATENT_AE, COL_KURTO_LATENT_AE, COL_ENTRO_LATENT_AE]] = [*value_stat]
+			df.loc[i, [COL_GINI_AE, COL_KURTO_AE, COL_ENTRO_AE, COL_GINI_LATENT_AE, COL_KURTO_LATENT_AE, COL_ENTRO_LATENT_AE, COL_MEAN_ACTIVATION_AE]] = [*value_stat]
 			i+=1
 		return df
 
@@ -195,20 +196,20 @@ def fly_over_image(image, window, stride, return_coord=False):
 
 
 def divergence(autoencoder, start, repetition, visu=False):
+	gini_pxl_space, kurtois_pxl_space, entropy_pxl_space = [],[],[]
+	gini_latent_space, kurtois_latent_space, entropy_latent_space, mean_latent_space = [],[],[],[]
+
 	if start.ndim<4:
 		start=start[np.newaxis, ...]
 	start_latent = autoencoder.encoder(start)
 	prev_pxl = start
-	shift_pxl_mse = []
-	shift_pxl_ssim = []
+	shift_pxl_mse, shift_pxl_ssim = [],[]
 
 	prev_latent = start_latent
 	shift_latent = []
 	axis_latent = tuple(i for i in range(-1, -start_latent.ndim, -1))
 
-	diff_pxl_mse = []
-	diff_pxl_ssim = []
-	diff_latent = []
+	diff_pxl_mse, diff_pxl_ssim, diff_latent = [],[],[]
 
 	if visu: plt.figure(figsize=(20, 4))
 	for i in range(repetition):
@@ -225,6 +226,7 @@ def divergence(autoencoder, start, repetition, visu=False):
 		gini_latent_space.append(get_gini(prev_latent))
 		kurtois_latent_space.append(kurtosis(prev_latent, axis=None))
 		entropy_latent_space.append(entropy(prev_latent, axis=None))
+		mean_latent_space.append(np.mean(prev_latent))
 		#diff to start
 		shift_pxl_mse.append(np.mean(np.square(start - new_pxl), axis=(-1,-2,-3)))
 		shift_pxl_ssim.append(ssim(start, new_pxl, max_val=1))
@@ -240,8 +242,9 @@ def divergence(autoencoder, start, repetition, visu=False):
 		plt.show()
 		plt.savefig(os.path.join(DIR_RESULTS, "visu_divergence_{}.png".format(autoencoder.name)))
 	values_div = (shift_pxl_mse, shift_latent, shift_pxl_ssim, diff_pxl_mse, diff_latent, diff_pxl_ssim)
-	values_stat = (gini_pxl_space, kurtois_pxl_space, entropy_pxl_space, gini_latent_space, kurtois_latent_space, entropy_latent_space)
+	values_stat = (gini_pxl_space, kurtois_pxl_space, entropy_pxl_space, gini_latent_space, kurtois_latent_space, entropy_latent_space, mean_latent_space)
 	return (values_stat, values_div)
+
 
 def get_heat_prediction_fish(img, prediction_size, visu=False):
 	heatmap_mse = np.zeros_like(img)
