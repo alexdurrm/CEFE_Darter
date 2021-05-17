@@ -1,6 +1,6 @@
 from scipy.stats import kurtosis, entropy
 import tensorflow.keras as K
-from tensorflow.image import ssim
+from skimage.metrics import structural_similarity as ssim
 from tensorflow.keras.applications.vgg16 import VGG16
 import pandas as pd
 import numpy as np
@@ -42,7 +42,7 @@ class AutoencoderMetrics(MotherMetric):
 		self.model = K.models.load_model(model_path)
 		super().__init__(*args, **kwargs)
 
-	def visualize(self):
+	def visualize(self, output_dir):
 		data_image = pd.read_csv(os.path.join(DIR_RESULTS, CSV_IMAGE), index_col=0) 
 
 		# #plot differences in quality prediction for each network
@@ -52,17 +52,21 @@ class AutoencoderMetrics(MotherMetric):
 		#plot metrics for iteration 1
 		sns.relplot(data=data_merged, x=COL_SPECIES, y=COL_ENTRO_AE, hue=COL_MODEL_NAME_AE)
 		plt.show()
-		sns.relplot(data=data_merged, x=COL_SPECIES, y=COL_ENTRO_LATENT_AE, hue=COL_MODEL_NAME_AE)
+		entropy_latent = sns.relplot(data=data_merged, x=COL_SPECIES, y=COL_ENTRO_LATENT_AE, hue=COL_MODEL_NAME_AE)
+		entropy_latent.savefig(os.path.join(output_dir,"latent_entropy")) 
 		plt.show()
 		sns.relplot(data=data_merged, x=COL_SPECIES, y=COL_KURTO_AE, hue=COL_MODEL_NAME_AE)
 		plt.show()
-		sns.relplot(data=data_merged, x=COL_SPECIES, y=COL_KURTO_LATENT_AE, hue=COL_MODEL_NAME_AE)
+		kurto_latent = sns.relplot(data=data_merged, x=COL_SPECIES, y=COL_KURTO_LATENT_AE, hue=COL_MODEL_NAME_AE)
+		kurto_latent.savefig(os.path.join(output_dir,"latent_kurtosis")) 
 		plt.show()
 		sns.relplot(data=data_merged, x=COL_SPECIES, y=COL_GINI_AE, hue=COL_MODEL_NAME_AE)
 		plt.show()
-		sns.relplot(data=data_merged, x=COL_SPECIES, y=COL_GINI_LATENT_AE, hue=COL_MODEL_NAME_AE)
+		gini_latent = sns.relplot(data=data_merged, x=COL_SPECIES, y=COL_GINI_LATENT_AE, hue=COL_MODEL_NAME_AE)
+		gini_latent.savefig(os.path.join(output_dir,"latent_gini")) 
 		plt.show()
-
+		sns_mean_act = sns.relplot(data=data_merged, x=COL_SPECIES, y=COL_MEAN_ACTIVATION_AE, hue=COL_MODEL_NAME_AE)
+		sns_mean_act.savefig(os.path.join(output_dir, "mean_activation"))
 		# sns.catplot(data=data_merged, x=COL_SPECIES, y=COL_MSE_AE,
 		# col=COL_MODEL_NAME_AE, row=COL_TYPE,
 		# hue=COL_FISH_SEX, split=True, kind='violin')
@@ -166,15 +170,13 @@ class AutoencoderMetrics(MotherMetric):
 		image = image[(image.shape[0]-PREDICTION_SIZE)//2 : (image.shape[0]+PREDICTION_SIZE)//2,
 					(image.shape[1]-PREDICTION_SIZE)//2 : (image.shape[1]+PREDICTION_SIZE)//2]	#crop in the middle
 
-		values_stats , values_div = divergence(self.model, image, 50)
-		
+		list_values = divergence(self.model, image, 50)
 
 		i=0
-		for value_stat, value_div in zip(values_stats , values_div):
+		for values in zip(*list_values):
 			df.loc[i, params.columns] = params.iloc[0]
-			df.loc[i, [COL_MODEL_NAME_AE, COL_ITERATION_AE, COL_PRED_SIZE]]=[self.model.name, i, PREDICTION_SIZE]
-			df.loc[i, [COL_MSE_AE, COL_LATENT_DIST_AE, COL_SSIM_AE, COL_MSE_PREV_AE, COL_LATENT_DIST_PREV_AE, COL_SSIM_PREV_AE]] = [*value_div]
-			df.loc[i, [COL_GINI_AE, COL_KURTO_AE, COL_ENTRO_AE, COL_GINI_LATENT_AE, COL_KURTO_LATENT_AE, COL_ENTRO_LATENT_AE, COL_MEAN_ACTIVATION_AE]] = [*value_stat]
+			df.loc[i, [COL_MODEL_NAME_AE, COL_ITERATION_AE, COL_PRED_SIZE]] = [self.model.name, i, PREDICTION_SIZE]
+			df.loc[i, [COL_GINI_AE, COL_KURTO_AE, COL_ENTRO_AE, COL_GINI_LATENT_AE, COL_KURTO_LATENT_AE, COL_ENTRO_LATENT_AE, COL_MEAN_ACTIVATION_AE, COL_MSE_AE, COL_LATENT_DIST_AE, COL_SSIM_AE, COL_MSE_PREV_AE, COL_LATENT_DIST_PREV_AE, COL_SSIM_PREV_AE]] = [*values]
 			i+=1
 		return df
 
@@ -201,7 +203,7 @@ def divergence(autoencoder, start, repetition, visu=False):
 
 	if start.ndim<4:
 		start=start[np.newaxis, ...]
-	start_latent = autoencoder.encoder(start)
+	start_latent = autoencoder.encoder(start).numpy()
 	prev_pxl = start
 	shift_pxl_mse, shift_pxl_ssim = [],[]
 
@@ -217,8 +219,8 @@ def divergence(autoencoder, start, repetition, visu=False):
 			ax = plt.subplot(repetition//10, 10, i+1)
 			plt.imshow(prev_pxl[0])
 
-		new_pxl = autoencoder.decoder(prev_latent)
-		new_latent = autoencoder.encoder(new_pxl)
+		new_pxl = autoencoder.decoder(prev_latent).numpy()
+		new_latent = autoencoder.encoder(new_pxl).numpy()
 		#store the stat values
 		gini_pxl_space.append(get_gini(prev_pxl))
 		kurtois_pxl_space.append(kurtosis(prev_pxl, axis=None))
@@ -229,11 +231,11 @@ def divergence(autoencoder, start, repetition, visu=False):
 		mean_latent_space.append(np.mean(prev_latent))
 		#diff to start
 		shift_pxl_mse.append(np.mean(np.square(start - new_pxl), axis=(-1,-2,-3)))
-		shift_pxl_ssim.append(ssim(start, new_pxl, max_val=1))
+		shift_pxl_ssim.append(0) #ssim(start, new_pxl, data_range=1, multichannel=True))
 		shift_latent.append(np.mean(np.square(start_latent - new_latent), axis=(axis_latent)))
 		#diff to prev
 		diff_pxl_mse.append(np.mean(np.square(prev_pxl - new_pxl), axis=(-1,-2,-3)))
-		diff_pxl_ssim.append(ssim(prev_pxl, new_pxl, max_val=1))
+		diff_pxl_ssim.append(0) #ssim(prev_pxl, new_pxl, data_range=1, multichannel=True))
 		diff_latent.append(np.mean(np.square(prev_latent - new_latent), axis=(axis_latent)))
 
 		prev_pxl = new_pxl
@@ -241,9 +243,7 @@ def divergence(autoencoder, start, repetition, visu=False):
 	if visu:
 		plt.show()
 		plt.savefig(os.path.join(DIR_RESULTS, "visu_divergence_{}.png".format(autoencoder.name)))
-	values_div = (shift_pxl_mse, shift_latent, shift_pxl_ssim, diff_pxl_mse, diff_latent, diff_pxl_ssim)
-	values_stat = (gini_pxl_space, kurtois_pxl_space, entropy_pxl_space, gini_latent_space, kurtois_latent_space, entropy_latent_space, mean_latent_space)
-	return (values_stat, values_div)
+	return (gini_pxl_space, kurtois_pxl_space, entropy_pxl_space, gini_latent_space, kurtois_latent_space, entropy_latent_space, mean_latent_space, shift_pxl_mse, shift_latent, shift_pxl_ssim, diff_pxl_mse, diff_latent, diff_pxl_ssim)
 
 
 def get_heat_prediction_fish(img, prediction_size, visu=False):
@@ -313,7 +313,7 @@ if __name__ == '__main__':
 
 	if args.action == "visu":
 		metric.load(filepath)
-		metric.visualize()
+		metric.visualize(args.output_dir)
 	elif args.action=="work":
 		metric.load(filepath)
 		metric.metric_from_csv(args.path_input, verbose=args.verbose)
