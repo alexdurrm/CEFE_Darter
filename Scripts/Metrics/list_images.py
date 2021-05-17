@@ -59,6 +59,14 @@ def load_info_from_filepath(file_path):
 		dict_info[COL_FISH_SEX] = fish.split('.')[0][0]
 		dict_info[COL_SPECIES] = specie
 		dict_info[COL_TYPE] = FILE_TYPE.ORIG_FISH.value
+	elif [p in head for p in DIR_POISSONS]:
+		specie = directory
+		code_specie, *_, fish = filename.split("_")
+		dict_info[COL_FISH_NUMBER] = fish.split('.')[0][1:]
+		dict_info[COL_FISH_SEX] = fish.split('.')[0][0]
+		dict_info[COL_SPECIES] = specie
+		dict_info[COL_HABITAT] = DICT_HABITAT.get(specie, "not_listed")
+		dict_info[COL_TYPE] = FILE_TYPE.ORIG_FISH.value
 	else:
 		dict_info[COL_TYPE] = FILE_TYPE.ELSE.value
 	return dict_info

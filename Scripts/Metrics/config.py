@@ -3,7 +3,7 @@ from enum import Enum
 file used to centralize the names and other parameters used in CSV Results
 '''
 ### NAME OF THE CSV FILE WHICH STORES ALL THE METRICS
-DIR_RESULTS="Results"
+DIR_RESULTS="Results/AE_tif_mixed_bright"
 CSV_IMAGE="image_list.csv"
 CSV_EXPERIMENTS="experiments.csv"
 
@@ -13,8 +13,24 @@ DIR_STYLIZED_FISHES=["All_layers",
 					"Layers_3to5"]
 DIR_ORIGINAL_FISHES=["FISH_images"]
 DIR_ORIGINAL_HABITATS=["HABITAT_images"]
+DIR_POISSONS=["Poissons/JPEG Cropped"]
 DIR_SAMUEL=["crops", "Crops"]
 DIR_IGNORED=[]
+
+
+###Dictionnary fish to their corresponding habitat
+DICT_HABITAT = {}
+DICT_HABITAT['barrenense'] = 'bedrock'
+DICT_HABITAT['blennioides'] = 'boulder'
+DICT_HABITAT['caeruleum'] = 'gravel'
+DICT_HABITAT['camurum'] = 'boulder'
+DICT_HABITAT['chlorosomum'] = 'sand'
+DICT_HABITAT['gracile'] = 'detritus'
+DICT_HABITAT['olmstedi'] = 'sand'
+DICT_HABITAT['pyrrhogaster'] = 'sand'
+DICT_HABITAT['swaini'] = 'detritus'
+DICT_HABITAT['zonale'] = 'gravel'
+DICT_HABITAT['zonistium'] = 'sand'
 
 
 ### COLUMN NAMES FOR THE IMAGE CSV FILE

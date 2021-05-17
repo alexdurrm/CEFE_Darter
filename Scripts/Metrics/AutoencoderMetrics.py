@@ -43,30 +43,25 @@ class AutoencoderMetrics(MotherMetric):
 		super().__init__(*args, **kwargs)
 
 	def visualize(self, output_dir):
-		data_image = pd.read_csv(os.path.join(DIR_RESULTS, CSV_IMAGE), index_col=0) 
-
+		data_image = pd.read_csv(os.path.join(DIR_RESULTS, CSV_IMAGE), index_col=0)
 		# #plot differences in quality prediction for each network
 		data_networks_first_iter = self.data.loc[self.data[COL_ITERATION_AE]==0]
 		data_merged = data_networks_first_iter.merge(data_image, on=COL_IMG_PATH)
-		
+
 		#plot metrics for iteration 1
-		sns.relplot(data=data_merged, x=COL_SPECIES, y=COL_ENTRO_AE, hue=COL_MODEL_NAME_AE)
+		sns.relplot(data=data_merged, x=COL_DIRECTORY, y=COL_ENTRO_AE, hue=COL_MODEL_NAME_AE)
 		plt.show()
-		entropy_latent = sns.relplot(data=data_merged, x=COL_SPECIES, y=COL_ENTRO_LATENT_AE, hue=COL_MODEL_NAME_AE)
-		entropy_latent.savefig(os.path.join(output_dir,"latent_entropy")) 
+		entropy_latent = sns.relplot(data=data_merged, x=COL_DIRECTORY, y=COL_ENTRO_LATENT_AE, hue=COL_MODEL_NAME_AE)
 		plt.show()
-		sns.relplot(data=data_merged, x=COL_SPECIES, y=COL_KURTO_AE, hue=COL_MODEL_NAME_AE)
+		sns.relplot(data=data_merged, x=COL_DIRECTORY, y=COL_KURTO_AE, hue=COL_MODEL_NAME_AE)
 		plt.show()
-		kurto_latent = sns.relplot(data=data_merged, x=COL_SPECIES, y=COL_KURTO_LATENT_AE, hue=COL_MODEL_NAME_AE)
-		kurto_latent.savefig(os.path.join(output_dir,"latent_kurtosis")) 
+		kurto_latent = sns.relplot(data=data_merged, x=COL_DIRECTORY, y=COL_KURTO_LATENT_AE, hue=COL_MODEL_NAME_AE)
 		plt.show()
-		sns.relplot(data=data_merged, x=COL_SPECIES, y=COL_GINI_AE, hue=COL_MODEL_NAME_AE)
+		sns.relplot(data=data_merged, x=COL_DIRECTORY, y=COL_GINI_AE, hue=COL_MODEL_NAME_AE)
 		plt.show()
-		gini_latent = sns.relplot(data=data_merged, x=COL_SPECIES, y=COL_GINI_LATENT_AE, hue=COL_MODEL_NAME_AE)
-		gini_latent.savefig(os.path.join(output_dir,"latent_gini")) 
+		gini_latent = sns.relplot(data=data_merged, x=COL_DIRECTORY, y=COL_GINI_LATENT_AE, hue=COL_MODEL_NAME_AE)
 		plt.show()
-		sns_mean_act = sns.relplot(data=data_merged, x=COL_SPECIES, y=COL_MEAN_ACTIVATION_AE, hue=COL_MODEL_NAME_AE)
-		sns_mean_act.savefig(os.path.join(output_dir, "mean_activation"))
+		sns_mean_act = sns.relplot(data=data_merged, x=COL_DIRECTORY, y=COL_MEAN_ACTIVATION_AE, hue=COL_MODEL_NAME_AE)
 		# sns.catplot(data=data_merged, x=COL_SPECIES, y=COL_MSE_AE,
 		# col=COL_MODEL_NAME_AE, row=COL_TYPE,
 		# hue=COL_FISH_SEX, split=True, kind='violin')
@@ -100,27 +95,27 @@ class AutoencoderMetrics(MotherMetric):
 		# plt.show()
 
 		#plot evolution of the metrics
-		sns.relplot(data=merge_data, x=COL_ITERATION_AE, y=COL_ENTRO_AE, hue=COL_SPECIES, 
+		sns.relplot(data=merge_data, x=COL_ITERATION_AE, y=COL_ENTRO_AE, hue=COL_SPECIES,
 			kind='line', estimator=None, units=COL_IMG_PATH).set_titles("{}".format(self.model.name))
 		plt.show()
 
-		sns.relplot(data=merge_data, x=COL_ITERATION_AE, y=COL_GINI_AE, hue=COL_SPECIES, 
+		sns.relplot(data=merge_data, x=COL_ITERATION_AE, y=COL_GINI_AE, hue=COL_SPECIES,
 			kind='line', estimator=None, units=COL_IMG_PATH).set_titles("{}".format(self.model.name))
 		plt.show()
 
-		sns.relplot(data=merge_data, x=COL_ITERATION_AE, y=COL_KURTO_AE, hue=COL_SPECIES, 
+		sns.relplot(data=merge_data, x=COL_ITERATION_AE, y=COL_KURTO_AE, hue=COL_SPECIES,
 			kind='line', estimator=None, units=COL_IMG_PATH).set_titles("{}".format(self.model.name))
 		plt.show()
 
-		sns.relplot(data=merge_data, x=COL_ITERATION_AE, y=COL_ENTRO_LATENT_AE, hue=COL_SPECIES, 
+		sns.relplot(data=merge_data, x=COL_ITERATION_AE, y=COL_ENTRO_LATENT_AE, hue=COL_SPECIES,
 			kind='line', estimator=None, units=COL_IMG_PATH).set_titles("{}".format(self.model.name))
 		plt.show()
 
-		sns.relplot(data=merge_data, x=COL_ITERATION_AE, y=COL_GINI_LATENT_AE, hue=COL_SPECIES, 
+		sns.relplot(data=merge_data, x=COL_ITERATION_AE, y=COL_GINI_LATENT_AE, hue=COL_SPECIES,
 			kind='line', estimator=None, units=COL_IMG_PATH).set_titles("{}".format(self.model.name))
 		plt.show()
 
-		sns.relplot(data=merge_data, x=COL_ITERATION_AE, y=COL_KURTO_LATENT_AE, hue=COL_SPECIES, 
+		sns.relplot(data=merge_data, x=COL_ITERATION_AE, y=COL_KURTO_LATENT_AE, hue=COL_SPECIES,
 			kind='line', estimator=None, units=COL_IMG_PATH).set_titles("{}".format(self.model.name))
 		plt.show()
 
@@ -312,7 +307,7 @@ if __name__ == '__main__':
 	metric = AutoencoderMetrics(args.path_model, pr)
 
 	if args.action == "visu":
-		metric.load(filepath)
+		metric.load(args.path_input)
 		metric.visualize(args.output_dir)
 	elif args.action=="work":
 		metric.load(filepath)
