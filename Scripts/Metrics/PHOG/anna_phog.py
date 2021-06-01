@@ -26,7 +26,8 @@ def anna_phog(Img, bin, angle, L, roi):
     OUT:
         p - pyramid histogram of oriented gradients
     '''
-    assert Img.ndim==2, "Image should be 2D , here {}".format(Img.shape)
+    if Img.ndim==3 and Img.shape[-1]==1:
+        Img = Img[:,:,0]
 
     if np.sum(Img) > 100:
         # apply automatic Canny edge detection using the computed median
