@@ -69,7 +69,7 @@ class Preprocess:
 		'''
 		print(image_path)
 		image = imageio.imread(image_path)
-		image = resize_img(image, [self.resizeX, self.resizeY])	
+		image = resize_img(image, [self.resizeX, self.resizeY])
 
 		#convert the image type
 		if self.img_type == IMG.DARTER:                     #darter
@@ -97,8 +97,8 @@ class Preprocess:
 			image = standardize_img(image)
 		#store parameters and image
 		self.df_parameters.loc[0, COL_IMG_PATH] = image_path
-		self.image = image 
-		return self.image.copy()
+		self.image = image
+		return image.copy()
 
 	def get_params(self):
 		return self.df_parameters.copy()

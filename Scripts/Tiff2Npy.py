@@ -79,7 +79,7 @@ def get_datasets(glob_path, presize_shape, pred_shape, color_channels, levels, n
 	#load all images and preprocess them
 	habitat_img = []
 	for i, path in enumerate(habitat_path):
-		print("\r{}/{}".format(i+1, total), end='')
+		print("\r{}/{} {}".format(i+1, total, path), end='')
 		image = imageio.imread(path)
 		#if there is a presize givent
 		if presize_shape[0] or presize_shape[1]:

@@ -9,6 +9,7 @@ from Utils.FileManagement import *
 from Metrics.ImageMetrics import *
 from Metrics.PHOG.anna_phog import anna_phog
 from Metrics.Fourier import get_pspec, get_Fourier_slope
+from Metrics.DeepNetworks import get_deep_features
 
 ###############################################################################
 #
@@ -114,7 +115,7 @@ class AutoencoderMetrics(MotherMetric):
 		params = self.preprocess.get_params()
 
 		i=0
-		divergence_generator = autoencoder_generate_retro_prediction(self.model, image, 50)
+		divergence_generator = autoencoder_generate_retro_prediction(self.model, image, 5)
 		start_latent, start_pxl = next(divergence_generator)
 		axis_latent = tuple(i for i in range(0, start_latent.ndim))
 		for latent, prediction in divergence_generator:
@@ -134,11 +135,13 @@ class AutoencoderMetrics(MotherMetric):
 ###############################################################################
 
 COL_MODEL_NAME="model_name_deep_features"
-COL_SPARSENESS_DF="gini_deep_features"
-COL_ENTROPY_DF="deep_feature_entropy"
-COL_KURTOSIS_DF="deep_feature_kurtosis"
-COL_MEAN_DF="deep_feature_mean"
 COL_LAYER_DF="layer_deep_feature"
+COL_SPARSENESS_DF="gini_deep_features"
+COL_KURTOSIS_DF="deep_feature_kurtosis"
+COL_ENTROPY_DF="deep_feature_entropy"
+COL_MEAN_DF="deep_feature_mean"
+COL_STD_DF="deep_feature_std"
+COL_SKEW_DF="deep_feature_skewness"
 class DeepFeatureMetrics(MotherMetric):
 	"""
 	DeepFeatureMetrics is a class used to calculate and store
@@ -148,10 +151,10 @@ class DeepFeatureMetrics(MotherMetric):
 	def __init__(self, base_model, input_shape, *args, **kwargs):
 		import tensorflow.keras as K
 		if base_model == "vgg16":
-			from K.applications.vgg16 import VGG16
+			from tensorflow.keras.applications.vgg16 import VGG16
 			self.base_model = VGG16(weights='imagenet', include_top=False)
 		elif base_model == "vgg19":
-			from K.applications.vgg19 import VGG19
+			from tensorflow.keras.applications.vgg19 import VGG19
 			self.base_model = VGG19(weights='imagenet', include_top=False)
 		else:
 			raise ValueError("base_model should be vgg16 or vgg19")
@@ -162,17 +165,14 @@ class DeepFeatureMetrics(MotherMetric):
 		super().__init__(*args, **kwargs)
 
 	def function(self, image):
-		gini, kurtosis, entropy, mean = self.get_layers_stats(image)
+		deep_feat = get_deep_features(self.base_model, image[np.newaxis,...])
 		params = self.preprocess.get_params()
-
 		df = pd.DataFrame()
-		layer_idx=0
-		for g, k, e, m in zip(gini, kurtosis, entropy, mean):
+		for layer_idx, layerfeatures in enumerate(deep_feat):
 			df.loc[layer_idx, params.columns] = params.iloc[0]
-			df.loc[layer_idx, [COL_MODEL_NAME, COL_LAYER_DF, COL_SPARSENESS_DF, COL_KURTOSIS_DF, COL_ENTROPY_DF, COL_MEAN_DF]] = [self.base_model.name, layer_idx, g, k, e, m]
-			layer_idx+=1
+			df.loc[layer_idx, [COL_MODEL_NAME, COL_LAYER_DF]] = [self.base_model.name, layer_idx]
+			df.loc[layer_idx, [COL_SPARSENESS_DF, COL_MEAN_DF, COL_STD_DF, COL_SKEW_DF, COL_KURTOSIS_DF, COL_ENTROPY_DF]] = [get_gini(layerfeatures), *get_statistical_features(layerfeatures)]
 		return df
-
 
 ###############################################################################
 #
@@ -527,9 +527,9 @@ def main(args):
 	elif args.command == "mean_fft_slopes":
 		metric = MeanFFTSlope(fft_range=args.fft_range, sample_dim=args.sample_dim, preprocess=preprocess, load_from=load_from)
 	elif args.command == "deep_features":
-		metric = DeepFeatureMetrics(args.model, input_shape, preprocess=preprocess, load_from=load_from)
+		metric = DeepFeatureMetrics(args.model, args.resize, preprocess=preprocess, load_from=load_from)
 	elif args.command == "autoencoder":
-		metric = AutoencoderMetrics(args.model_path, prediction_shape, preprocess=preprocess, load_from=load_from)
+		metric = AutoencoderMetrics(args.model_path, args.resize, preprocess=preprocess, load_from=load_from)
 	elif args.command == "list":
 		metric = get_files(args.input_path, args.depth, tuple(args.formats), [], only_endnodes=args.endnodes, visu=args.verbose>=1)
 		metric.to_csv(args.output_path, index=True)

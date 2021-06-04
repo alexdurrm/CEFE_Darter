@@ -7,7 +7,7 @@ def visualize_layers_activation(function):
 		visu = kwargs.pop("visu", False)
 		output = function(*args, **kwargs)
 		if visu:
-			fig, axs = plt.subplots[nrows=len(output)]
+			fig, axs = plt.subplots(nrows=len(output))
 			plt.title("activations per layers")
 			for i, layer_out in enumerate(output):
 				y=layer_out.flatten()
@@ -26,31 +26,31 @@ def get_deep_features(model, test):
 	get the feature space of an test tensor propagated through the deep feature model
 	return a list of np array, each element of the list represent an output of a layer, input layer is ignored
 	'''
-	if test.ndim == len(model.input.shape)-1: 
+	if test.ndim == len(model.input.shape)-1:
 		test=test[np.newaxis, ...]
 	return [K.function([model.input], layer.output)([test, 1]) for layer in model.layers]
-
-def get_layers_stats(deep_features):
-	"""
-	deep_features is a list of numpy array of shape [Batch, ...]
-	each element in the deep_features list should correspond to the activation of a layer
-	return different lists of metrics for the deep features given, the list are the same length as the deep_feature list
-	"""
-	gini = [get_gini(f) for f in deep_features]
-	kurtosis = [kurtosis(f, axis=None) for f in deep_features]
-	entropy = [entropy(f, axis=None) for f in deep_features]
-	mean = [np.mean(f, axis=None) for f in deep_features]
-	sparseness = [get_gini(f) for f in deep_features]
-	return (gini, kurtosis, entropy, mean, sparseness)
+#
+# def get_layers_stats(deep_features):
+# 	"""
+# 	deep_features is a list of numpy array of shape [Batch, ...]
+# 	each element in the deep_features list should correspond to the activation of a layer
+# 	return different lists of metrics for the deep features given, the list are the same length as the deep_feature list
+# 	"""
+# 	gini = [get_gini(f) for f in deep_features]
+# 	kurtosis = [kurtosis(f, axis=None) for f in deep_features]
+# 	entropy = [entropy(f, axis=None) for f in deep_features]
+# 	mean = [np.mean(f, axis=None) for f in deep_features]
+# 	std = [np.std(f, axis=None) for f in deep_features]
+# 	return (gini, kurtosis, entropy, mean, std)
 
 
 def autoencoder_generate_retro_prediction(autoencoder, start, repetition):
 	"""
 	yield the prediction of the autoencoder and its latent space when the input is the previous value
 	for each iteration returns the latent space correpsonding to its output
-	first iteration return start image and its corresponding latent space 
+	first iteration return start image and its corresponding latent space
 	"""
-	if start.ndim == len(autoencoder.input.shape)-1: 
+	if start.ndim == len(autoencoder.input.shape)-1:
 		start=start[np.newaxis, ...]
 
 	input_pxl = start

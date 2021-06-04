@@ -27,7 +27,9 @@ DICT_HABITAT['olmstedi'] = 'sand'
 DICT_HABITAT['pyrrhogaster'] = 'sand'
 DICT_HABITAT['swaini'] = 'detritus'
 DICT_HABITAT['zonale'] = 'gravel'
+
 DICT_HABITAT['zonistium'] = 'sand'
+DICT_HABITAT['punctulatum'] = 'bedrock'
 
 
 ### COLUMN NAMES FOR THE IMAGE CSV FILE

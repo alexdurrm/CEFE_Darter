@@ -2,7 +2,7 @@ from tensorflow.keras.applications.vgg16 import VGG16
 from tensorflow.keras.models import Model
 import tensorflow as tf
 import tensorflow.keras as K
-from tensorflow.keras.layers import Conv2D, MaxPool2D, Softmax, Dense, Flatten, Reshape, Conv2DTranspose, UpSampling2D, ZeroPadding2D, ActivityRegularization
+from tensorflow.keras.layers import Conv2D, MaxPool2D, Softmax, Dense, Flatten, Reshape, Conv2DTranspose, Input,UpSampling2D, ZeroPadding2D, ActivityRegularization
 import argparse
 import numpy as np
 
@@ -20,24 +20,28 @@ class Convolutional(Model):
 		super(Convolutional, self).__init__(name=name)
 		self.latent_dim = latent_dim
 		self.encoder = K.Sequential([
-			Conv2D(32, kernel_size=(3,3), padding="same"),
+			Input(pred_shape),
+			Conv2D(32, kernel_size=(3,3), padding="same", activation="relu"),
 			MaxPool2D(pool_size=(2,2), padding="same"),
-			Conv2D(32, kernel_size=(3,3), padding="same"),
+			Conv2D(32, kernel_size=(3,3), padding="same", activation="relu"),
 			MaxPool2D(pool_size=(2,2), padding="same"),
-			Conv2D(64, kernel_size=(3,3), padding="same"),
+			Conv2D(64, kernel_size=(3,3), padding="same", activation="relu"),
 			MaxPool2D(pool_size=(2,2), padding="same"),
-			Conv2D(64, kernel_size=(3,3), padding="same"),
-			MaxPool2D(pool_size=(2,2), padding="same"),
-			# Flatten(),
-			# Dense(latent_dim, activation="sigmoid"),
+			Conv2D(64, kernel_size=(3,3), padding="same", activation="relu"),
+			MaxPool2D(pool_size=(2,2), padding="same", name="last_conv_encoder"),
+			Flatten(),
+			Dense(latent_dim, activation="relu"),
 		])
+		shape_conv = self.encoder.get_layer("last_conv_encoder").output_shape
 		self.decoder = K.Sequential([
+			Dense(np.prod(shape_conv[1:]), activation="relu"),
+			Reshape(shape_conv[1:]),
 			UpSampling2D(size=(2,2)),
-			Conv2DTranspose(filters=32, kernel_size=(3,3), padding="same"),
+			Conv2DTranspose(filters=64, kernel_size=(3,3), padding="same", activation="relu"),
 			UpSampling2D(size=(2,2)),
-			Conv2DTranspose(filters=32, kernel_size=(3,3), padding="same"),
+			Conv2DTranspose(filters=32, kernel_size=(3,3), padding="same", activation="relu"),
 			UpSampling2D(size=(2,2)),
-			Conv2DTranspose(filters=32, kernel_size=(3,3), padding="same"),
+			Conv2DTranspose(filters=32, kernel_size=(3,3), padding="same", activation="relu"),
 			UpSampling2D(size=(2,2)),
 			Conv2DTranspose(filters=pred_shape[-1], kernel_size=(3,3), padding="same", activation='sigmoid')
 		])
@@ -223,16 +227,19 @@ def load_model(model_type, model_name, pred_shape, latent_dim, loss ):
 	elif model_type=="VGG16AE":
 		model = VGG16AE(latent_dim, pred_shape, name=model_name)
 	elif model_type == "convolutional":
+		print("convolutional")
 		model = Convolutional(latent_dim, pred_shape, name=model_name)
 	else:
 		raise ValueError("Unknown model type: {}".format(model_type))
+	if loss=="ssim":
+		loss = get_SSIM_Loss
 	model.compile(optimizer='adam', loss=loss)
 	return model
 
 def get_callbacks(model_type, test, output_dir, verbosity):
 	#prepare callbacks
-	callbacks = [K.callbacks.EarlyStopping(monitor='val_loss', patience=4),
-				K.callbacks.EarlyStopping(monitor='loss', patience=4),
+	callbacks = [K.callbacks.EarlyStopping(monitor='val_loss', patience=6),
+				K.callbacks.EarlyStopping(monitor='loss', patience=6),
 				SavePredictionSample(n_samples=verbosity, val_data=test[0:5*20:5], saving_dir=output_dir)]
 	if model_type=="variational_AE":
 		callbacks.append(SaveSampling(test.shape[1:], n_samples=verbosity, saving_dir=output_dir))
@@ -253,6 +260,7 @@ def train_model(model, train, test, epochs, batch_size, callbacks=[], output_dir
 		title="losses train and test",
 		save_path=os.path.join(output_dir,"losses {}".format(model.name)))
 
+	print("Final test: ", test_model(model, test, output_dir))
 	if output_dir:
 		model.save(os.path.join(output_dir, model.name), overwrite=True)
 	return history
@@ -262,10 +270,11 @@ def test_model(model, test, output_dir=None, verbosity=5):
 	predictions = model.predict(test)
 	print(predictions.shape)
 	print(test.shape)
-	print("W"*20)
 	show_predictions(test, predictions, verbosity, "predictions {}".format(model.name), saving_dir=output_dir)
 	if output_dir:
 		np.save(os.path.join(output_dir,"predictions.npy"), predictions)
+	print(model.encoder.summary())
+	print(model.decoder.summary())
 	return model.evaluate(test, test)
 
 
@@ -338,7 +347,7 @@ if __name__=="__main__":
 
 	parser = argparse.ArgumentParser(description="Script used to train, test and research optimal latend dim on different Autoencoders")
 	parser.add_argument("path_test", help="path of the testing dataset to use")
-	parser.add_argument("--loss", type=str, choices=['mse'], default=LOSS, help="network loss, default {}".format(LOSS))
+	parser.add_argument("--loss", type=str, choices=['mse', 'ssim'], default=LOSS, help="network loss, default {}".format(LOSS))
 	parser.add_argument("--output_dir", default=DIR_SAVED_MODELS, help="path where to save the trained network, default {}".format(DIR_SAVED_MODELS))
 	parser.add_argument("-n", "--name", type=str, default=None, help="network name, default {}".format(None))
 	parser.add_argument("-v", "--verbose", default=VERBOSE, type=int, help="set verbosity, default: {}".format(VERBOSE))
@@ -347,7 +356,7 @@ if __name__=="__main__":
 	EPOCHS = 50
 	BATCH_SIZE = 25
 	#specific parameters for multiple trainings with diverse latent dims
-	LATENT_DIM_SPACE = [2,4,8,16,32,64,128,256]
+	LATENT_DIM_SPACE = [4,8,16,32,64,128,256]
 	LD_parser = subparsers.add_parser("LD_selection")
 	LD_parser.add_argument("model_type", choices=model_types, help='The architecture of the model used')
 	LD_parser.add_argument("path_train", help="path of the training dataset to use")

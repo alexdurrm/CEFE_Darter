@@ -1,6 +1,7 @@
 import os
 import matplotlib.pyplot as plt
 from tensorflow.keras.callbacks import Callback
+import tensorflow as tf
 
 class SavePredictionSample(Callback):
 	def __init__(self, n_samples, val_data, saving_dir):
@@ -39,6 +40,7 @@ def show_predictions(sample_test, prediction, n, title, saving_dir=None):
 	"""
 	plot test sample images and their reconstruction by the network
 	"""
+	if n==0: return
 	fig, axs = plt.subplots(nrows=2, ncols=n, sharex=True, sharey=True, squeeze=False)
 	fig.suptitle(title)
 	for i in range(n):
@@ -46,12 +48,12 @@ def show_predictions(sample_test, prediction, n, title, saving_dir=None):
 		axs[0][i].imshow(visu_test, cmap='gray')
 		axs[0][i].set_title("original {}".format(i))
 
-		visu_pred = prediction[i] if prediction[i].shape[-1]!=2 else prediction[i, ..., 0]+sample_test[i, ..., 1]
+		visu_pred = prediction[i] if prediction[i].shape[-1]!=2 else prediction[i, ..., 0]+prediction[i, ..., 1]
 		axs[1][i].imshow(visu_pred, cmap='gray')
 		axs[1][i].set_title("reconstructed {}".format(i))
 	if saving_dir:
 		plt.savefig(os.path.join(saving_dir, title))
-	#plt.show()
+	# plt.show()
 	plt.close()
 
 def plot_training_losses(losses, val_losses, title="losses train and test", save_path=None):
@@ -86,5 +88,5 @@ def plot_loss_per_ld(best_losses, best_val_losses, list_LD, title="", save_path=
 def get_MSE(img1, img2):
 	return np.mean(np.square(img1 - img2), axis=None)
 
-def get_SSIM(img1, img2):
-	return ssim(img1, img2, data_range=1, multichannel=True)
+def get_SSIM_Loss(y_true, y_pred):
+	return 1- tf.reduce_mean(tf.image.ssim(y_true, y_pred, 1.0))

@@ -9,7 +9,11 @@ from skimage.filters import gabor, gabor_kernel
 from skimage.feature import greycomatrix, greycoprops
 from skimage.feature import local_binary_pattern
 from scipy.stats import kurtosis, skew, entropy
+from skimage.metrics import structural_similarity as ssim
 
+
+def get_SSIM(img1, img2):
+	return np.mean(ssim(img1, img2, data_range=1, multichannel=True))
 
 def get_gini(array, visu=False):
 	'''
@@ -59,18 +63,17 @@ def get_color_ratio(image, visu=False):
 	return slope
 
 
-def get_statistical_features(image, axis=None, visu=False):
+def get_statistical_features(array, axis=None, visu=False):
 	'''
-	get an image and return the statistical features like
+	get an array and return the statistical features like
 	mean value, standard deviation, skewness, kurtosis, and entropy
 	(calculated on flattened image)
 	'''
-	assert image.ndim==3, "Image should have 3 dims, here {}".format(image.ndim)
-	mean=np.mean(image, axis=axis)
-	std=np.std(image, axis=axis)
-	skewness=skew(image, axis=axis)
-	kurto=kurtosis(image, axis=axis)
-	entro=entropy(image, axis=axis)
+	mean = np.mean(array, axis=axis)
+	std = np.std(array, axis=axis)
+	skewness = skew(array, axis=axis)
+	kurto = kurtosis(array, axis=axis)
+	entro = entropy(array, axis=axis)
 	return (mean, std, skewness, kurto, entro)
 
 
