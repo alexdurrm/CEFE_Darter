@@ -20,20 +20,21 @@ class Convolutional(Model):
 		super(Convolutional, self).__init__(name=name)
 		self.latent_dim = latent_dim
 		self.encoder = K.Sequential([
-			Input(pred_shape),
+			Input(pred_shape, name="input_encoder"),
 			Conv2D(32, kernel_size=(3,3), padding="same", activation="relu"),
 			MaxPool2D(pool_size=(2,2), padding="same"),
 			Conv2D(32, kernel_size=(3,3), padding="same", activation="relu"),
 			MaxPool2D(pool_size=(2,2), padding="same"),
 			Conv2D(64, kernel_size=(3,3), padding="same", activation="relu"),
 			MaxPool2D(pool_size=(2,2), padding="same"),
-			Conv2D(64, kernel_size=(3,3), padding="same", activation="relu"),
+			Conv2D(128, kernel_size=(3,3), padding="same", activation="relu"),
 			MaxPool2D(pool_size=(2,2), padding="same", name="last_conv_encoder"),
 			Flatten(),
-			Dense(latent_dim, activation="relu"),
+			Dense(latent_dim, activation="relu", name="output_encoder"),
 		])
 		shape_conv = self.encoder.get_layer("last_conv_encoder").output_shape
 		self.decoder = K.Sequential([
+			Input(latent_dim, name="input_decoder"),
 			Dense(np.prod(shape_conv[1:]), activation="relu"),
 			Reshape(shape_conv[1:]),
 			UpSampling2D(size=(2,2)),
@@ -43,7 +44,7 @@ class Convolutional(Model):
 			UpSampling2D(size=(2,2)),
 			Conv2DTranspose(filters=32, kernel_size=(3,3), padding="same", activation="relu"),
 			UpSampling2D(size=(2,2)),
-			Conv2DTranspose(filters=pred_shape[-1], kernel_size=(3,3), padding="same", activation='sigmoid')
+			Conv2DTranspose(filters=pred_shape[-1], kernel_size=(3,3), padding="same", activation='sigmoid', name="output_decoder")
 		])
 
 	def call(self, x):
@@ -240,13 +241,15 @@ def get_callbacks(model_type, test, output_dir, verbosity):
 	#prepare callbacks
 	callbacks = [K.callbacks.EarlyStopping(monitor='val_loss', patience=6),
 				K.callbacks.EarlyStopping(monitor='loss', patience=6),
-				SavePredictionSample(n_samples=verbosity, val_data=test[0:5*20:5], saving_dir=output_dir)]
+				SavePredictionSample(n_samples=verbosity, val_data=test[0:5*20:5], saving_dir=output_dir),
+				SaveActivations(val_img=test[0], saving_dir=output_dir)]
 	if model_type=="variational_AE":
 		callbacks.append(SaveSampling(test.shape[1:], n_samples=verbosity, saving_dir=output_dir))
 	return callbacks
 
 def train_model(model, train, test, epochs, batch_size, callbacks=[], output_dir=None):
-
+	if not os.path.exists(output_dir):
+		os.makedirs(output_dir)
 	#train the network
 	history = model.fit(x=train, y=train,
 		batch_size=batch_size,
@@ -260,7 +263,7 @@ def train_model(model, train, test, epochs, batch_size, callbacks=[], output_dir
 		title="losses train and test",
 		save_path=os.path.join(output_dir,"losses {}".format(model.name)))
 
-	print("Final test: ", test_model(model, test, output_dir))
+	#print("Final test: ", test_model(model, test, output_dir))
 	if output_dir:
 		model.save(os.path.join(output_dir, model.name), overwrite=True)
 	return history
@@ -289,8 +292,6 @@ def LD_selection(model_type, model_name, train, test, epochs, batch_size, list_L
 
 		#prepare the output path
 		net_output_dir = os.path.join(dir_results, network_name)
-		if not os.path.exists(net_output_dir):
-			os.makedirs(net_output_dir)
 
 		callbacks = get_callbacks(model_type, test, net_output_dir, verbosity)
 
@@ -334,7 +335,8 @@ def main(args):
 		elif args.command == "train":
 			model_name = "{}_{}_LD{}_pred{}x{}x{}".format(args.name, dataset_descriptor, args.latent_dim, *test.shape[1:])
 			model = load_model(args.model_type, model_name, test.shape[1:], args.latent_dim, args.loss)
-			train_model(model, train, test, args.epochs, args.batch, output_dir=args.output_dir)
+			callbacks = get_callbacks(args.model_type, test, args.output_dir, args.verbose)
+			train_model(model, train, test, args.epochs, args.batch, callbacks, output_dir=args.output_dir)
 		else:
 			raise ValueError("Unknown command: {}".format(args.command))
 

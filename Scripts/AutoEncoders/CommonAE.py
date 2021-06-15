@@ -2,6 +2,7 @@ import os
 import matplotlib.pyplot as plt
 from tensorflow.keras.callbacks import Callback
 import tensorflow as tf
+import numpy as np
 
 class SavePredictionSample(Callback):
 	def __init__(self, n_samples, val_data, saving_dir):
@@ -14,6 +15,62 @@ class SavePredictionSample(Callback):
 		outputs = self.model.predict(self.validation_data)
 		title = "reconstructions epoch {} model {}".format(epoch, self.model.name)
 		show_predictions(self.validation_data, outputs, self.n_samples, title, self.saving_dir)
+
+class SaveActivations(Callback):
+	def __init__(self, val_img, saving_dir):
+		super().__init__()
+		self.saving_dir = saving_dir
+		self.validation_img = val_img
+
+	def on_epoch_end(self, epoch, logs=None):
+		n_encoder_layers = len(self.model.encoder.layers)
+		n_decoder_layers = len(self.model.decoder.layers)
+
+		activations = [self.validation_img[np.newaxis,...]]
+		layer_names = ["input"]
+
+		print(self.model.encoder.summary())
+		for i in range(n_encoder_layers):
+			print(self.model.encoder.layers[i].name)
+			print(activations[-1].shape)
+			activations.append( tf.keras.backend.function([self.model.encoder.layers[i].input], self.model.encoder.layers[i].output)([activations[-1], 1]) )
+			layer_names.append(self.model.encoder.layers[i].name)
+
+		print(self.model.decoder.summary())
+		for i in range(n_decoder_layers):
+			print(self.model.decoder.layers[i].name)
+			print(activations[-1].shape)
+			activations.append( tf.keras.backend.function([self.model.decoder.input], self.model.decoder.layers[i].output)([activations[0], 1]) )
+			layer_names.append(self.model.decoder.layers[i].name)
+
+		fig = plt.figure()
+		fig.suptitle("mean activations per layers")
+		col=5
+		n_layers = len(activations)
+		for idx in range(n_layers):
+			activation = np.mean(activations[idx], axis=0)	#remove batch dim
+			if activation.ndim==3:	#if a conv layer
+				if activation.shape[-1]!=1 and activation.shape[-1]!=3:
+					activation = np.mean(activation, axis=(-1))[..., np.newaxis]
+				ax = plt.subplot(n_layers//col+1, col, idx+1)
+				ax.imshow(activation, cmap="gray")
+				ax.set_title("n:{} m:{:.3f} M:{:.3f} \ns:{}".format(
+													layer_names[idx],
+													round(np.min(activation),3),
+													round(np.max(activation),3),
+													activation.shape))
+			else: #if another layer
+				ax = plt.subplot(n_layers//col+1, col, idx+1)
+				ax.bar(range(activation.size), activation.flatten())
+				ax.set_title("n:{} m:{:.3f} M:{:.3f}".format(
+													layer_names[idx],
+													round(np.min(activation),3),
+													round(np.max(activation),3)))
+		plt.tight_layout()
+		plt.savefig(os.path.join(self.saving_dir, "layer_activations_epoch{}".format(epoch)))
+		plt.show()
+		plt.close()
+
 
 class SaveSampling(Callback):
 	def __init__(self, prediction_shape, n_samples, saving_dir):
