@@ -1,5 +1,4 @@
 import argparse
-from tensorflow.keras.applications.vgg16 import VGG16
 from tensorflow.keras import backend as K
 from glob import glob
 import numpy as np
@@ -14,6 +13,7 @@ from sklearn.metrics import silhouette_samples, silhouette_score
 from sklearn.decomposition import PCA
 
 from Utils.Preprocess import *
+from Metrics.ImageMetrics import GramMatrix
 
 
 def do_pca(data, n_pca):
@@ -76,40 +76,39 @@ def show_by_class(data, groups, title="", output_dir=None, nrows=5):
 		plt.savefig(os.path.join(output_dir, "grouping_{}".format(title)))
 		# plt.show()
 		plt.close()
-		annot_data = np.array([ cv2.putText(img=np.copy(img), text=str(groups[idx_img]), org=(10,10),fontFace=3, fontScale=10, color=(0,0,255), thickness=5)
-								for idx_img, img in enumerate(data)])
-		np.save(os.path.join(output_dir, "annotedpreds_{}".format(title)), annot_data)
+		# annot_data = np.array([ cv2.putText(img=np.copy(img), text=str(groups[idx_img]), org=(10,10),fontFace=3, fontScale=10, color=(0,0,255), thickness=5)
+		# 						for idx_img, img in enumerate(data)])
+		# np.save(os.path.join(output_dir, "annotedpreds_{}".format(title)), annot_data)
 
 def chunks(lst, n):
 	"""Yield successive n-sized chunks from lst."""
 	for i in range(0, len(lst), n):
 		yield lst[i:min(len(lst),i + n)]
 
-def get_df(test, list_layers, output_dir):
-	vgg = VGG16(weights='imagenet', include_top=True)
-	print(vgg.summary())
+def get_df(model, test, list_layers, output_dir):
+
+	print(model.summary())
 
 	#get deep features from specified layers
 	deep_features=[]
-	for layer in vgg.layers:
+	for layer in model.layers:
 		if layer.name in list_layers:
 			generator = chunks(test, 50)
-			ldf = K.function([vgg.input], layer.output)([next(generator), 1])
+			ldf = K.function([model.input], layer.output)([next(generator), 1])
 			for batch in generator:
-				bdf = K.function([vgg.input], layer.output)([batch, 1])
+				bdf = K.function([model.input], layer.output)([batch, 1])
 				ldf = np.concatenate((ldf, bdf), axis=0)
-			np.save(os.path.join(output_dir,"df_hab_{}.npy".format(layer.name)), ldf)
 			#normalize and standardize per feature
-			if ldf.ndim==2: #dense layers
-				std = np.std(ldf, axis=-1)[:,None]
-				mean = np.mean(ldf, axis=-1)[:,None]
-				ldf = (ldf-mean)/std
-				mini = np.min(ldf, axis=-1)[:,None]
-				maxi = np.max(ldf, axis=-1)[:,None]
-				ldf = (ldf-mini)/(maxi-mini)
-			else:	#conv layers
-				raise NotImplmentedError
+			std = np.std(ldf, axis=-1)[...,None]
+			mean = np.mean(ldf, axis=-1)[...,None]
+			ldf = (ldf-mean)/std
+			mini = np.min(ldf, axis=-1)[...,None]
+			maxi = np.max(ldf, axis=-1)[...,None]
+			ldf = (ldf-mini)/(maxi-mini)
+			if ldf.ndim!=2: #conv
+				ldf = np.array([GramMatrix(img.mean(axis=(0,1))[..., np.newaxis]) for img in ldf])
 			deep_features.append(ldf)
+			#np.save(os.path.join(output_dir,"df_hab_{}.npy".format(layer.name)), ldf)
 	return deep_features
 
 
@@ -138,6 +137,7 @@ def do_kmeans(data, test, k_grps, output_dir, title, show=False):
 		ax1.set_xlim([-0.1, 1])
 		ax1.set_ylim([0, len(data) + (k+1)*10])
 		for i in range(k):
+			print(i,"/",k)
 			#aggregate silhouette scores for samples belonging to the cluster i and sort them
 			ith_cluster_sil_val = sample_silhouette_values[cluster_labels==i]
 			ith_cluster_sil_val.sort()
@@ -170,10 +170,12 @@ def do_kmeans(data, test, k_grps, output_dir, title, show=False):
 	plt.close()
 
 if __name__=="__main__":
+	DEFAULT_MODEL="vgg16"
 	#parsing parameters
 	parser = argparse.ArgumentParser(description="output the deep features of VGG16")
 	parser.add_argument("glob_input", help="path of the file to open")
 	parser.add_argument("output_dir", help="path of the file to save")
+	parser.add_argument("-m", "--model", choices=["vgg16", "places", "hybrid"], default=DEFAULT_MODEL, help="network model to use")
 	parser.add_argument("-d", "--dim", type=int, default=None, help="number of dim for the PCA, default None performs no PCA")
 	args = parser.parse_args()
 	n_pca=args.dim
@@ -182,26 +184,32 @@ if __name__=="__main__":
 	test = load_test(glob(args.glob_input), output=args.output_dir)
 	print("test shape: {}".format(test.shape))
 
-	#get deep features
-	deep_features = get_df(test, ["fc1","fc2"], args.output_dir)
+	#select model
+	if args.model=="vgg16":
+		from tensorflow.keras.applications.vgg16 import VGG16
+		model = VGG16(weights='imagenet', include_top=True)
+	elif args.model=="places":
+		from AutoEncoders.VGG16Places.vgg16_places_365 import VGG16_Places365
+		model = VGG16_Places365(weights='places', include_top=True)
+	elif args.model=="hybrid":
+		from AutoEncoders.VGG16Places.vgg16_hybrid_places_1365 import VGG16_Hybrid_1365
+		model = VGG16_Hybrid_1365(weights='places', include_top=True)
+
+	#extract deep features
+	layers_to_extract = ["block1_pool", "block2_pool", "block3_pool", "fc1", "fc2"]
+	deep_features = get_df(model, test, layers_to_extract, args.output_dir)
 	print([x.shape for x in deep_features])
 
-	df1, df2 = deep_features
-	df3 = np.concatenate((df1, df2), axis=-1)
-
-	#reshape data
-	df1 = df1.reshape((len(df1), -1))
-	df2 = df2.reshape((len(df2), -1))
-	df3 = df3.reshape((len(df3), -1))
-
-	#do PCA
-	if n_pca:
-		df1 = do_pca(df1, n_pca)
-		df2 = do_pca(df2, n_pca)
-		df3 = do_pca(df3, n_pca)
-
-	#clusterize
 	title_end = ["","_pca{}".format(n_pca)][n_pca is not None]
-	do_kmeans(df1, test, [2,3,4,5,6,7,8,10], args.output_dir, title="fc1{}".format(title_end), show=n_pca==3)
-	do_kmeans(df2, test, [2,3,4,5,6,7,8,10], args.output_dir, title="fc2{}".format(title_end), show=n_pca==3)
-	do_kmeans(df3, test, [2,3,4,5,6,7,8,10], args.output_dir, title="fc1+fc2{}".format(title_end), show=n_pca==3)
+
+	for name_layer, df in zip(layers_to_extract, deep_features):
+		df = df.reshape((len(df), -1))
+		if n_pca:
+			#do PCA
+			df = do_pca(df, n_pca)
+		#clusterize
+		title = "{}{}".format(name_layer, title_end)
+		do_kmeans(df, test, [2,3,4,5,6,7,8], args.output_dir, title=title, show=n_pca==3)
+
+
+	# df3 = np.concatenate((df1, df2), axis=-1)

@@ -23,6 +23,8 @@ class SaveActivations(Callback):
 		self.validation_img = val_img
 
 	def on_epoch_end(self, epoch, logs=None):
+		if epoch%5!=0:
+			return
 		n_encoder_layers = len(self.model.encoder.layers)
 		n_decoder_layers = len(self.model.decoder.layers)
 
@@ -31,19 +33,15 @@ class SaveActivations(Callback):
 
 		print(self.model.encoder.summary())
 		for i in range(n_encoder_layers):
-			print(self.model.encoder.layers[i].name)
-			print(activations[-1].shape)
 			activations.append( tf.keras.backend.function([self.model.encoder.layers[i].input], self.model.encoder.layers[i].output)([activations[-1], 1]) )
 			layer_names.append(self.model.encoder.layers[i].name)
 
 		print(self.model.decoder.summary())
 		for i in range(n_decoder_layers):
-			print(self.model.decoder.layers[i].name)
-			print(activations[-1].shape)
-			activations.append( tf.keras.backend.function([self.model.decoder.input], self.model.decoder.layers[i].output)([activations[0], 1]) )
+			activations.append( tf.keras.backend.function([self.model.decoder.layers[i].input], self.model.decoder.layers[i].output)([activations[-1], 1]) )
 			layer_names.append(self.model.decoder.layers[i].name)
 
-		fig = plt.figure()
+		fig = plt.figure(figsize=(24, 18), dpi=100)
 		fig.suptitle("mean activations per layers")
 		col=5
 		n_layers = len(activations)
@@ -53,7 +51,7 @@ class SaveActivations(Callback):
 				if activation.shape[-1]!=1 and activation.shape[-1]!=3:
 					activation = np.mean(activation, axis=(-1))[..., np.newaxis]
 				ax = plt.subplot(n_layers//col+1, col, idx+1)
-				ax.imshow(activation, cmap="gray")
+				ax.imshow(activation, cmap="hot")
 				ax.set_title("n:{} m:{:.3f} M:{:.3f} \ns:{}".format(
 													layer_names[idx],
 													round(np.min(activation),3),
@@ -68,7 +66,7 @@ class SaveActivations(Callback):
 													round(np.max(activation),3)))
 		plt.tight_layout()
 		plt.savefig(os.path.join(self.saving_dir, "layer_activations_epoch{}".format(epoch)))
-		plt.show()
+		# plt.show()
 		plt.close()
 
 
