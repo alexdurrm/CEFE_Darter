@@ -175,8 +175,9 @@ if __name__=="__main__":
 	parser = argparse.ArgumentParser(description="output the deep features of VGG16")
 	parser.add_argument("glob_input", help="path of the file to open")
 	parser.add_argument("output_dir", help="path of the file to save")
-	parser.add_argument("-m", "--model", choices=["vgg16", "places", "hybrid"], default=DEFAULT_MODEL, help="network model to use")
+	parser.add_argument("-m", "--model", choices=["vgg16", "places", "hybrid", "AEconvo"], default=DEFAULT_MODEL, help="network model to use")
 	parser.add_argument("-d", "--dim", type=int, default=None, help="number of dim for the PCA, default None performs no PCA")
+	parser.add_argument("-o", "--optional", help="add the model path here")
 	args = parser.parse_args()
 	n_pca=args.dim
 
@@ -185,6 +186,7 @@ if __name__=="__main__":
 	print("test shape: {}".format(test.shape))
 
 	#select model
+	layers_to_extract = ["block1_pool", "block2_pool", "block3_pool", "fc1", "fc2"]
 	if args.model=="vgg16":
 		from tensorflow.keras.applications.vgg16 import VGG16
 		model = VGG16(weights='imagenet', include_top=True)
@@ -194,9 +196,11 @@ if __name__=="__main__":
 	elif args.model=="hybrid":
 		from AutoEncoders.VGG16Places.vgg16_hybrid_places_1365 import VGG16_Hybrid_1365
 		model = VGG16_Hybrid_1365(weights='places', include_top=True)
+	elif args.model=="AEconvo"
+		layers_to_extract = ["max_pooling2d_1","last_pool_encoder", "output_encoder"]
+		model = K.models.load_model(args.optional)
 
 	#extract deep features
-	layers_to_extract = ["block1_pool", "block2_pool", "block3_pool", "fc1", "fc2"]
 	deep_features = get_df(model, test, layers_to_extract, args.output_dir)
 	print([x.shape for x in deep_features])
 

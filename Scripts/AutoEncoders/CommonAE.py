@@ -56,7 +56,7 @@ class SaveActivations(Callback):
 													layer_names[idx],
 													round(np.min(activation),3),
 													round(np.max(activation),3),
-													activation.shape))
+													activations[idx].shape))
 			else: #if another layer
 				ax = plt.subplot(n_layers//col+1, col, idx+1)
 				ax.bar(range(activation.size), activation.flatten())

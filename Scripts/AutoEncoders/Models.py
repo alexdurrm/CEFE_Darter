@@ -28,11 +28,12 @@ class Convolutional(Model):
 			Conv2D(64, kernel_size=(3,3), padding="same", activation="relu"),
 			MaxPool2D(pool_size=(2,2), padding="same"),
 			Conv2D(128, kernel_size=(3,3), padding="same", activation="relu"),
-			MaxPool2D(pool_size=(2,2), padding="same", name="last_conv_encoder"),
+			MaxPool2D(pool_size=(2,2), padding="same", name="last_pool_encoder"),
 			Flatten(),
 			Dense(latent_dim, activation="relu", name="output_encoder"),
 		])
-		shape_conv = self.encoder.get_layer("last_conv_encoder").output_shape
+		shape_conv = self.encoder.get_layer("last_pool_encoder").output_shape
+
 		self.decoder = K.Sequential([
 			Input(latent_dim, name="input_decoder"),
 			Dense(np.prod(shape_conv[1:]), activation="relu"),
@@ -89,19 +90,33 @@ class SparseConvolutional(Model):
 		super(SparseConvolutional, self).__init__(name=name)
 		self.latent_dim = latent_dim
 		self.encoder = K.Sequential([
-			Conv2D(32, kernel_size=(3,3), padding="same"),
+			Input(pred_shape, name="input_encoder"),
+			Conv2D(32, kernel_size=(3,3), padding="same", activation="relu"),
 			MaxPool2D(pool_size=(2,2), padding="same"),
-			Conv2D(64, kernel_size=(3,3), padding="same"),
+			Conv2D(32, kernel_size=(3,3), padding="same", activation="relu"),
 			MaxPool2D(pool_size=(2,2), padding="same"),
-			# Flatten(),
-			# Dense(latent_dim, activation="sigmoid"),
+			Conv2D(64, kernel_size=(3,3), padding="same", activation="relu"),
+			MaxPool2D(pool_size=(2,2), padding="same"),
+			Conv2D(128, kernel_size=(3,3), padding="same", activation="relu"),
+			MaxPool2D(pool_size=(2,2), padding="same", name="last_pool_encoder"),
+			Flatten(),
+			Dense(latent_dim, activation="relu", name="output_encoder"),
 			ActivityRegularization(l1=l1_regulizer)
 		])
+		shape_conv = self.encoder.get_layer("last_pool_encoder").output_shape
+
 		self.decoder = K.Sequential([
+			Input(latent_dim, name="input_decoder"),
+			Dense(np.prod(shape_conv[1:]), activation="relu"),
+			Reshape(shape_conv[1:]),
 			UpSampling2D(size=(2,2)),
-			Conv2DTranspose(filters=32, kernel_size=(3,3), padding="same"),
+			Conv2DTranspose(filters=64, kernel_size=(3,3), padding="same", activation="relu"),
 			UpSampling2D(size=(2,2)),
-			Conv2DTranspose(filters=pred_shape[-1], kernel_size=(3,3), padding="same", activation='sigmoid')
+			Conv2DTranspose(filters=32, kernel_size=(3,3), padding="same", activation="relu"),
+			UpSampling2D(size=(2,2)),
+			Conv2DTranspose(filters=32, kernel_size=(3,3), padding="same", activation="relu"),
+			UpSampling2D(size=(2,2)),
+			Conv2DTranspose(filters=pred_shape[-1], kernel_size=(3,3), padding="same", activation='sigmoid', name="output_decoder")
 		])
 
 	def call(self, x):
@@ -222,6 +237,7 @@ def load_model(model_type, model_name, pred_shape, latent_dim, loss ):
 	if model_type=="perceptron":
 		model = Perceptron(latent_dim, pred_shape, name=model_name)
 	elif model_type=="sparse_convolutional":
+		print("sparse_convolutional")
 		model = SparseConvolutional(latent_dim, pred_shape, 0.1, name=model_name)
 	elif model_type=="variational_AE":
 		model = VariationalAE(latent_dim, pred_shape, name=model_name)
@@ -235,6 +251,8 @@ def load_model(model_type, model_name, pred_shape, latent_dim, loss ):
 	if loss=="ssim":
 		loss = get_SSIM_Loss
 	model.compile(optimizer='adam', loss=loss)
+	print(model.encoder.summary())
+	print(model.decoder.summary())
 	return model
 
 def get_callbacks(model_type, test, output_dir, verbosity):
@@ -326,7 +344,10 @@ def main(args):
 	else:
 		train = np.load(args.path_train)
 		assert train.shape[1:]==test.shape[1:], "train and test should contain images of similar shape, here {} and {}".format(train.shape[1:], test.shape[1:])
-		_,dataset_descriptor, *_ = os.path.split(args.path_train)[-1].split('_') #get the descriptor of the dataset
+		try:
+			_, dataset_descriptor, *_ = os.path.split(args.path_train)[-1].split('_') #get the descriptor of the dataset
+		except ValueError:
+			dataset_descriptor = ""
 		#LATENT DIM SEARCH
 		if args.command == "LD_selection":
 			model_name = "{}_{}".format(args.name, dataset_descriptor)
