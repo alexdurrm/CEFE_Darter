@@ -23,7 +23,7 @@ class SaveActivations(Callback):
 		self.validation_img = val_img
 
 	def on_epoch_end(self, epoch, logs=None):
-		if epoch%5!=0:
+		if epoch%10!=0:
 			return
 		n_encoder_layers = len(self.model.encoder.layers)
 		n_decoder_layers = len(self.model.decoder.layers)
@@ -145,3 +145,25 @@ def get_MSE(img1, img2):
 
 def get_SSIM_Loss(y_true, y_pred):
 	return 1- tf.reduce_mean(tf.image.ssim(y_true, y_pred, 1.0))
+
+def visualize_conv_filters(model, layer):
+	shape_input = tf.shape(model.inputs)
+	# model = tf.keras.models.Model(inputs=model.inputs, outputs=layer)
+
+	plt.suptitle("max activation image for layer {} filters".format(layer.name))
+	rows, cols = shape_input[-1]//10+1, shape_input[-1]%10
+	f, axs = plt.subplots(rows, cols)
+	for i in range(layer.shape[-1]):
+		ones = tf.ones(shape_input[:-1])
+		input = tf.Variable(tf.random.uniform(shape_input))
+		loss = tf.math.reduce_sum(tf.math.substract(ones ,layer[...,i]))
+		opt = tf.keras.optimizers.Adam()
+		for j in range(100):
+			opt.minimize(loss, [input])
+		axs[i//10+1, i%10+1].imshow(input.numpy())
+	plt.show()
+
+if __name__=='__main__':
+	from tensorflow.keras.applications.vgg16 import VGG16
+	model = VGG16(weights='imagenet', include_top=False,input_shape=pred_shape)
+	visualize_conv_filters(model, model.get_layer("block1_pool"))

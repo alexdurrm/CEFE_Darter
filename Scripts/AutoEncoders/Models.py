@@ -234,17 +234,16 @@ class VGG16AE(Model):
 def load_model(model_type, model_name, pred_shape, latent_dim, loss ):
 	K.backend.clear_session()
 
+	print(model_type)
 	if model_type=="perceptron":
 		model = Perceptron(latent_dim, pred_shape, name=model_name)
 	elif model_type=="sparse_convolutional":
-		print("sparse_convolutional")
-		model = SparseConvolutional(latent_dim, pred_shape, 0.1, name=model_name)
+		model = SparseConvolutional(latent_dim, pred_shape, 0.00005, name=model_name)
 	elif model_type=="variational_AE":
 		model = VariationalAE(latent_dim, pred_shape, name=model_name)
 	elif model_type=="VGG16AE":
 		model = VGG16AE(latent_dim, pred_shape, name=model_name)
 	elif model_type == "convolutional":
-		print("convolutional")
 		model = Convolutional(latent_dim, pred_shape, name=model_name)
 	else:
 		raise ValueError("Unknown model type: {}".format(model_type))
@@ -338,7 +337,8 @@ def main(args):
 
 	#TEST
 	if args.command == "test":
-		model = K.models.load_model(args.model_path)
+		model = K.models.load_model(args.model_path, compile=False)
+		model.compile("Adam", "mse")
 		res = test_model(model, test, output_dir=args.output_dir, verbosity=args.verbose)
 		print(res)
 	else:

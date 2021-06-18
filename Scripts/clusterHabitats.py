@@ -1,5 +1,6 @@
 import argparse
 from tensorflow.keras import backend as K
+from tensorflow import keras
 from glob import glob
 import numpy as np
 import matplotlib.pyplot as plt
@@ -51,7 +52,7 @@ def load_test(list_files, output=None):
 	if len(list_files)==1 and list_files[0].endswith(".npy"):
 		test = np.load(list_files[0])
 	else:
-		pr = Preprocess((224, 224), normalize=True, standardize=True, img_type=IMG.RGB, img_channel=CHANNEL.ALL)
+		pr = Preprocess((224, 224), normalize=True, standardize=True, img_type=IMG.DARTER, img_channel=CHANNEL.GRAY)
 		test = np.array([pr(path) for path in list_files])
 		if output:
 			np.save(os.path.join(output, "habitats.npy"), test)
@@ -61,7 +62,6 @@ def load_test(list_files, output=None):
 
 
 def show_by_class(data, groups, title="", output_dir=None, nrows=5):
-	print(groups.shape, data.shape)
 	groups_id = np.unique(groups)
 	f , axs = plt.subplots(nrows=nrows, ncols=len(groups_id), squeeze=False)
 	f.suptitle(title)
@@ -70,7 +70,7 @@ def show_by_class(data, groups, title="", output_dir=None, nrows=5):
 		axs[0, j].set_title("group {}".format(grp_id))
 		np.random.shuffle(grp)
 		for i in range(min(nrows, len(grp))):
-			axs[i, j].imshow(grp[i])
+			axs[i, j].imshow(grp[i], cmap="gray")
 			axs[i, j].axis('off')
 	if output_dir:
 		plt.savefig(os.path.join(output_dir, "grouping_{}".format(title)))
@@ -86,7 +86,6 @@ def chunks(lst, n):
 		yield lst[i:min(len(lst),i + n)]
 
 def get_df(model, test, list_layers, output_dir):
-
 	print(model.summary())
 
 	#get deep features from specified layers
@@ -98,19 +97,25 @@ def get_df(model, test, list_layers, output_dir):
 			for batch in generator:
 				bdf = K.function([model.input], layer.output)([batch, 1])
 				ldf = np.concatenate((ldf, bdf), axis=0)
-			#normalize and standardize per feature
-			std = np.std(ldf, axis=-1)[...,None]
-			mean = np.mean(ldf, axis=-1)[...,None]
-			ldf = (ldf-mean)/std
-			mini = np.min(ldf, axis=-1)[...,None]
-			maxi = np.max(ldf, axis=-1)[...,None]
-			ldf = (ldf-mini)/(maxi-mini)
 			if ldf.ndim!=2: #conv
-				ldf = np.array([GramMatrix(img.mean(axis=(0,1))[..., np.newaxis]) for img in ldf])
+				ldf = np.array([GramMatrix(img) for img in ldf])
+			#normalize and standardize per feature
+			std = np.std(ldf)
+			mean = np.mean(ldf)
+			ldf = (ldf-mean)/std
+			mini = np.min(ldf)
+			maxi = np.max(ldf)
+			ldf = (ldf-mini)/(maxi-mini)
 			deep_features.append(ldf)
 			#np.save(os.path.join(output_dir,"df_hab_{}.npy".format(layer.name)), ldf)
 	return deep_features
 
+def get_AE_df(model, test, list_layers, output_dir):
+	print(model.summary())
+	deep_features=[]
+	deep_features += get_df(model.encoder, test, list_layers, output_dir)
+	deep_features += get_df(model.decoder, test, list_layers, output_dir)
+	return deep_features
 
 def do_kmeans(data, test, k_grps, output_dir, title, show=False):
 	list_avg=[]
@@ -185,23 +190,29 @@ if __name__=="__main__":
 	test = load_test(glob(args.glob_input), output=args.output_dir)
 	print("test shape: {}".format(test.shape))
 
-	#select model
+	#select model and extract deep features
 	layers_to_extract = ["block1_pool", "block2_pool", "block3_pool", "fc1", "fc2"]
 	if args.model=="vgg16":
 		from tensorflow.keras.applications.vgg16 import VGG16
 		model = VGG16(weights='imagenet', include_top=True)
+		deep_features = get_df(model, test, layers_to_extract, args.output_dir)
 	elif args.model=="places":
 		from AutoEncoders.VGG16Places.vgg16_places_365 import VGG16_Places365
 		model = VGG16_Places365(weights='places', include_top=True)
+		deep_features = get_df(model, test, layers_to_extract, args.output_dir)
 	elif args.model=="hybrid":
 		from AutoEncoders.VGG16Places.vgg16_hybrid_places_1365 import VGG16_Hybrid_1365
 		model = VGG16_Hybrid_1365(weights='places', include_top=True)
-	elif args.model=="AEconvo"
+		deep_features = get_df(model, test, layers_to_extract, args.output_dir)
+	elif args.model=="AEconvo":
 		layers_to_extract = ["max_pooling2d_1","last_pool_encoder", "output_encoder"]
-		model = K.models.load_model(args.optional)
+		model = keras.models.load_model(args.optional, compile=False)
+		deep_features = get_AE_df(model, test, layers_to_extract, args.output_dir)
 
-	#extract deep features
-	deep_features = get_df(model, test, layers_to_extract, args.output_dir)
+	#add a concatenation of features
+	layers_to_extract.append("all_layers")
+	deep_features.append(np.concatenate([np.reshape(x, (x.shape[0], -1)) for x in deep_features], axis=-1))
+
 	print([x.shape for x in deep_features])
 
 	title_end = ["","_pca{}".format(n_pca)][n_pca is not None]

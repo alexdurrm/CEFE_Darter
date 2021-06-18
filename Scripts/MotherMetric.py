@@ -107,7 +107,8 @@ COL_SSIM_AE="SSIM_pxl_compared_to_start"
 class AutoencoderMetrics(MotherMetric):
 	def __init__(self, model_path, *args, **kwargs):
 		import tensorflow.keras as K
-		self.model = K.models.load_model(model_path)
+		self.model = K.models.load_model(model_path, compile=False)
+		model.compile("Adam", "mse")
 		super().__init__(*args, **kwargs)
 
 	def function(self, image, verbose):

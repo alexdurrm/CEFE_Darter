@@ -132,7 +132,7 @@ if __name__=='__main__':
 	args = parser.parse_args()
 
 	#preparing data
-	train, test = get_datasets(args.glob, args.presize, args.shape, args.channels, args.levels, args.num_img, visu=args.verbose)
+	train, test = get_datasets(args.glob, args.presize, tuple(args.shape), args.channels, args.levels, args.num_img, visu=args.verbose)
 	print("Shape train: {} \nShape test: {}".format(train.shape, test.shape))
 
 	#saving

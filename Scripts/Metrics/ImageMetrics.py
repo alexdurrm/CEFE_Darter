@@ -139,5 +139,6 @@ def get_most_common_lbp(image, point, radius, n_best):
 	return best_lbp
 
 def GramMatrix(img):
-	gram = img.dot(img.T)
+	img = np.reshape(img, (-1, img.shape[-1]))
+	gram = img.T.dot(img)
 	return gram
