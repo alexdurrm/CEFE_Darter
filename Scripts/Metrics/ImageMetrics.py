@@ -12,8 +12,11 @@ from scipy.stats import kurtosis, skew, entropy
 from skimage.metrics import structural_similarity as ssim
 
 
+def get_L0(vector):
+	return 1- np.count_nonzero(vector)/vector.size
+
 def get_SSIM(img1, img2):
-	return np.mean(ssim(img1, img2, data_range=1, multichannel=True))
+	return ssim(img1, img2, multichannel=(img1.ndim==3 and img1.shape[-1]!=1))
 
 def get_gini(array, visu=False):
 	'''

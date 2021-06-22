@@ -7,7 +7,14 @@ import os
 import matplotlib.pyplot as plt
 from enum import Enum
 
-from Utils.ImageManip import *
+
+import sys
+new_path = os.path.dirname(os.path.realpath(__file__))
+if new_path not in sys.path:
+    sys.path.append(new_path)
+
+from ImageManip import *
+
 
 #ENUMS
 class IMG(Enum):
@@ -69,6 +76,7 @@ class Preprocess:
 		'''
 		print(image_path)
 		image = imageio.imread(image_path)
+		assert image.ndim==3 and image.shape[-1]==3, "wrong image dimension: {}".format(image.shape)
 		image = resize_img(image, [self.resizeX, self.resizeY])
 
 		#convert the image type

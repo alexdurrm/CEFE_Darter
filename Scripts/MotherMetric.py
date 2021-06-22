@@ -10,6 +10,7 @@ from Metrics.ImageMetrics import *
 from Metrics.PHOG.anna_phog import anna_phog
 from Metrics.Fourier import get_pspec, get_Fourier_slope
 from Metrics.DeepNetworks import get_deep_features
+from AutoEncoders.CommonAE import get_MSE
 
 ###############################################################################
 #
@@ -86,47 +87,88 @@ class MotherMetric:
 #
 ###############################################################################
 
+# COL_MODEL_NAME_AE="autoencoder_name"
+#
+# COL_ITERATION_AE="prediction_interation"
+#
+# COL_GINI_AE="gini_pxl_space"
+# COL_KURTO_AE="kurtois_pxl_space"
+# COL_ENTRO_AE="entropy_pxl_space"
+#
+# COL_GINI_LATENT_AE="gini_latent_space"
+# COL_KURTO_LATENT_AE="kurtois_latent_space"
+# COL_ENTRO_LATENT_AE="entropy_latent_space"
+# COL_MEAN_ACTIVATION_AE="mean_activation_latent_space"
+#
+# COL_LATENT_DIST_AE="latent_distance_to_start"
+#
+# COL_MSE_AE="MSE_pxl_comparerd_to_start"
+# COL_SSIM_AE="SSIM_pxl_compared_to_start"
+#
+# class AutoencoderMetrics(MotherMetric):
+# 	def __init__(self, model_path, *args, **kwargs):
+# 		import tensorflow.keras as K
+# 		self.model = K.models.load_model(model_path, compile=False)
+# 		model.compile("Adam", "mse")
+# 		super().__init__(*args, **kwargs)
+#
+# 	def function(self, image, verbose):
+# 		df = pd.DataFrame()
+# 		params = self.preprocess.get_params()
+#
+# 		i=0
+# 		divergence_generator = autoencoder_generate_retro_prediction(self.model, image, 5)
+# 		start_latent, start_pxl = next(divergence_generator)
+# 		axis_latent = tuple(i for i in range(0, start_latent.ndim))
+# 		for latent, prediction in divergence_generator:
+# 			df.loc[i, params.columns] = params.iloc[0]
+# 			df.loc[i, [COL_MODEL_NAME_AE, COL_ITERATION_AE]] = [self.model.name, i]
+# 			df.loc[i, [COL_GINI_AE, COL_KURTO_AE, COL_ENTRO_AE]] = [get_gini(prediction), kurtosis(prediction, axis=None), entropy(prediction, axis=None)]
+# 			df.loc[i, [COL_GINI_LATENT_AE, COL_KURTO_LATENT_AE, COL_ENTRO_LATENT_AE, COL_MEAN_ACTIVATION_AE]] = [get_gini(prediction), kurtosis(prediction, axis=None), entropy(prediction, axis=None), np.mean(prev_latent)]
+# 			df.loc[i, [COL_MSE_AE, COL_SSIM_AE]] = [get_MSE(start_pxl, prediction), get_SSIM(start_pxl, prediction)]
+# 			df.loc[i, [COL_LATENT_DIST_AE]] = [np.mean(np.square(start_latent - latent), axis=(axis_latent))]
+# 			i+=1
+# 		return df
+
+###############################################################################
+#
+#								NEW AUTOENCODER
+#
+###############################################################################
+
 COL_MODEL_NAME_AE="autoencoder_name"
+COL_MSE_AE="mse_prediction"
+COL_SSIM_AE="ssim_prediction"
 
-COL_ITERATION_AE="prediction_interation"
-
-COL_GINI_AE="gini_pxl_space"
-COL_KURTO_AE="kurtois_pxl_space"
-COL_ENTRO_AE="entropy_pxl_space"
-
-COL_GINI_LATENT_AE="gini_latent_space"
-COL_KURTO_LATENT_AE="kurtois_latent_space"
-COL_ENTRO_LATENT_AE="entropy_latent_space"
-COL_MEAN_ACTIVATION_AE="mean_activation_latent_space"
-
-COL_LATENT_DIST_AE="latent_distance_to_start"
-
-COL_MSE_AE="MSE_pxl_comparerd_to_start"
-COL_SSIM_AE="SSIM_pxl_compared_to_start"
+COL_GINI_ACTIVATION_AE="gini_activation_layer"
+COL_KURTO_ACTIVATION_AE="kurtois_activation_layer"
+COL_ENTRO_ACTIVATION_AE="entropy_activation_layer"
+COL_MEAN_ACTIVATION_AE="mean_activation_layer"
+COL_L0_ACTIVATION_AE="L0_activation_layer"
 
 class AutoencoderMetrics(MotherMetric):
 	def __init__(self, model_path, *args, **kwargs):
 		import tensorflow.keras as K
 		self.model = K.models.load_model(model_path, compile=False)
-		model.compile("Adam", "mse")
+		self.model.compile("Adam", "mse")
 		super().__init__(*args, **kwargs)
 
-	def function(self, image, verbose):
+	def function(self, image):
 		df = pd.DataFrame()
 		params = self.preprocess.get_params()
+		df.loc[0, params.columns] = params.iloc[0]
 
-		i=0
-		divergence_generator = autoencoder_generate_retro_prediction(self.model, image, 5)
-		start_latent, start_pxl = next(divergence_generator)
-		axis_latent = tuple(i for i in range(0, start_latent.ndim))
-		for latent, prediction in divergence_generator:
-			df.loc[i, params.columns] = params.iloc[0]
-			df.loc[i, [COL_MODEL_NAME_AE, COL_ITERATION_AE]] = [self.model.name, i]
-			df.loc[i, [COL_GINI_AE, COL_KURTO_AE, COL_ENTRO_AE]] = [get_gini(prediction), kurtosis(prediction, axis=None), entropy(prediction, axis=None)]
-			df.loc[i, [COL_GINI_LATENT_AE, COL_KURTO_LATENT_AE, COL_ENTRO_LATENT_AE, COL_MEAN_ACTIVATION_AE]] = [get_gini(prediction), kurtosis(prediction, axis=None), entropy(prediction, axis=None), np.mean(prev_latent)]
-			df.loc[i, [COL_MSE_AE, COL_SSIM_AE]] = [get_MSE(start_pxl, prediction), get_SSIM(start_pxl, prediction)]
-			df.loc[i, [COL_LATENT_DIST_AE]] = [np.mean(np.square(start_latent - latent), axis=(axis_latent))]
-			i+=1
+		test = image[np.newaxis, ...]
+		prediction = self.model.predict(test)[0]
+		df.loc[0, [COL_MODEL_NAME, COL_MSE_AE, COL_SSIM_AE]] = [self.model.name, get_MSE(image, prediction), get_SSIM(image, prediction)]
+		deep_features = get_deep_features(self.model.encoder, test)
+
+		for i, layer in enumerate(deep_features):
+			df.loc[0, COL_GINI_ACTIVATION_AE+"_"+str(i)] = get_gini(layer)
+			df.loc[0, COL_KURTO_ACTIVATION_AE+"_"+str(i)] = kurtosis(layer, axis=None)
+			df.loc[0, COL_ENTRO_ACTIVATION_AE+"_"+str(i)] = entropy(layer, axis=None)
+			df.loc[0, COL_MEAN_ACTIVATION_AE+"_"+str(i)] = np.mean(layer, axis=None)
+			df.loc[0, COL_L0_ACTIVATION_AE+"_"+str(i)] = get_L0(layer)
 		return df
 
 ###############################################################################
@@ -530,7 +572,7 @@ def main(args):
 	elif args.command == "deep_features":
 		metric = DeepFeatureMetrics(args.model, args.resize, preprocess=preprocess, load_from=load_from)
 	elif args.command == "autoencoder":
-		metric = AutoencoderMetrics(args.model_path, args.resize, preprocess=preprocess, load_from=load_from)
+		metric = AutoencoderMetrics(args.model_path, preprocess=preprocess, load_from=load_from)
 	elif args.command == "list":
 		metric = get_files(args.input_path, args.depth, tuple(args.formats), [], only_endnodes=args.endnodes, visu=args.verbose>=1)
 		metric.to_csv(args.output_path, index=True)

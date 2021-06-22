@@ -12,6 +12,7 @@ import os
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_samples, silhouette_score
 from sklearn.decomposition import PCA
+from sklearn.manifold import MDS
 
 from Utils.Preprocess import *
 from Metrics.ImageMetrics import GramMatrix
@@ -21,6 +22,11 @@ def do_pca(data, n_pca):
 	pca = PCA(n_components=n_pca)
 	data = pca.fit_transform(data)
 	return data
+
+def do_MDS(data, n_components):
+	embedding = MDS(n_components=n_components)
+	fit_data = embedding.fit_transform(data)
+	return fit_data
 
 def show_3D(data, groups=None, title=""):
 	x = data[:, 0]
@@ -97,8 +103,9 @@ def get_df(model, test, list_layers, output_dir):
 			for batch in generator:
 				bdf = K.function([model.input], layer.output)([batch, 1])
 				ldf = np.concatenate((ldf, bdf), axis=0)
-			if ldf.ndim!=2: #conv
-				ldf = np.array([GramMatrix(img) for img in ldf])
+			if ldf.ndim!=2: #if layer is conv
+				ldf = np.mean(ldf, axis=(1,2))
+				# ldf = np.array([GramMatrix(img) for img in ldf])
 			#normalize and standardize per feature
 			std = np.std(ldf)
 			mean = np.mean(ldf)
@@ -181,6 +188,7 @@ if __name__=="__main__":
 	parser.add_argument("glob_input", help="path of the file to open")
 	parser.add_argument("output_dir", help="path of the file to save")
 	parser.add_argument("-m", "--model", choices=["vgg16", "places", "hybrid", "AEconvo"], default=DEFAULT_MODEL, help="network model to use")
+	parser.add_argument("-r", "--reduction", choices=["pca", "mds"], default=None, help="dimension reduction method to use")
 	parser.add_argument("-d", "--dim", type=int, default=None, help="number of dim for the PCA, default None performs no PCA")
 	parser.add_argument("-o", "--optional", help="add the model path here")
 	args = parser.parse_args()
@@ -205,7 +213,7 @@ if __name__=="__main__":
 		model = VGG16_Hybrid_1365(weights='places', include_top=True)
 		deep_features = get_df(model, test, layers_to_extract, args.output_dir)
 	elif args.model=="AEconvo":
-		layers_to_extract = ["max_pooling2d_1","last_pool_encoder", "output_encoder"]
+		layers_to_extract = ["max_pooling2d_1","max_pooling2d_2","last_pool_encoder", "output_encoder"]
 		model = keras.models.load_model(args.optional, compile=False)
 		deep_features = get_AE_df(model, test, layers_to_extract, args.output_dir)
 
@@ -219,9 +227,12 @@ if __name__=="__main__":
 
 	for name_layer, df in zip(layers_to_extract, deep_features):
 		df = df.reshape((len(df), -1))
-		if n_pca:
-			#do PCA
+		#do dimension reduction
+		if args.reduction=="pca":
 			df = do_pca(df, n_pca)
+		elif args.reduction=="mds":
+			df = do_MDS(df, n_pca)
+
 		#clusterize
 		title = "{}{}".format(name_layer, title_end)
 		do_kmeans(df, test, [2,3,4,5,6,7,8], args.output_dir, title=title, show=n_pca==3)

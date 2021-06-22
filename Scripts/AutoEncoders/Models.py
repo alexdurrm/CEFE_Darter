@@ -238,7 +238,7 @@ def load_model(model_type, model_name, pred_shape, latent_dim, loss ):
 	if model_type=="perceptron":
 		model = Perceptron(latent_dim, pred_shape, name=model_name)
 	elif model_type=="sparse_convolutional":
-		model = SparseConvolutional(latent_dim, pred_shape, 0.00005, name=model_name)
+		model = SparseConvolutional(latent_dim, pred_shape, 0.00001, name=model_name)
 	elif model_type=="variational_AE":
 		model = VariationalAE(latent_dim, pred_shape, name=model_name)
 	elif model_type=="VGG16AE":
