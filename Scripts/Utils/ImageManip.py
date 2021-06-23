@@ -14,13 +14,17 @@ def img_manip_decorator(function):
 	function to visualize the manipulated image of the manipulation functions
 	"""
 	def wrap(*args, **kwargs):
+		#take image and check its type and shape
 		input_img = kwargs.get("image", args[0])
 		assert isinstance(input_img, np.ndarray), "given image should be a numpy array, here {}".format(type(input_img))
 		assert input_img.ndim==3 or input_img.ndim==4, "image should have 3 dimensions, list of 4 dims are also accepted, here {}".format(input_img.ndim)
-		visu = kwargs.pop("visu", False)
-		if input_img.ndim==3:	#if given an image
+
+		if input_img.ndim==3:	#if given an image, call the function
 			output = function(*args, **kwargs)
-			if visu:
+			if output.ndim==2:
+				output = output[..., np.newaxis]
+			#if visu is true show the input and output images
+			if kwargs.pop("visu", False):
 				fig, axs = plt.subplots(nrows=1, ncols=2, sharex=True, sharey=True)
 				visu_input = input_img if input_img.shape[-1]!=2 else input_img[...,0]+input_img[...,1]
 				axs[0].imshow(visu_input, cmap='gray')
@@ -29,9 +33,8 @@ def img_manip_decorator(function):
 				plt.title(function.__name__)
 				plt.show()
 				plt.close()
-			if output.ndim==2:
-				output = output_img[..., np.newaxis]
-		else:	#if given a list of images
+		else:	#if given a list of images, call the function on each image and return a list
+			#first remove the list form parameters
 			if not kwargs.pop("image", None):
 				args = args[1:]
 			output = np.array([function(img, *args, **kwargs) for img in input_img])

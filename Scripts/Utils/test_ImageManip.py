@@ -1,5 +1,5 @@
-from ImageManip import * 
-import numpy as np 
+from ImageManip import *
+import numpy as np
 import unittest
 import random
 import math
@@ -28,9 +28,9 @@ class test_fly_over_image(unittest.TestCase):
 		for image in [channel_img1, channel_img2, channel_img3, channel_img4]:
 			for _ in range(10):
 
-				stride = (random.randint(1, image.shape[0]), random.randint(0, image.shape[1]))
-				window = (random.randint(1, image.shape[0]), random.randint(0, image.shape[1]))
-				
+				stride = (random.randint(1, image.shape[0]), random.randint(1, image.shape[1]))
+				window = (random.randint(1, image.shape[0]), random.randint(1, image.shape[1]))
+
 				n_x = (image.shape[0]-window[0])//stride[0]+1
 				n_y = (image.shape[1]-window[1])//stride[1]+1
 
@@ -170,9 +170,9 @@ class test_decorator(unittest.TestCase):
 		#create arrays of values between 0 and 1
 		liste = np.random.randint(256, size=100)
 		img2D = np.random.randint(256, size=(120, 128))
-		tensor4D = np.random.randint(256, size=(200,90,399,99))
+		tensor5D = np.random.randint(256, size=(20,52,90,39,99))
 
-		for image in [liste, img2D, tensor4D]:
+		for image in [liste, img2D, tensor5D]:
 			with self.assertRaises(AssertionError):
 				_ = rgb_2_darter(image)
 			with self.assertRaises(AssertionError):
@@ -183,8 +183,6 @@ class test_decorator(unittest.TestCase):
 				_ = resize_img_to_fit(image, (42,42))
 			with self.assertRaises(AssertionError):
 				_ = resize_img(image, (42,42))
-			# with self.assertRaises(AssertionError):
-			# 	_ = fly_over_image(image, (42,42), (42,42)) #if decorator on this function
 
 if __name__=='__main__':
 	unittest.main()

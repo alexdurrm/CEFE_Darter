@@ -7,7 +7,7 @@ import os
 import matplotlib.pyplot as plt
 from enum import Enum
 
-
+#enable local imports
 import sys
 new_path = os.path.dirname(os.path.realpath(__file__))
 if new_path not in sys.path:

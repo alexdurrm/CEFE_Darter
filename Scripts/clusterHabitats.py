@@ -1,7 +1,6 @@
 import argparse
 from tensorflow.keras import backend as K
 from tensorflow import keras
-from glob import glob
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -53,38 +52,27 @@ def show_3D(data, groups=None, title=""):
 	plt.show()
 	plt.close()
 
-
-def load_test(list_files, output=None):
-	if len(list_files)==1 and list_files[0].endswith(".npy"):
-		test = np.load(list_files[0])
-	else:
-		pr = Preprocess((224, 224), normalize=True, standardize=True, img_type=IMG.DARTER, img_channel=CHANNEL.GRAY)
-		test = np.array([pr(path) for path in list_files])
-		if output:
-			np.save(os.path.join(output, "habitats.npy"), test)
-		else:
-			np.save("habitats.npy", test)
-	return test
-
-
-def show_by_class(data, groups, title="", output_dir=None, nrows=5):
+def show_by_class(images, groups, scores, title="", output_dir=None, nrows=6):
 	groups_id = np.unique(groups)
 	f , axs = plt.subplots(nrows=nrows, ncols=len(groups_id), squeeze=False)
 	f.suptitle(title)
 	for j, grp_id in enumerate(groups_id):
-		grp = data[groups==grp_id]
-		axs[0, j].set_title("group {}".format(grp_id))
-		np.random.shuffle(grp)
-		for i in range(min(nrows, len(grp))):
-			axs[i, j].imshow(grp[i], cmap="gray")
+		axs[0, j].set_title("grp {}".format(grp_id))
+		values = [(x,y) for x, y in zip(images[groups==grp_id], scores[groups==grp_id])]
+		values.sort(key=lambda x:x[1], reverse=True)
+		for i, pair in enumerate([*values[:nrows-1], values[-1]]):
+			axs[i, j].imshow(pair[0], cmap="gray")
 			axs[i, j].axis('off')
+			axs[i, j].annotate("{:.2f}".format(pair[1]), xy=(0, 0),  xycoords='data',
+            xytext=(0, 0), textcoords='axes fraction', fontsize="x-small",
+            horizontalalignment='left', verticalalignment='bottom')
+
 	if output_dir:
+		# plt.tight_layout()
 		plt.savefig(os.path.join(output_dir, "grouping_{}".format(title)))
 		# plt.show()
 		plt.close()
-		# annot_data = np.array([ cv2.putText(img=np.copy(img), text=str(groups[idx_img]), org=(10,10),fontFace=3, fontScale=10, color=(0,0,255), thickness=5)
-		# 						for idx_img, img in enumerate(data)])
-		# np.save(os.path.join(output_dir, "annotedpreds_{}".format(title)), annot_data)
+
 
 def chunks(lst, n):
 	"""Yield successive n-sized chunks from lst."""
@@ -124,7 +112,7 @@ def get_AE_df(model, test, list_layers, output_dir):
 	deep_features += get_df(model.decoder, test, list_layers, output_dir)
 	return deep_features
 
-def do_kmeans(data, test, k_grps, output_dir, title, show=False):
+def do_kmeans(data, color_img, k_grps, output_dir, title, show=False):
 	list_avg=[]
 
 	for k in k_grps:
@@ -137,13 +125,13 @@ def do_kmeans(data, test, k_grps, output_dir, title, show=False):
 		if show:
 			show_3D(data, groups=cluster_labels, title="{} PCA 3dim with {} clusters".format(title, k))
 
-		show_by_class(test, groups=cluster_labels, title="{}_{}clusters".format(title, k), output_dir=output_dir)
 
 		silhouette_avg = silhouette_score(data, cluster_labels)
 		list_avg.append(silhouette_avg)
 		print("for n_clusters= ", k, " The average silhouette_score is :", silhouette_avg)
 
 		sample_silhouette_values = silhouette_samples(data, cluster_labels)
+		show_by_class(color_img, groups=cluster_labels, scores=sample_silhouette_values, title="{}_{}clusters".format(title, k), output_dir=output_dir)
 		y_lower = 10
 		fig, ax1 = plt.subplots(1,1)
 		ax1.set_xlim([-0.1, 1])
@@ -185,7 +173,7 @@ if __name__=="__main__":
 	DEFAULT_MODEL="vgg16"
 	#parsing parameters
 	parser = argparse.ArgumentParser(description="output the deep features of VGG16")
-	parser.add_argument("glob_input", help="path of the file to open")
+	parser.add_argument("input", help="path of the file to open")
 	parser.add_argument("output_dir", help="path of the file to save")
 	parser.add_argument("-m", "--model", choices=["vgg16", "places", "hybrid", "AEconvo"], default=DEFAULT_MODEL, help="network model to use")
 	parser.add_argument("-r", "--reduction", choices=["pca", "mds"], default=None, help="dimension reduction method to use")
@@ -195,7 +183,7 @@ if __name__=="__main__":
 	n_pca=args.dim
 
 	#prepare images
-	test = load_test(glob(args.glob_input), output=args.output_dir)
+	test = np.load(args.input)
 	print("test shape: {}".format(test.shape))
 
 	#select model and extract deep features
@@ -213,17 +201,21 @@ if __name__=="__main__":
 		model = VGG16_Hybrid_1365(weights='places', include_top=True)
 		deep_features = get_df(model, test, layers_to_extract, args.output_dir)
 	elif args.model=="AEconvo":
-		layers_to_extract = ["max_pooling2d_1","max_pooling2d_2","last_pool_encoder", "output_encoder"]
+		layers_to_extract = ["max_pooling2d","max_pooling2d_1","max_pooling2d_2","last_pool_encoder"]
 		model = keras.models.load_model(args.optional, compile=False)
 		deep_features = get_AE_df(model, test, layers_to_extract, args.output_dir)
 
 	#add a concatenation of features
-	layers_to_extract.append("all_layers")
-	deep_features.append(np.concatenate([np.reshape(x, (x.shape[0], -1)) for x in deep_features], axis=-1))
+	layers_to_extract.append("pool_12")
+	deep_features.append(np.concatenate([np.reshape(x, (x.shape[0], -1)) for x in deep_features[0:2]], axis=-1))
+	layers_to_extract.append("pool_23")
+	deep_features.append(np.concatenate([np.reshape(x, (x.shape[0], -1)) for x in deep_features[1:3]], axis=-1))
+	layers_to_extract.append("pool_123")
+	deep_features.append(np.concatenate([np.reshape(x, (x.shape[0], -1)) for x in deep_features[0:3]], axis=-1))
 
 	print([x.shape for x in deep_features])
 
-	title_end = ["","_pca{}".format(n_pca)][n_pca is not None]
+	title_end = ["","_{}{}".format(args.reduction,n_pca)][(n_pca is not None and args.reduction is not None)]
 
 	for name_layer, df in zip(layers_to_extract, deep_features):
 		df = df.reshape((len(df), -1))
@@ -235,7 +227,8 @@ if __name__=="__main__":
 
 		#clusterize
 		title = "{}{}".format(name_layer, title_end)
-		do_kmeans(df, test, [2,3,4,5,6,7,8], args.output_dir, title=title, show=n_pca==3)
+		color_img = np.load(os.path.splitext(args.input)[0] + "_color.npy")
+		do_kmeans(df, color_img, [2,3,4,5,6,7,8], args.output_dir, title=title, show=n_pca==3)
 
 
 	# df3 = np.concatenate((df1, df2), axis=-1)
