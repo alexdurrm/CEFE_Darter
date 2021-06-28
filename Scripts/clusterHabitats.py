@@ -16,6 +16,26 @@ from sklearn.manifold import MDS
 from Utils.Preprocess import *
 from Metrics.ImageMetrics import GramMatrix
 
+def save_grp_samples(images, groups, scores, output_dir=None, nsamples=20):
+	groups_id = np.unique(groups)
+	for grp_id in groups_id:
+		values = [(x,y) for x, y in zip(images[groups==grp_id], scores[groups==grp_id])]
+		values.sort(key=lambda x:x[1], reverse=True)
+		choices = np.random.choice(len(values)//2+1, size=nsamples, replace=False) #randomly select between best values
+		for i, idx in enumerate(choices):
+			img, score = values[idx]
+			plt.imsave(os.path.join(output_dir,'grp{}_{}_{:.3f}.png'.format(grp_id, i, score)), img)
+
+def normalize(ldf):
+	assert ldf.ndim==2, "latent given should be 2dims, here {}".format(ldf.ndim)
+	#normalize and standardize per feature
+	std = np.std(ldf)
+	mean = np.mean(ldf)
+	ldf = (ldf-mean)/std
+	mini = np.min(ldf)
+	maxi = np.max(ldf)
+	ldf = (ldf-mini)/(maxi-mini)
+	return ldf
 
 def do_pca(data, n_pca):
 	pca = PCA(n_components=n_pca)
@@ -94,14 +114,7 @@ def get_df(model, test, list_layers, output_dir):
 			if ldf.ndim!=2: #if layer is conv
 				ldf = np.mean(ldf, axis=(1,2))
 				# ldf = np.array([GramMatrix(img) for img in ldf])
-			#normalize and standardize per feature
-			std = np.std(ldf)
-			mean = np.mean(ldf)
-			ldf = (ldf-mean)/std
-			mini = np.min(ldf)
-			maxi = np.max(ldf)
-			ldf = (ldf-mini)/(maxi-mini)
-			deep_features.append(ldf)
+			deep_features.append(np.reshape(ldf, (ldf.shape[0], -1)))
 			#np.save(os.path.join(output_dir,"df_hab_{}.npy".format(layer.name)), ldf)
 	return deep_features
 
@@ -132,6 +145,7 @@ def do_kmeans(data, color_img, k_grps, output_dir, title, show=False):
 
 		sample_silhouette_values = silhouette_samples(data, cluster_labels)
 		show_by_class(color_img, groups=cluster_labels, scores=sample_silhouette_values, title="{}_{}clusters".format(title, k), output_dir=output_dir)
+		save_grp_samples(color_img, groups=cluster_labels, scores=sample_silhouette_values, output_dir=output_dir)
 		y_lower = 10
 		fig, ax1 = plt.subplots(1,1)
 		ax1.set_xlim([-0.1, 1])
@@ -146,6 +160,7 @@ def do_kmeans(data, color_img, k_grps, output_dir, title, show=False):
 
 			ax1.fill_betweenx(np.arange(y_lower, y_upper), 0, ith_cluster_sil_val, alpha=0.7)
 			ax1.text(-0.05, y_lower+0.05*size_cluster_i, str(i))
+			ax1.text(1.05, y_lower+0.05*size_cluster_i, len(ith_cluster_sil_val))
 
 			y_lower=y_upper+10
 		ax1.set_title("silhouette plot for various clusters, k {}, {}".format(k, title))
@@ -155,6 +170,7 @@ def do_kmeans(data, color_img, k_grps, output_dir, title, show=False):
 		ax1.axvline(x=silhouette_avg, color="red", linestyle="--")
 		ax1.set_yticks([])
 		ax1.set_xticks([-0.1, 0, 0.2, 0.4, 0.6, 0.8, 1])
+
 
 		plt.savefig(os.path.join(output_dir, "cluster {} silhouette {}".format(k, title)))
 		# plt.show()
@@ -171,6 +187,7 @@ def do_kmeans(data, color_img, k_grps, output_dir, title, show=False):
 
 if __name__=="__main__":
 	DEFAULT_MODEL="vgg16"
+	DEFAULT_K=[2,3,4,5,6,7,8]
 	#parsing parameters
 	parser = argparse.ArgumentParser(description="output the deep features of VGG16")
 	parser.add_argument("input", help="path of the file to open")
@@ -179,6 +196,7 @@ if __name__=="__main__":
 	parser.add_argument("-r", "--reduction", choices=["pca", "mds"], default=None, help="dimension reduction method to use")
 	parser.add_argument("-d", "--dim", type=int, default=None, help="number of dim for the PCA, default None performs no PCA")
 	parser.add_argument("-o", "--optional", help="add the model path here")
+	parser.add_argument("-k", "--klusters", nargs="+", type=int, default=DEFAULT_K, help="kernels to use for clusterisation, default {}".format(DEFAULT_K))
 	args = parser.parse_args()
 	n_pca=args.dim
 
@@ -201,18 +219,29 @@ if __name__=="__main__":
 		model = VGG16_Hybrid_1365(weights='places', include_top=True)
 		deep_features = get_df(model, test, layers_to_extract, args.output_dir)
 	elif args.model=="AEconvo":
-		layers_to_extract = ["max_pooling2d","max_pooling2d_1","max_pooling2d_2","last_pool_encoder"]
+		layers_to_extract = ["max_pooling2d","max_pooling2d_1","max_pooling2d_2","last_pool_encoder", "output_encoder"]
 		model = keras.models.load_model(args.optional, compile=False)
 		deep_features = get_AE_df(model, test, layers_to_extract, args.output_dir)
 
 	#add a concatenation of features
-	layers_to_extract.append("pool_12")
-	deep_features.append(np.concatenate([np.reshape(x, (x.shape[0], -1)) for x in deep_features[0:2]], axis=-1))
-	layers_to_extract.append("pool_23")
-	deep_features.append(np.concatenate([np.reshape(x, (x.shape[0], -1)) for x in deep_features[1:3]], axis=-1))
-	layers_to_extract.append("pool_123")
-	deep_features.append(np.concatenate([np.reshape(x, (x.shape[0], -1)) for x in deep_features[0:3]], axis=-1))
+	# layers_to_extract.append("01_pools")
+	# deep_features.append(np.concatenate([x for x in deep_features[0:2]], axis=-1))
+	# layers_to_extract.append("12_pools")
+	# deep_features.append(np.concatenate([x for x in deep_features[1:3]], axis=-1))
+	# layers_to_extract.append("012_pools")
+	# deep_features.append(np.concatenate([x for x in deep_features[0:3]], axis=-1))
+	# layers_to_extract.append("all_pools")
+	# deep_features.append(np.concatenate([x for x in deep_features[0:4]], axis=-1))
+	# layers_to_extract.append("23_pools")
+	# deep_features.append(np.concatenate([x for x in deep_features[2:4]], axis=-1))
 
+	#retrieve only all pools concatenated
+	deep_features=[np.concatenate([x for x in deep_features[2:4]], axis=-1)]
+	layers_to_extract = ["23_pools"]
+
+
+
+	deep_features = [normalize(df) for df in deep_features]
 	print([x.shape for x in deep_features])
 
 	title_end = ["","_{}{}".format(args.reduction,n_pca)][(n_pca is not None and args.reduction is not None)]
@@ -228,7 +257,7 @@ if __name__=="__main__":
 		#clusterize
 		title = "{}{}".format(name_layer, title_end)
 		color_img = np.load(os.path.splitext(args.input)[0] + "_color.npy")
-		do_kmeans(df, color_img, [2,3,4,5,6,7,8], args.output_dir, title=title, show=n_pca==3)
+		do_kmeans(df, color_img, args.klusters, args.output_dir, title=title, show=n_pca==3)
 
 
 	# df3 = np.concatenate((df1, df2), axis=-1)

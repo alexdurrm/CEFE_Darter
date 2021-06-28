@@ -303,3 +303,13 @@ def get_extreme_shape(list_img_path):
 		min_shape[0] = image.shape[0] if (image.shape[0]>min_shape[0] or not min_shape[0]) else max_shape[0]
 		min_shape[1] = image.shape[1] if (image.shape[1]>min_shape[1] or not min_shape[1]) else max_shape[1]
 	return min_shape, max_shape
+
+if __name__ == '__main__':
+	#parsing parameters
+	parser = argparse.ArgumentParser()
+	parser.add_argument("input_files", nargs="+", type=str, help="Files to join")
+	parser.add_argument("-o", "--output_dir", type=str, default=DIR_RESULTS, help="output directory, default: {}".format(DIR_RESULTS))
+	args = parser.parse_args()
+
+	merged_df = joinCSV(args.input_files)
+	merged_df.to_csv(os.path.join(args.output_dir, "merged.csv"))
