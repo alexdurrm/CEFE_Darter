@@ -12,6 +12,9 @@ import cv2
 def img_manip_decorator(function):
 	"""
 	function to visualize the manipulated image of the manipulation functions
+	also makes sure the input array corresponds to the correct expected dimensions (3 dims or a list of 3 dims)
+	and the output corresponds to an array of 3 dims (or a list of 3 dims arrays)
+	an optionnal argument "visu" can be set to true if we want to visualize the manipulation done
 	"""
 	def wrap(*args, **kwargs):
 		#take image and check its type and shape
@@ -67,7 +70,7 @@ def resize_img(image, new_shape=(None, None)):
 	if new_shape[0] or new_shape[1]:
 		rX = new_shape[0] if new_shape[0] else image.shape[0]
 		rY = new_shape[1] if new_shape[1] else image.shape[1]
-		image = cv2.resize(image, dsize=(rY, rX), interpolation=cv2.INTER_CUBIC)
+		image = cv2.resize(image, dsize=(rY, rX), interpolation=cv2.INTER_CUBIC)	#numpy and cv2 have inverted axes X and Y
 	return image
 
 @img_manip_decorator
@@ -84,7 +87,7 @@ def resize_img_to_fit(image, new_shape, keep_ratio):
 			new_shape = [round(image.shape[0]/image.shape[1]*new_shape[1]), new_shape[1]]
 		elif new_ratio > old_ratio:   #nouveau est plus horizontal on adapte le x
 			new_shape = [new_shape[0], round(image.shape[1]/image.shape[0]*new_shape[0])]
-	image = cv2.resize(image, dsize=(new_shape[1], new_shape[0]), interpolation=cv2.INTER_CUBIC)
+	image = cv2.resize(image, dsize=(new_shape[1], new_shape[0]), interpolation=cv2.INTER_CUBIC)	#numpy and cv2 have inverted axes X and Y
 	return image
 
 @img_manip_decorator
@@ -94,7 +97,7 @@ def standardize_img(image):
 	"""
 	image = ((image - np.min(image)) / (np.max(image) - np.min(image)))
 	assert np.max(image)<=1 and np.min(image)>=0, "bad normalization,{} {} instead of {} {}".format(np.min(image), np.max(image), mini, maxi)
-	return image
+	return image.astype("float32")
 
 @img_manip_decorator
 def normalize_img(image):
@@ -102,7 +105,7 @@ def normalize_img(image):
 	bring the distribution of the image to reach a mean of 0 and a standard deviation of 1
 	"""
 	image = (image - np.mean(image)) / np.std(image)	#image - np.mean(image, axis=(0,1))) / np.std(image, axis=(0,1)
-	return image
+	return image.astype("float32")
 
 @img_manip_decorator
 def rgb_2_darter(image):

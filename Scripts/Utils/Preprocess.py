@@ -11,7 +11,7 @@ from enum import Enum
 import sys
 new_path = os.path.dirname(os.path.realpath(__file__))
 if new_path not in sys.path:
-    sys.path.append(new_path)
+	sys.path.append(new_path)
 
 from ImageManip import *
 
@@ -74,8 +74,8 @@ class Preprocess:
 		Take an image as input and update the preprocessed image
 		also return the preprocessed image
 		'''
-		print(image_path)
 		image = imageio.imread(image_path)
+		print(image_path, image.dtype)
 		assert image.ndim==3 and image.shape[-1]==3, "wrong image dimension: {}".format(image.shape)
 		image = resize_img(image, [self.resizeX, self.resizeY])
 
@@ -92,7 +92,7 @@ class Preprocess:
 				image = image[:, :, self.img_channel.value]
 		elif self.img_type == IMG.RGB:                      #RGB
 			if self.img_channel == CHANNEL.GRAY:
-				image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+				image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
 			elif self.img_channel == CHANNEL.ALL:
 				image = image
 			else:
@@ -112,5 +112,43 @@ class Preprocess:
 		return self.df_parameters.copy()
 
 	def get_image(self):
-		print(self.image.dtype)
 		return self.image.copy()
+
+if __name__=='__main__':
+	#DEFAULT PARAMETERS
+	RESIZE=(None, None)
+	NORMALIZE=False
+	STANDARDIZE=False
+	IMG_TYPE=IMG.RGB
+	IMG_CHANNEL=CHANNEL.ALL
+	VERBOSE=1
+	OVERRIDE=True
+	#parsing parameters
+	parser = argparse.ArgumentParser(description="Preprocess an image, apply transformations on a given image")
+	parser.add_argument("input_path", help="path of the image to open")
+	parser.add_argument("-o", "--output_path", default=None, help="path of the image to save")
+	#parameters for preprocess
+	parser.add_argument("-r", "--resize", type=int, nargs=2, default=RESIZE, help="resize image to this value, default is {}".format(RESIZE))
+	parser.add_argument("-n", "--normalize", default=NORMALIZE, type=lambda x: bool(eval(x)), help="if image should be normalized, default: {}".format(NORMALIZE))
+	parser.add_argument("-s", "--standardize", default=STANDARDIZE, type=lambda x: bool(eval(x)), help="if image should be standardized, default: {}".format(STANDARDIZE))
+	parser.add_argument("-t", "--type_img", default=IMG_TYPE.name, type=lambda x: IMG[x], choices=list(IMG), help="the type of image needed, default: {}".format(IMG_TYPE))
+	parser.add_argument("-c", "--channel_img", default=IMG_CHANNEL.name, type=lambda x: CHANNEL[x], choices=list(CHANNEL), help="The channel used for the image, default: {}".format(IMG_CHANNEL))
+	parser.add_argument("-v", "--verbose", default=VERBOSE, type=int, choices=[0,1,2], help="set the level of visualization, default: {}".format(VERBOSE))
+	args = parser.parse_args()
+
+	params_preprocess={
+		"resize":args.resize,
+		"normalize":args.normalize,
+		"standardize":args.standardize,
+		"img_type":args.type_img,
+		"img_channel":args.channel_img
+	}
+	preprocess = Preprocess(**params_preprocess)
+	img_out = preprocess(args.input_path)
+	if args.verbose>=1:
+		if img_out.shape[-1]==2: img_out = img_out[...,0] + img_out[...,1]
+		plt.title("{}".format(params_preprocess.values()))
+		plt.imshow(img_out, cmap="gray")
+		plt.show()
+	if args.output_path:
+		imageio.imwrite(args.output_path, img_out)

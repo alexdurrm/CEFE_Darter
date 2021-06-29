@@ -110,7 +110,7 @@ for folder in folders:
 
             for i in range(n_samples):
                 sample_dim=fish_sample
-                sample_domain = np.subtract(img.shape[0:2], (sample_dim, sample_dim))       
+                sample_domain = np.subtract(img.shape[0:2], (sample_dim, sample_dim))
                 if sample_domain[0] == 0: sample_x = 0
                 else: sample_x = np.random.randint(0, sample_domain[0])
                 if sample_domain[1] == 0: sample_y = 0
@@ -132,14 +132,14 @@ for folder in folders:
                 hab_slopes.append(hab_means[habitats[folder]])
                 animal.append(animals[folder])
                 sites.append(image[-12:-8])
-    
+
 with open('./fishdevs600.csv', mode='w', newline='') as f:
     writer = csv.writer(f)
 
     writer.writerow(['animal', 'habitat', 'sex', 'devs', 'hab_slope', 'site'])
     for i in range(len(devs)):
         writer.writerow([species[i],
-            animal[i], 
+            animal[i],
             habitat[i],
             sexes[i],
             devs[i],

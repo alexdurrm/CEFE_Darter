@@ -146,6 +146,7 @@ class test_normalize_img(unittest.TestCase):
 			self.assertEqual(output.shape, image.shape)
 			self.assertAlmostEqual(np.mean(output), 0, places=3)
 			self.assertAlmostEqual(np.std(output), 1, places=3)
+			self.assertEqual(output.dtype, "float32")
 
 class test_rgb_2_darter(unittest.TestCase):
 	def test(self):
