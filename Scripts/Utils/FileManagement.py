@@ -291,19 +291,6 @@ def joinCSV(input_files):
 	merged_df.reset_index(inplace=True)
 	return merged_df
 
-def get_extreme_shape(list_img_path):
-	"""Given a list of image path, load them and find the minimum and maximum shapes"""
-	min_shape = (None, None)
-	max_shape = (None, None)
-	for img_path in list_img_path:
-		image = imageio.imread(image_path)
-		min_shape[0] = image.shape[0] if (image.shape[0]<min_shape[0] or not min_shape[0]) else min_shape[0]
-		min_shape[1] = image.shape[1] if (image.shape[1]<min_shape[1] or not min_shape[1]) else min_shape[1]
-
-		min_shape[0] = image.shape[0] if (image.shape[0]>min_shape[0] or not min_shape[0]) else max_shape[0]
-		min_shape[1] = image.shape[1] if (image.shape[1]>min_shape[1] or not min_shape[1]) else max_shape[1]
-	return min_shape, max_shape
-
 if __name__ == '__main__':
 	#parsing parameters
 	parser = argparse.ArgumentParser()

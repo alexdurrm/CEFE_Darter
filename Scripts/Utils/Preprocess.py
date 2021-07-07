@@ -18,12 +18,14 @@ from ImageManip import *
 
 #ENUMS
 class IMG(Enum):
+	DEFAULT=-1
 	RGB="rgb",
 	DARTER="darter"
 	def __str__(self):
 		return self.name
 
 class CHANNEL(Enum):
+	DEFAULT=-1
 	GRAY="gray"
 	C1=0    #R in RGB
 	C2=1    #G in RGB
@@ -69,37 +71,37 @@ class Preprocess:
 			COL_IMG_RESIZE_X:self.resizeX,
 			COL_IMG_RESIZE_Y:self.resizeY}, index=[0])
 
-	def __call__(self, image_path):
-		'''
+	def __call__(self, image_path):	## TODO: accept list of paths
+		'''## TODO: accept a numpy array
 		Take an image as input and update the preprocessed image
 		also return the preprocessed image
 		'''
 		image = imageio.imread(image_path)
 		print(image_path, image.dtype)
 		assert image.ndim==3 and image.shape[-1]==3, "wrong image dimension: {}".format(image.shape)
-		image = resize_img(image, [self.resizeX, self.resizeY])
+
+		if self.resizeX or self.resizeY:
+			image = resize_img(image, [self.resizeX, self.resizeY])
 
 		#convert the image type
 		if self.img_type == IMG.DARTER:                     #darter
 			image = rgb_2_darter(image)
 			if self.img_channel == CHANNEL.GRAY:
 				image = image[:, :, 0] + image[:, :, 1]
-			elif self.img_channel == CHANNEL.ALL:
-				image = image
 			elif self.img_channel == CHANNEL.C3:
 				raise ValueError("channel 3 and darter type are not compatible parameters")
-			else:
+			elif self.img_channel in [CHANNEL.C1, CHANNEL.C2]:
 				image = image[:, :, self.img_channel.value]
 		elif self.img_type == IMG.RGB:                      #RGB
 			if self.img_channel == CHANNEL.GRAY:
 				image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-			elif self.img_channel == CHANNEL.ALL:
-				image = image
-			else:
+			elif self.img_channel in [CHANNEL.C1, CHANNEL.C2, CHANNEL.C3]:
 				image = image[:, :, self.img_channel.value]
+		#ensure the image has 3 dimensions
 		image = image if image.ndim==3 else image[..., np.newaxis]
 		#normalize and standardize
 		if self.normalize:
+			print(image.dtype)
 			image = normalize_img(image)
 		if self.standardize:
 			image = standardize_img(image)
@@ -114,15 +116,15 @@ class Preprocess:
 	def get_image(self):
 		return self.image.copy()
 
+
 if __name__=='__main__':
 	#DEFAULT PARAMETERS
 	RESIZE=(None, None)
 	NORMALIZE=False
 	STANDARDIZE=False
-	IMG_TYPE=IMG.RGB
-	IMG_CHANNEL=CHANNEL.ALL
+	IMG_TYPE=IMG.DEFAULT
+	IMG_CHANNEL=CHANNEL.DEFAULT
 	VERBOSE=1
-	OVERRIDE=True
 	#parsing parameters
 	parser = argparse.ArgumentParser(description="Preprocess an image, apply transformations on a given image")
 	parser.add_argument("input_path", help="path of the image to open")

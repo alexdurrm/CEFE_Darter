@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 from Utils.ImageManip import fly_over_image, rgb_2_darter, standardize_img, normalize_img
 
-def preprocess_habitat_image(set_img, color_channels, visu=0):
+def preprocess_habitat_image(set_img, color_channels, visu=0):	## TODO: virer ca pour un Preprocess
 	"""
 	given an image and a specified number of color channels
 	return the transformed image

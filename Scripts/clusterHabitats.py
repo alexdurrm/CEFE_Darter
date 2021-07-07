@@ -16,15 +16,43 @@ from sklearn.manifold import MDS
 from Utils.Preprocess import *
 from Metrics.ImageMetrics import GramMatrix
 
-def save_grp_samples(images, groups, scores, output_dir=None, nsamples=20):
+def save_grp_samples(images, groups, scores, output_dir, nsamples=20, method="random", out_format=".jpg"):
+	"""
+	given images ,their group prediction and the score of their clustering
+	saves nsamples of the best image per group in the specified output directory
+	the method can be "best","worst",or "random" and defines the way we sample images
+	the out_format can be ".jpg" or ".npy" and is
+	"""
+	assert len(images)==len(groups) and len(groups)==len(scores), "images, groups, and scores should all be the same length"
+
+	#get list of group values and for each value sort image by best accuracy
 	groups_id = np.unique(groups)
 	for grp_id in groups_id:
 		values = [(x,y) for x, y in zip(images[groups==grp_id], scores[groups==grp_id])]
-		values.sort(key=lambda x:x[1], reverse=True)
-		choices = np.random.choice(len(values)//2+1, size=nsamples, replace=False) #randomly select between best values
-		for i, idx in enumerate(choices):
-			img, score = values[idx]
-			plt.imsave(os.path.join(output_dir,'grp{}_{}_{:.3f}.png'.format(grp_id, i, score)), img)
+		values.sort(key=lambda x:x[1], reverse=True) #sort best first
+		#select images index
+		sample_size = min(len(values),nsamples)	#if the group does not have enough images
+		if method=="random":
+			choices = np.random.choice(len(values), size=sample_size, replace=False)
+		elif method=="best":
+			choices = [i for i in range(sample_size)]
+		elif method=="worst":
+			choices = [i for i in range(len(values)-sample_size, len(values))]
+		else:
+			raise ValueError("invalid method {}".format(method))
+		#save images
+		if not os.path.isdir(output_dir):
+			os.makedirs(output_dir)
+		if out_format==".jpg":
+			for i, idx in enumerate(choices):
+				img, score = values[idx]
+				plt.imsave(os.path.join(output_dir, 'grp{}_{}_{:.3f}.png'.format(grp_id, i, score)), img)
+		elif out_format==".npy":
+			filename = "grp{}_{}{}_images.npy".format(grp_id, nsamples, method)
+			np.save(os.path.join(output_dir, filename), images[choices])
+		else:
+			raise ValueError("invalid format {}".format(format))
+
 
 def normalize(ldf):
 	assert ldf.ndim==2, "latent given should be 2dims, here {}".format(ldf.ndim)
@@ -125,7 +153,7 @@ def get_AE_df(model, test, list_layers, output_dir):
 	deep_features += get_df(model.decoder, test, list_layers, output_dir)
 	return deep_features
 
-def do_kmeans(data, color_img, k_grps, output_dir, title, show=False):
+def do_kmeans(data, img, color_img, k_grps, output_dir, title, palette_size, save_clusters, show3D=False):
 	list_avg=[]
 
 	for k in k_grps:
@@ -135,7 +163,7 @@ def do_kmeans(data, color_img, k_grps, output_dir, title, show=False):
 		cluster_labels = clusterer.fit_predict(data)
 		np.save(os.path.join(output_dir,"kpreds_{}_{}".format(k, title)), cluster_labels)
 
-		if show:
+		if show3D:
 			show_3D(data, groups=cluster_labels, title="{} PCA 3dim with {} clusters".format(title, k))
 
 
@@ -145,7 +173,22 @@ def do_kmeans(data, color_img, k_grps, output_dir, title, show=False):
 
 		sample_silhouette_values = silhouette_samples(data, cluster_labels)
 		show_by_class(color_img, groups=cluster_labels, scores=sample_silhouette_values, title="{}_{}clusters".format(title, k), output_dir=output_dir)
-		save_grp_samples(color_img, groups=cluster_labels, scores=sample_silhouette_values, output_dir=output_dir)
+
+		# save a palette of the n_to_save best clusturised colored images
+		palette_size=450-k*50 	#so 3k:300 , 6k:150
+		if palette_size:
+			save_grp_samples(color_img, cluster_labels, sample_silhouette_values,
+							output_dir=os.path.join(output_dir, "Palette_{}_{}clusters".format(title, k)),
+							nsamples=palette_size,
+							method="best", out_format=".jpg")
+		# save a numpy array of the n_to_save best clusterised colored images
+		if save_clusters:
+			save_grp_samples(img, cluster_labels, sample_silhouette_values,
+							output_dir=os.path.join(output_dir, "Palette_{}_{}clusters".format(title, k)),
+							nsamples=palette_size,
+							method="best", out_format=".npy")
+
+		#plot silhouettes
 		y_lower = 10
 		fig, ax1 = plt.subplots(1,1)
 		ax1.set_xlim([-0.1, 1])
@@ -197,6 +240,9 @@ if __name__=="__main__":
 	parser.add_argument("-d", "--dim", type=int, default=None, help="number of dim for the PCA, default None performs no PCA")
 	parser.add_argument("-o", "--optional", help="add the model path here")
 	parser.add_argument("-k", "--klusters", nargs="+", type=int, default=DEFAULT_K, help="kernels to use for clusterisation, default {}".format(DEFAULT_K))
+	parser.add_argument("-p", "--palette_size", type=int, default=0, help="number of images to save in a palette")
+	parser.add_argument("--save_clusters", default=False, action="store_true", help="add this argument if you want to save a numpy of the predicted clusters")
+
 	args = parser.parse_args()
 	n_pca=args.dim
 
@@ -219,25 +265,29 @@ if __name__=="__main__":
 		model = VGG16_Hybrid_1365(weights='places', include_top=True)
 		deep_features = get_df(model, test, layers_to_extract, args.output_dir)
 	elif args.model=="AEconvo":
-		layers_to_extract = ["max_pooling2d","max_pooling2d_1","max_pooling2d_2","last_pool_encoder", "output_encoder"]
+		layers_to_extract = ["max_pooling2d","max_pooling2d_1","max_pooling2d_2","last_pool_encoder"]#, "output_encoder"]
 		model = keras.models.load_model(args.optional, compile=False)
 		deep_features = get_AE_df(model, test, layers_to_extract, args.output_dir)
 
 	#add a concatenation of features
 	# layers_to_extract.append("01_pools")
 	# deep_features.append(np.concatenate([x for x in deep_features[0:2]], axis=-1))
+
 	# layers_to_extract.append("12_pools")
 	# deep_features.append(np.concatenate([x for x in deep_features[1:3]], axis=-1))
+
 	# layers_to_extract.append("012_pools")
 	# deep_features.append(np.concatenate([x for x in deep_features[0:3]], axis=-1))
+
 	# layers_to_extract.append("all_pools")
 	# deep_features.append(np.concatenate([x for x in deep_features[0:4]], axis=-1))
-	# layers_to_extract.append("23_pools")
-	# deep_features.append(np.concatenate([x for x in deep_features[2:4]], axis=-1))
+
+	layers_to_extract.append("23_pools")
+	deep_features.append(np.concatenate([x for x in deep_features[2:4]], axis=-1))
 
 	#retrieve only all pools concatenated
-	deep_features=[np.concatenate([x for x in deep_features[2:4]], axis=-1)]
-	layers_to_extract = ["23_pools"]
+	# deep_features=[np.concatenate([x for x in deep_features[2:4]], axis=-1)]
+	# layers_to_extract = ["23_pools"]
 
 
 
@@ -256,8 +306,8 @@ if __name__=="__main__":
 
 		#clusterize
 		title = "{}{}".format(name_layer, title_end)
-		color_img = np.load(os.path.splitext(args.input)[0] + "_color.npy")
-		do_kmeans(df, color_img, args.klusters, args.output_dir, title=title, show=n_pca==3)
+		color_img = np.load(os.path.join(os.path.dirname(args.input) , "color_reference.npy"))
+		do_kmeans(df, test, color_img, args.klusters, args.output_dir, title=title, palette_size=args.palette_size, save_clusters=args.save_clusters ,show3D=n_pca==3)
 
 
 	# df3 = np.concatenate((df1, df2), axis=-1)

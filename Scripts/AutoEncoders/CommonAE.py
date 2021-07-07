@@ -65,7 +65,7 @@ class SaveActivations(Callback):
 													round(np.min(activation),3),
 													round(np.max(activation),3)))
 		plt.tight_layout()
-		plt.savefig(os.path.join(self.saving_dir, "layer_activations_epoch{}".format(epoch)))
+		plt.savefig(os.path.join(self.saving_dir, "layer_activations_epoch{}.jpg".format(epoch)))
 		# plt.show()
 		plt.close()
 
@@ -86,7 +86,7 @@ class SaveSampling(Callback):
 			visu_sample = samples[i] if samples[i].shape[-1]!=2 else samples[i,...,0]+samples[i,...,1]
 			axs[i].imshow(visu_sample, cmap='gray')
 			axs[i].set_title("sample {}".format(i))
-		plt.savefig(os.path.join(self.saving_dir, "{} sampling".format(self.model.name)))
+		plt.savefig(os.path.join(self.saving_dir, "{} sampling.jpg".format(self.model.name)))
 		#plt.show()
 		plt.close()
 
@@ -107,7 +107,7 @@ def show_predictions(sample_test, prediction, n, title, saving_dir=None):
 		axs[1][i].imshow(visu_pred, cmap='gray')
 		axs[1][i].set_title("reconstructed {}".format(i))
 	if saving_dir:
-		plt.savefig(os.path.join(saving_dir, title))
+		plt.savefig(os.path.join(saving_dir, title)+".jpg")
 	# plt.show()
 	plt.close()
 
@@ -118,7 +118,7 @@ def plot_training_losses(losses, val_losses, title="losses train and test", save
 	ax.plot(val_losses, label="validation loss")
 	plt.legend()
 	if save_path:
-		plt.savefig(save_path)
+		plt.savefig(save_path+".jpg")
 	#plt.show()
 	plt.close()
 
@@ -136,7 +136,7 @@ def plot_loss_per_ld(best_losses, best_val_losses, list_LD, title="", save_path=
 	axs[1][0].set_xlabel("latent_dim")
 
 	if save_path:
-		plt.savefig(save_path)
+		plt.savefig(save_path+".jpg")
 	#plt.show()
 	plt.close()
 

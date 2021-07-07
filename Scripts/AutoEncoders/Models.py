@@ -6,6 +6,8 @@ from tensorflow.keras.layers import Conv2D, MaxPool2D, Softmax, Dense, Flatten, 
 import argparse
 import numpy as np
 
+tf.random.set_seed(500)
+
 from CommonAE import *
 
 
@@ -231,7 +233,7 @@ class VGG16AE(Model):
 #
 #####################################################################################
 
-def load_model(model_type, model_name, pred_shape, latent_dim, loss ):
+def load_model(model_type, model_name, pred_shape, latent_dim, loss):
 	K.backend.clear_session()
 
 	print(model_type)
@@ -259,10 +261,20 @@ def get_callbacks(model_type, test, output_dir, verbosity):
 	callbacks = [K.callbacks.EarlyStopping(monitor='val_loss', patience=6),
 				K.callbacks.EarlyStopping(monitor='loss', patience=6),
 				SavePredictionSample(n_samples=verbosity, val_data=test[0:5*20:5], saving_dir=output_dir),
-				SaveActivations(val_img=test[0], saving_dir=output_dir)]
+				# SaveActivations(val_img=test[0], saving_dir=output_dir)
+				]
 	if model_type=="variational_AE":
 		callbacks.append(SaveSampling(test.shape[1:], n_samples=verbosity, saving_dir=output_dir))
 	return callbacks
+
+def get_augmentation(output_shape):
+	return K.Sequential([
+		K.layers.experimental.preprocessing.RandomTranslation(height_factor=(-0.1, 0.1), width_factor=(-0.1, 0.1)),
+		K.layers.experimental.preprocessing.RandomRotation(0.2),
+		K.layers.experimental.preprocessing.RandomFlip(mode="horizontal"),
+		K.layers.experimental.preprocessing.RandomCrop(height=output_shape[0]//2 , width=output_shape[1]//2),
+		K.layers.experimental.preprocessing.Resizing(*output_shape)
+		], name="data_augmentation")
 
 def train_model(model, train, test, epochs, batch_size, callbacks=[], output_dir=None):
 	if not os.path.exists(output_dir):
@@ -343,6 +355,10 @@ def main(args):
 		print(res)
 	else:
 		train = np.load(args.path_train)
+		if args.data_augment:
+			aug = get_augmentation(train.shape[1:-1])
+			train = aug(train)
+
 		assert train.shape[1:]==test.shape[1:], "train and test should contain images of similar shape, here {} and {}".format(train.shape[1:], test.shape[1:])
 		try:
 			_, dataset_descriptor, *_ = os.path.split(args.path_train)[-1].split('_') #get the descriptor of the dataset
@@ -372,6 +388,7 @@ if __name__=="__main__":
 	parser.add_argument("path_test", help="path of the testing dataset to use")
 	parser.add_argument("--loss", type=str, choices=['mse', 'ssim'], default=LOSS, help="network loss, default {}".format(LOSS))
 	parser.add_argument("--output_dir", default=DIR_SAVED_MODELS, help="path where to save the trained network, default {}".format(DIR_SAVED_MODELS))
+	parser.add_argument("--data_augment", action='store_true', default=False, help="option to use in-training data augmentation, default to False")
 	parser.add_argument("-n", "--name", type=str, default=None, help="network name, default {}".format(None))
 	parser.add_argument("-v", "--verbose", default=VERBOSE, type=int, help="set verbosity, default: {}".format(VERBOSE))
 	subparsers = parser.add_subparsers(title="command", dest="command", help='action to perform')
