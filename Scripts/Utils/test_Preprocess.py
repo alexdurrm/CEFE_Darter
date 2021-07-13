@@ -5,7 +5,11 @@ import imageio
 
 from Preprocess import *
 
-PATH_TEST="15161img_test.png"
+PATH_TEST="15161img_test.jpg"
+
+class test_list_images(unittest.TestCase):
+    def test(self):
+        pass    ## TODO: test lists of images, numpy and path
 
 class test_wrong_img(unittest.TestCase):
     def test(self):

@@ -8,6 +8,7 @@ import os
 import rawpy as rp
 import imageio
 
+from Utils.Preprocess import *
 from Utils.FileManagement import COL_IMG_PATH
 
 FORMATS_IN = [".jpg", ".npy", ".tiff", ".tif", ".CR2"]
@@ -39,16 +40,14 @@ def get_paths(input, expected_img_ext, force=False):
 	return list_paths
 
 
-def transform_images(preprocessor, list_paths):
-	for p in list_paths:
-		img = preprocessor(p)
 
-def save_data(data, output_path, out_format):
+def save_data(data, output_path, out_format, orginal_names=None):
 	if out_format==".npy":
 		np.save(output_path, data)
 		print("Saved at {}".format(output_path))
 	elif out_format in (".tif", ".tiff", ".jpg"):
-		for img in data:
+		for idx, img in enumerate(data):
+			img_name = os.path.splitext(original_names[idx])[0] if original_names else str(idx)
 			imageio.imwrite(os.path.join(output_path, img_name)+out_format, data)
 
 def open_data(input):
@@ -65,7 +64,7 @@ def open_data(input):
 def check_shapes(list_paths, policy="strict"):
 	"""
 	check all images are of the same shape,
-	if not
+	if not apply a policy and return a shape
 	"""
 	ref_shape = open_img(list_paths[0]).shape
 	for path in list_paths[1:]:
@@ -81,6 +80,38 @@ def check_shapes(list_paths, policy="strict"):
 			raise ValueError("{} {} does not have the same number of channels as the other images: {}".format(path, shape, ref_shape))
 	return ref_shape[:-1]	#return new width and height
 
+def get_agg_numpies(list_paths):
+	"""
+	given a list of numpy arrays to load, aggregate them and return a numpy array
+	"""
+	data = np.load(list_paths[0])
+	assert data.ndim==3 or data.ndim==4, "{} is not of the right dimension, expected 3D or 4D, got {}".format(list_paths[0], data.ndim)
+	for path in list_paths[1:]:
+		if data.ndim<4:
+			data = np.expand_dims(data, 0)
+		data = np.concatenate((data, np.load(path)), axis=0)
+	return data
+
+def main(args):
+	#get a list of path to load
+	prep_input = get_paths(args.input, args.input_format, force=args.force)
+	if prep_input:
+		#if is a numpy format load and aggregate them in a 4D array
+		if args.input_format==".npy":
+			prep_input = get_agg_numpies(prep_input)
+		#preprocess inputs
+		preprocessor = Preprocess(resize, args.normalize, args.standardize, args.type_img, args.channel_img)
+		prep_images = preprocessor(prep_input)
+		#augment
+		## TODO: AUGMENTATION
+		#save prep_images
+		save_data(preped_image, args.output, args.out_format)
+
+
+	else:
+		print("no valid path found")
+
+
 if __name__=='__main__':
 	RESIZE=(None, None)
 	NORMALIZE=False
@@ -93,11 +124,12 @@ if __name__=='__main__':
 	#input params
 	parser.add_argument("input", help="images to modify, can be the path of a .csv file containing a list of filepath under the column name \"{}\", regular expression (between quotes), or path".format(COL_IMG_PATH))
 	parser.add_argument("input_format", choices=FORMATS_IN, help="the format of your input images, can be one of the supported formats: {}".format(FORMATS_IN))
-	parser.add_argument("-f", "--force", action="store_true", default=False, help="if some of the given path are invalid, just ignore them and do not throw an exception")
-	parser.add_argument("--resize-policy", default="strict", choices=["strict", "minimum", "maximum"], help="if images are of different sizes what policy should we adopt, strict fail, minimum takes the minimum shape, maximum takes the maximum shape")
 	#output params
 	parser.add_argument("output", help="path of the directory (if output_format is .jpg, .tiff ou .tif) or the file where to store the result (if output_format is .npy)")
 	parser.add_argument("output_format", choices=FORMATS_OUT, help="the format of your output images, can be one of the supported formats: {}. !!!.npy requires all the images to be the same shape or to set a reshape parameter!!!".format(FORMATS_OUT))
+	#other parameters
+	parser.add_argument("-f", "--force", action="store_true", default=False, help="if some of the given path are invalid, just ignore them and do not throw an exception")
+	parser.add_argument("--resize-policy", default="strict", choices=["strict", "minimum", "maximum"], help="if images are of different sizes what policy should we adopt, strict fails, minimum takes the minimum shape, maximum takes the maximum shape")
 	#Preprocessing
 	parser.add_argument("-r", "--resize", type=int, nargs=2, default=RESIZE, help="resize image to this value, default is {}".format(RESIZE))
 	parser.add_argument("-n", "--normalize", default=NORMALIZE, type=lambda x: bool(eval(x)), help="if image should be normalized, default: {}".format(NORMALIZE))
@@ -108,22 +140,7 @@ if __name__=='__main__':
 	#augmentation
 	parser.add_argument("--add-H-sym", default=False, action="store_true", help="add Horizontal symmetric images to the output data")
 	parser.add_argument("--crop-levels", default=0, type=int, choices=[1,2,3], help="augment the images with cropings, of the original image, 1 is no augmentation, 2 adds 4(2*2) quarter images, 3 adds 20=(4+16(2*2+4*4)) heights of the original image")
-	parser.add_argument()
 
 	args = parser.parse_args()
 
-	list_paths = load_paths(args.input)
-	if not list_paths:
-		print("no valid path found")
-	else:
-		if args.input_format==".npy":
-			pipeline_numpy(list_paths) ## TODO: numpy pipeline
-		else:
-			#si output est .npy verif que les images ont la meme shape ou qu'il y a un param reshape
-			resize = args.resize
-			if args.output_format==".npy" and not(args.resize[0] and args.resize[1]):
-				resize = check_shapes(list_paths)	## TODO:  definir dans quel cas on peut choisir une nouvelle shape
-
-			#prepare preprocessing of the image and tranform them
-			preprocessor = Preprocess(resize, args.normalize, args.standardize, args.type_img, args.channel_img)
-			images = transform_images(preprocessor, list_paths, args.output, args.output_format)
+	main(args)

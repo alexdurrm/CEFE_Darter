@@ -46,10 +46,11 @@ def save_grp_samples(images, groups, scores, output_dir, nsamples=20, method="ra
 		if out_format==".jpg":
 			for i, idx in enumerate(choices):
 				img, score = values[idx]
-				plt.imsave(os.path.join(output_dir, 'grp{}_{}_{:.3f}.png'.format(grp_id, i, score)), img)
+				plt.imsave(os.path.join(output_dir, 'grp{}_{}_{:.3f}.jpg'.format(grp_id, i, score)), img)
 		elif out_format==".npy":
 			filename = "grp{}_{}{}_images.npy".format(grp_id, nsamples, method)
-			np.save(os.path.join(output_dir, filename), images[choices])
+			data = np.array([values[c][0] for c in choices])
+			np.save(os.path.join(output_dir, filename), data)
 		else:
 			raise ValueError("invalid format {}".format(format))
 
@@ -232,8 +233,8 @@ if __name__=="__main__":
 	DEFAULT_MODEL="vgg16"
 	DEFAULT_K=[2,3,4,5,6,7,8]
 	#parsing parameters
-	parser = argparse.ArgumentParser(description="output the deep features of VGG16")
-	parser.add_argument("input", help="path of the file to open")
+	parser = argparse.ArgumentParser(description="Clusterize given numpy images using network deep features and k means")
+	parser.add_argument("input", help="path of the file to open (.npy)")
 	parser.add_argument("output_dir", help="path of the file to save")
 	parser.add_argument("-m", "--model", choices=["vgg16", "places", "hybrid", "AEconvo"], default=DEFAULT_MODEL, help="network model to use")
 	parser.add_argument("-r", "--reduction", choices=["pca", "mds"], default=None, help="dimension reduction method to use")

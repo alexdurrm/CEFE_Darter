@@ -100,7 +100,7 @@ def standardize_img(image):
 	else:
 		image = ((image - np.min(image)) / (np.max(image) - np.min(image)))
 	assert np.max(image)<=1 and np.min(image)>=0, "bad normalization,{} {} instead of {} {}".format(np.min(image), np.max(image), mini, maxi)
-	return image#.astype("float32")
+	return image.astype("float32")
 
 @img_manip_decorator
 def normalize_img(image):

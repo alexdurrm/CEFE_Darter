@@ -16,7 +16,7 @@ def get_L0(vector):
 	return 1- np.count_nonzero(vector)/vector.size
 
 def get_SSIM(img1, img2):
-	return ssim(img1, img2, multichannel=(img1.ndim==3 and img1.shape[-1]!=1))
+	return ssim(img1, img2, multichannel=(img1.ndim==3))
 
 def get_gini(array, visu=False):
 	'''

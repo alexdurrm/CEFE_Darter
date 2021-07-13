@@ -12,6 +12,7 @@ DIR_ORIGINAL_FISHES=["FISH_images"]
 DIR_ORIGINAL_HABITATS=["HABITAT_images"]
 DIR_POISSONS=["Poissons/JPEG Cropped"]
 DIR_SAMUEL=["crops", "Crops"]
+DIR_PALETTES=["Palette"]
 DIR_IGNORED=[]
 
 
@@ -128,6 +129,9 @@ def load_info_from_filepath(file_path):
 		dict_info[COL_SPECIES] = specie
 		dict_info[COL_HABITAT] = DICT_HABITAT.get(specie, "not_listed")
 		dict_info[COL_TYPE] = FILE_TYPE.ORIG_FISH.value
+	elif [p in head for p in DIR_PALETTES]:
+		dict_info[COL_HABITAT] = filename.split("_")[0]
+		dict_info[COL_TYPE] = FILE_TYPE.HABITAT.value
 	else:
 		dict_info[COL_TYPE] = FILE_TYPE.ELSE.value
 	return dict_info

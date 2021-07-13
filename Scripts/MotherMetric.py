@@ -140,6 +140,8 @@ COL_MODEL_NAME_AE="autoencoder_name"
 COL_MSE_AE="mse_prediction"
 COL_SSIM_AE="ssim_prediction"
 
+COL_LAYER_IDX="layer_idx"
+
 COL_GINI_ACTIVATION_AE="gini_activation_layer"
 COL_KURTO_ACTIVATION_AE="kurtois_activation_layer"
 COL_ENTRO_ACTIVATION_AE="entropy_activation_layer"
@@ -160,15 +162,25 @@ class AutoencoderMetrics(MotherMetric):
 
 		test = image[np.newaxis, ...]
 		prediction = self.model.predict(test)[0]
-		df.loc[0, [COL_MODEL_NAME, COL_MSE_AE, COL_SSIM_AE]] = [self.model.name, get_MSE(image, prediction), get_SSIM(image, prediction)]
 		deep_features = get_deep_features(self.model.encoder, test)
 
+		# df.loc[0, [COL_MODEL_NAME, COL_MSE_AE, COL_SSIM_AE]] = [self.model.name, get_MSE(image, prediction), get_SSIM(image, prediction)]
 		for i, layer in enumerate(deep_features):
-			df.loc[0, COL_GINI_ACTIVATION_AE+"_"+str(i)] = get_gini(layer)
-			df.loc[0, COL_KURTO_ACTIVATION_AE+"_"+str(i)] = kurtosis(layer, axis=None)
-			df.loc[0, COL_ENTRO_ACTIVATION_AE+"_"+str(i)] = entropy(layer, axis=None)
-			df.loc[0, COL_MEAN_ACTIVATION_AE+"_"+str(i)] = np.mean(layer, axis=None)
-			df.loc[0, COL_L0_ACTIVATION_AE+"_"+str(i)] = get_L0(layer)
+			#more suited for tests
+			# df.loc[0, COL_GINI_ACTIVATION_AE+"_"+str(i)] = get_gini(layer)
+			# df.loc[0, COL_KURTO_ACTIVATION_AE+"_"+str(i)] = kurtosis(layer, axis=None)
+			# df.loc[0, COL_ENTRO_ACTIVATION_AE+"_"+str(i)] = entropy(layer, axis=None)
+			# df.loc[0, COL_MEAN_ACTIVATION_AE+"_"+str(i)] = np.mean(layer, axis=None)
+			# df.loc[0, COL_L0_ACTIVATION_AE+"_"+str(i)] = get_L0(layer)
+
+			#more suited for quick seaborn plots
+			df.loc[i, [COL_MODEL_NAME, COL_MSE_AE, COL_SSIM_AE]] = [self.model.name, get_MSE(image, prediction), get_SSIM(image, prediction)]
+			df.loc[i, COL_LAYER_IDX] = i
+			df.loc[i, COL_GINI_ACTIVATION_AE] = get_gini(layer)
+			df.loc[i, COL_KURTO_ACTIVATION_AE] = kurtosis(layer, axis=None)
+			df.loc[i, COL_ENTRO_ACTIVATION_AE] = entropy(layer, axis=None)
+			df.loc[i, COL_MEAN_ACTIVATION_AE] = np.mean(layer, axis=None)
+			df.loc[i, COL_L0_ACTIVATION_AE] = get_L0(layer)
 		return df
 
 ###############################################################################
@@ -193,6 +205,7 @@ class DeepFeatureMetrics(MotherMetric):
 	"""
 	def __init__(self, base_model, input_shape, *args, **kwargs):
 		import tensorflow.keras as K
+		#load the base model
 		if base_model == "vgg16":
 			from tensorflow.keras.applications.vgg16 import VGG16
 			self.base_model = VGG16(weights='imagenet', include_top=False)
@@ -201,6 +214,7 @@ class DeepFeatureMetrics(MotherMetric):
 			self.base_model = VGG19(weights='imagenet', include_top=False)
 		else:
 			raise ValueError("base_model should be vgg16 or vgg19")
+		#prepare a model that outputs deep features of the base model
 		self.input_shape = input_shape
 		input_tensor = K.Input(shape=self.input_shape)
 		self.base_model.layers[0] = input_tensor

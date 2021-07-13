@@ -71,18 +71,26 @@ class Preprocess:
 			COL_IMG_RESIZE_X:self.resizeX,
 			COL_IMG_RESIZE_Y:self.resizeY}, index=[0])
 
-	def __call__(self, image_path):	## TODO: accept list of paths
-		'''## TODO: accept a numpy array
-		Take an image as input and update the preprocessed image
-		also return the preprocessed image
-		'''
-		image = imageio.imread(image_path)
-		print(image_path, image.dtype)
+	def do_preprocess(self, input):
+		"""
+		given an image as a numpy array or as a string path,
+		load it if needed and use the parameters of the class
+		to preprocess the image
+		"""
+		#load image if needed and check for expected type
+		if isinstance(input, str):
+			image = imageio.imread(input)
+			print(input, image.shape, image.dtype)
+		elif isinstance(input, np.ndarray):
+			image = input
+			print("numpy img:", image.shape, image.dtype)
+		else:
+			raise TypeError("Given type {}, expected type str or np.ndarray".format(type(input)))
 		assert image.ndim==3 and image.shape[-1]==3, "wrong image dimension: {}".format(image.shape)
 
+		#start preprocessing with a resize
 		if self.resizeX or self.resizeY:
 			image = resize_img(image, [self.resizeX, self.resizeY])
-
 		#convert the image type
 		if self.img_type == IMG.DARTER:                     #darter
 			image = rgb_2_darter(image)
@@ -101,14 +109,40 @@ class Preprocess:
 		image = image if image.ndim==3 else image[..., np.newaxis]
 		#normalize and standardize
 		if self.normalize:
-			print(image.dtype)
+			print("Preprocessed ", image.shape, image.dtype)
 			image = normalize_img(image)
 		if self.standardize:
 			image = standardize_img(image)
-		#store parameters and image
-		self.df_parameters.loc[0, COL_IMG_PATH] = image_path
-		self.image = image
-		return image.copy()
+		return image
+
+	def preprocess_list_img(self, img_list):	## TODO: prallelize?
+		"""
+		preprocess a list of images (can be list of path or of numpy arrays)
+		returns a list of preprocessed images
+		"""
+		new_list = []
+		for img in img_list:
+			new_list += [do_preprocess(img)]
+		return new_list
+
+	def __call__(self, input, numpy_name=""):
+		'''
+		Take an image or an image path as input and update the preprocessed image
+		img_p:can be string or numpy array
+		numpy_name:name to store if img_p is a numpy array
+		also return the preprocessed image
+		'''
+		#if list of images
+		if isinstance(input, list) or (isinstance(input, np.ndarray) and input.ndim==4):
+			res = preprocess_list_img(input)
+			self.image=None
+			self.df_parameters.loc[0, COL_IMG_PATH] = ""
+		else:
+			#store parameters and image
+			res = self.do_preprocess(input)
+			self.image = res.copy()
+			self.df_parameters.loc[0, COL_IMG_PATH] = input if isinstance(input, str) else numpy_name
+		return res
 
 	def get_params(self):
 		return self.df_parameters.copy()
