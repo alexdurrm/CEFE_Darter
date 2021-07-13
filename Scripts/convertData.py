@@ -5,7 +5,6 @@ import argparse
 from glob import glob
 import os
 
-import rawpy as rp
 import imageio
 
 from Utils.Preprocess import *
@@ -13,6 +12,7 @@ from Utils.FileManagement import COL_IMG_PATH
 
 FORMATS_IN = [".jpg", ".npy", ".tiff", ".tif", ".CR2"]
 FORMATS_OUT = [".jpg", ".npy", ".tiff", ".tif"]
+
 
 
 def get_paths(input, expected_img_ext, force=False):
