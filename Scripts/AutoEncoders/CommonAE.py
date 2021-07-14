@@ -4,101 +4,150 @@ from tensorflow.keras.callbacks import Callback
 import tensorflow as tf
 import numpy as np
 
+###################################################################################################
+#
+#	Store utility functions common to the autoencoders in Models, like callbacks, losses, ...
+#
+###################################################################################################
+
+########################################
+#
+#				CALLBACKS
+#
+########################################
 class SavePredictionSample(Callback):
-	def __init__(self, n_samples, val_data, saving_dir):
+	def __init__(self, sample, saving_dir, verbosity=0):
 		super().__init__()
-		self.n_samples=n_samples
-		self.validation_data = val_data
+		self.sample = sample
 		self.saving_dir = saving_dir
+		self.verbosity = verbosity
 
 	def on_epoch_end(self, epoch, logs=None):
-		outputs = self.model.predict(self.validation_data)
-		title = "reconstructions epoch {} model {}".format(epoch, self.model.name)
-		show_predictions(self.validation_data, outputs, self.n_samples, title, self.saving_dir)
+		model = self.model.layers[-1]	#retrieve the autoencoder from the wrapper model
+		outputs = model.predict(self.sample)
+		title = "reconstructions epoch {} model {}".format(epoch, model.name)
+		show_predictions(self.sample, outputs, title, self.saving_dir, self.verbosity-1)
 
-class SaveActivations(Callback):
-	def __init__(self, val_img, saving_dir):
-		super().__init__()
-		self.saving_dir = saving_dir
-		self.validation_img = val_img
 
-	def on_epoch_end(self, epoch, logs=None):
-		if epoch%10!=0:
-			return
-		n_encoder_layers = len(self.model.encoder.layers)
-		n_decoder_layers = len(self.model.decoder.layers)
+# class SaveActivations(Callback):
+# 	def __init__(self, val_img, saving_dir, verbose=0):
+# 		super().__init__()
+# 		self.saving_dir = saving_dir
+# 		self.validation_img = val_img
 
-		activations = [self.validation_img[np.newaxis,...]]
-		layer_names = ["input"]
+# 	def on_epoch_end(self, epoch, logs=None):
+# 		model = self.model.layers[-1]	#retrieve the autoencoder from the wrapper model
+# 		model.compile("Adam","mse")
+# 		print(model.summary())
+# 		if epoch%10!=0:
+# 			return
+# 		n_encoder_layers = len(model.encoder.layers)
+# 		n_decoder_layers = len(model.decoder.layers)
 
-		print(self.model.encoder.summary())
-		for i in range(n_encoder_layers):
-			activations.append( tf.keras.backend.function([self.model.encoder.layers[i].input], self.model.encoder.layers[i].output)([activations[-1], 1]) )
-			layer_names.append(self.model.encoder.layers[i].name)
+# 		activations = [self.validation_img[np.newaxis,...]]
+# 		layer_names = ["input"]
 
-		print(self.model.decoder.summary())
-		for i in range(n_decoder_layers):
-			activations.append( tf.keras.backend.function([self.model.decoder.layers[i].input], self.model.decoder.layers[i].output)([activations[-1], 1]) )
-			layer_names.append(self.model.decoder.layers[i].name)
+# 		print(model.encoder.summary())
+# 		for i in range(n_encoder_layers):
+# 			print(model.encoder.layers[i])
+# 			activations.append( tf.keras.backend.function([model.encoder.layers[i].input], model.encoder.layers[i].output)([activations[-1], 1]) )
+# 			layer_names.append(model.encoder.layers[i].name)
 
-		fig = plt.figure(figsize=(24, 18), dpi=100)
-		fig.suptitle("mean activations per layers")
-		col=5
-		n_layers = len(activations)
-		for idx in range(n_layers):
-			activation = np.mean(activations[idx], axis=0)	#remove batch dim
-			if activation.ndim==3:	#if a conv layer
-				if activation.shape[-1]!=1 and activation.shape[-1]!=3:
-					activation = np.mean(activation, axis=(-1))[..., np.newaxis]
-				ax = plt.subplot(n_layers//col+1, col, idx+1)
-				ax.imshow(activation, cmap="hot")
-				ax.set_title("n:{} m:{:.3f} M:{:.3f} \ns:{}".format(
-													layer_names[idx],
-													round(np.min(activation),3),
-													round(np.max(activation),3),
-													activations[idx].shape))
-			else: #if another layer
-				ax = plt.subplot(n_layers//col+1, col, idx+1)
-				ax.bar(range(activation.size), activation.flatten())
-				ax.set_title("n:{} m:{:.3f} M:{:.3f}".format(
-													layer_names[idx],
-													round(np.min(activation),3),
-													round(np.max(activation),3)))
-		plt.tight_layout()
-		plt.savefig(os.path.join(self.saving_dir, "layer_activations_epoch{}.jpg".format(epoch)))
-		# plt.show()
-		plt.close()
+# 		print(model.decoder.summary())
+# 		for i in range(n_decoder_layers):
+# 			activations.append( tf.keras.backend.function([model.decoder.layers[i].input], model.decoder.layers[i].output)([activations[-1], 1]) )
+# 			layer_names.append(model.decoder.layers[i].name)
+
+# 		fig = plt.figure(figsize=(24, 18), dpi=100)
+# 		fig.suptitle("mean activations per layers")
+# 		col=5
+# 		n_layers = len(activations)
+# 		for idx in range(n_layers):
+# 			activation = np.mean(activations[idx], axis=0)	#remove batch dim
+# 			if activation.ndim==3:	#if a conv layer
+# 				if activation.shape[-1]!=1 and activation.shape[-1]!=3:
+# 					activation = np.mean(activation, axis=(-1))[..., np.newaxis]
+# 				ax = plt.subplot(n_layers//col+1, col, idx+1)
+# 				ax.imshow(activation, cmap="hot")
+# 				ax.set_title("n:{} m:{:.3f} M:{:.3f} \ns:{}".format(
+# 													layer_names[idx],
+# 													round(np.min(activation),3),
+# 													round(np.max(activation),3),
+# 													activations[idx].shape))
+# 			else: #if another layer
+# 				ax = plt.subplot(n_layers//col+1, col, idx+1)
+# 				ax.bar(range(activation.size), activation.flatten())
+# 				ax.set_title("n:{} m:{:.3f} M:{:.3f}".format(
+# 													layer_names[idx],
+# 													round(np.min(activation),3),
+# 													round(np.max(activation),3)))
+# 		plt.tight_layout()
+# 		plt.savefig(os.path.join(self.saving_dir, "layer_activations_epoch{}.jpg".format(epoch)))
+# 		if verbose>=1:
+# 			plt.show()
+# 		plt.close()
 
 
 class SaveSampling(Callback):
-	def __init__(self, prediction_shape, n_samples, saving_dir):
+	"""
+	callback for a variationnal autoencoder that saves a sampling of generated images
+	"""
+	def __init__(self, n_sample, prediction_shape, saving_dir):
 		super().__init__()
-		self.n_samples = n_samples
+		self.n_sample = n_sample
 		self.prediction_shape = prediction_shape
 		self.saving_dir = saving_dir
 
 	def on_epoch_end(self, epoch, logs=None):
 		#plot examples samples
-		samples = self.model.sample(self.n_samples, self.prediction_shape)
-		fig, axs = plt.subplots(nrows=1, ncols=self.n_samples, sharex=True, sharey=True)
+		model = self.model.layers[-1]	#retrieve the autoencoder from the wrapper model
+		samples = model.sample(self.n_sample, self.prediction_shape)
+		fig, axs = plt.subplots(nrows=1, ncols=self.n_sample, sharex=True, sharey=True)
 		fig.suptitle("VarAE sampling")
-		for i in range(self.n_samples):
+		for i in range(self.n_sample):
 			visu_sample = samples[i] if samples[i].shape[-1]!=2 else samples[i,...,0]+samples[i,...,1]
 			axs[i].imshow(visu_sample, cmap='gray')
 			axs[i].set_title("sample {}".format(i))
-		plt.savefig(os.path.join(self.saving_dir, "{} sampling.jpg".format(self.model.name)))
-		#plt.show()
+		plt.savefig(os.path.join(self.saving_dir, "{} sampling.jpg".format(model.name)))
 		plt.close()
 
 
-def show_predictions(sample_test, prediction, n, title, saving_dir=None):
+
+########################################
+#
+#				LOSSES
+#
+########################################
+
+def get_loss_from_name(name):
+	if name=="mse":
+		loss = get_MSE
+	elif name=="ssim":
+		loss = get_SSIM_Loss
+	else:
+		raise ValueError("Unknown loss name: {}".format(name))
+	return loss
+
+def get_MSE(img1, img2):
+	return tf.reduce_mean(tf.math.squared_difference(img1, img2))
+
+def get_SSIM_Loss(y_true, y_pred):
+	return 1- tf.reduce_mean(tf.image.ssim(y_true, y_pred, 1.0))	
+
+####################################################################
+#
+#							PLOT FUNCTIONS
+#
+####################################################################
+
+def show_predictions(sample_test, prediction, title, saving_dir=None, verbosity=0):
 	"""
 	plot test sample images and their reconstruction by the network
 	"""
-	if n==0: return
-	fig, axs = plt.subplots(nrows=2, ncols=n, sharex=True, sharey=True, squeeze=False)
+	n_samples = len(sample_test)
+	fig, axs = plt.subplots(nrows=2, ncols=n_samples, sharex=True, sharey=True, squeeze=False)
 	fig.suptitle(title)
-	for i in range(n):
+	for i in range(n_samples):
 		visu_test = sample_test[i] if sample_test[i].shape[-1]!=2 else sample_test[i, ..., 0]+sample_test[i, ..., 1]
 		axs[0][i].imshow(visu_test, cmap='gray')
 		axs[0][i].set_title("original {}".format(i))
@@ -108,10 +157,15 @@ def show_predictions(sample_test, prediction, n, title, saving_dir=None):
 		axs[1][i].set_title("reconstructed {}".format(i))
 	if saving_dir:
 		plt.savefig(os.path.join(saving_dir, title)+".jpg")
-	# plt.show()
+	if verbosity>=1:
+		plt.show()
 	plt.close()
 
-def plot_training_losses(losses, val_losses, title="losses train and test", save_path=None):
+def plot_training_losses(losses, val_losses, title="losses train and test", save_path=None, verbosity=0):
+	"""
+	plot a graph of training and validation losses at each epoch
+	if save_path is given saves the result else show it
+	"""
 	ax = plt.subplot(1, 1, 1)
 	ax.set_title(title)
 	ax.plot(losses, label="training loss")
@@ -119,34 +173,34 @@ def plot_training_losses(losses, val_losses, title="losses train and test", save
 	plt.legend()
 	if save_path:
 		plt.savefig(save_path+".jpg")
-	#plt.show()
+	if verbosity>=1:
+		plt.show()
 	plt.close()
 
-def plot_loss_per_ld(best_losses, best_val_losses, list_LD, title="", save_path=None):
-	fig, axs = plt.subplots(nrows=2, ncols=1, sharex=True, sharey=True, squeeze=False)
-	fig.suptitle(title)
-
-	axs[0][0].set_title("training losses")
-	axs[0][0].plot(list_LD, best_losses)
-	axs[0][0].set_ylabel("best loss")
-
-	axs[1][0].set_title("validation losses")
-	axs[1][0].plot(list_LD, best_val_losses)
-	axs[1][0].set_ylabel("best loss")
-	axs[1][0].set_xlabel("latent_dim")
-
+def plot_loss_per_ld(best_losses, best_val_losses, list_LD, title="", save_path=None, verbosity=0):
+	"""
+	plot a graph of best losses and best_val_losses for each latent dim
+	if save_path is given save the result else show it 
+	"""
+	ax = plt.subplot(1, 1, 1)
+	ax.set_title(title)
+	ax.plot(list_LD, best_losses, label="training loss")
+	ax.plot(list_LD, best_val_losses, label="validation loss")
+	ax.set_xlabel("latent_dim")
+	ax.set_ylabel("loss")
+	plt.legend()
 	if save_path:
 		plt.savefig(save_path+".jpg")
-	#plt.show()
+	if verbosity>=1:
+		plt.show()
 	plt.close()
 
-def get_MSE(img1, img2):
-	return np.mean(np.square(img1 - img2), axis=None)
-
-def get_SSIM_Loss(y_true, y_pred):
-	return 1- tf.reduce_mean(tf.image.ssim(y_true, y_pred, 1.0))
-
-def visualize_conv_filters(model, layer):
+def visualize_conv_filters(model, layer, verbosity=0):
+	"""
+	given a model and a layer name 
+	return a list of input images that maximizes the activation of this layer
+	"""
+	## TODO
 	shape_input = tf.shape(model.inputs)
 	# model = tf.keras.models.Model(inputs=model.inputs, outputs=layer)
 
@@ -161,7 +215,10 @@ def visualize_conv_filters(model, layer):
 		for j in range(100):
 			opt.minimize(loss, [input])
 		axs[i//10+1, i%10+1].imshow(input.numpy())
-	plt.show()
+	if verbosity>=1:
+		plt.show()
+	plt.close()
+
 
 if __name__=='__main__':
 	from tensorflow.keras.applications.vgg16 import VGG16
