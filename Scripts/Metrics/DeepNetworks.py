@@ -87,7 +87,7 @@ def autoencoder_generate_retro_prediction(autoencoder, start, repetition):
 # 	for i in range(repetition):
 # 		if visu:
 # 			ax = plt.subplot(repetition//10, 10, i+1)
-# 			plt.imshow(prev_pxl[0])
+# 			plt.imshow(prev_pxl[0], vmin=0, vmax=1)
 
 # 		new_pxl = autoencoder.decoder(prev_latent).numpy()
 # 		new_latent = autoencoder.encoder(new_pxl).numpy()
