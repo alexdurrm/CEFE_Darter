@@ -85,8 +85,8 @@ def LD_selection(model_type, train, test, epochs, batch_size, loss_name, output_
 	losses, val_losses = [], []
 	#for each latent dim train a network
 	for latent_dim in list_LD:
-		print(latent_dim)
-		history = train_model(model_type, train, test, epochs, batch_size, loss_name, output_dir, save_activations, early_stopping, sample_preds, latent_dim, do_augment=False, verbosity=0)
+		output_net = os.path.join(output_dir, "LD_"+str(latent_dim))
+		history = train_model(model_type, train, test, epochs, batch_size, loss_name, output_net, save_activations, early_stopping, sample_preds, latent_dim, do_augment=False, verbosity=0)
 		#store losses
 		losses.append(history.history['loss'])
 		val_losses.append(history.history['val_loss'])
