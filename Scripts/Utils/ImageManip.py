@@ -1,6 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import cv2
+import rawpy as rp
+import imageio
+import os
+import shutil
 
 ######################################################################
 #																	 #
@@ -133,3 +137,111 @@ def rgb_2_darter(image):
 		-6.975682782165032E-7 * image[:, :, 0] * image[:, :, 2] +
 		5.828585657562557E-8  * image[:, :, 1] * image[:, :, 2])
 	return im_out
+
+
+#### LOADINGS
+def openImage(path, verbosity=0):
+	"""
+	given a path for an image open it
+	"""
+	assert os.path.exists(path), "{} does not exist".format(path)
+	if verbosity>=1:
+		print("opening {}".format(path))
+	ext = os.path.splitext(path)[1]
+	if ext==".CR2":
+		image = openCR2(path)
+	elif ext==".npy":
+		image = openNpy(path)
+	elif ext in [".tif", ".tiff"]:
+		image = openTiff(path)
+	else:
+		image = openImg(path)
+	# check the image is of the right format and dimensions
+	if image.ndim==2:
+		image = image[..., np.newaxis]
+	return image
+
+def openTiff(path):
+	"""
+	open a .tiff image and return a float32 numpy array
+	"""
+	ext = os.path.splitext(path)[1]
+	assert ext in [".tiff", ".tif"], "Wrong image format, expected \'.tiff\', or \'.tif\', got {}".format(ext)
+	img = imageio.imread(path)
+	return img.astype("float32")
+
+def openCR2(path):
+	"""
+	open a .CR2 image and return a float32 numpy array
+	"""
+	ext = os.path.splitext(path)[1]
+	assert ext==".CR2", "Wrong image format, expected \'.CR2\', got {}".format(ext)
+	raw = rp.imread(path)
+	rgb = raw.postprocess(use_camera_wb=True)
+	return rgb.astype("float32")
+
+def openNpy(path):
+	"""
+	open a .npy image and return a float32 numpy array
+	"""
+	ext = os.path.splitext(path)[1]
+	assert ext==".npy", "Wrong image format, expected \'.npy\', got {}".format(ext)
+	return np.load(path).astype("float32")
+
+def openImg(path):
+	"""
+	open a .png or .jpg image and return a float32 numpy array
+	"""
+	ext = os.path.splitext(path)[1]
+	assert ext in [".jpg", ".png"], "Wrong image format, expected \'.jpg\' or \'.png\', got {}".format(ext)
+	img = imageio.imread(path)
+	return (img/255.0).astype("float32")
+
+#### SAVINGS
+def save_images(data, path, extension=None, verbosity=0):
+	"""
+	given a data of type numpy array will save it in the specified type
+	if multiple images need to be saved a directory will be created at specified path
+	"""
+	path, ext = os.path.splitext(path)
+	if not extension:
+		extension = ext
+	assert extension in [".jpg", ".png", ".tiff", ".tif", ".npy"], "wrong extention {}".format(extension)
+	#if save to numpy
+	if extension==".npy":
+		np.save(path+extension, data)
+		if verbosity>=1:
+			print("saving {}".format(path+extension))
+	#if save to common format
+	elif extension in [".jpg", ".png", ".tiff", ".tif"]:
+		#if multiple images
+		if isinstance(data, list) or data.ndim==4:
+			if not os.path.exists(path):
+				os.makedirs(path)
+			for idx, img in enumerate(data):
+				saveImg(img, os.path.join(path, str(idx)+extension))
+				if verbosity>=2:
+					print("saving {}".format(os.path.join(path, str(idx)+extension)))
+		else:
+			saveImg(data, path+extension)
+			if verbosity>=1:
+				print("saving {}".format(path+extension))
+	#if unknown format
+	else:
+		raise ValueError("extension must be one of the expected image format, received {}".format(extension))
+
+#TODO: handle formats
+def saveImg(data, path):
+	"""
+	given a numpy array and a path will save it
+	"""
+	assert data.shape[-1]!=2 and data.ndim==3, "cannot save an image with shape {} in this format {}".format(data.shape, os.path.splitext(path)[-1])
+	ext = os.path.splitext(path)[1]
+	if ext=="":
+		ext=".jpg"
+	assert ext in [".jpg", ".png", ".tiff", ".tif"], "Wrong image format, expected \'.jpg\', \'.png\', \'.tiff\', or \'.tif\', got {}".format(ext)
+	if ext in [".tiff", ".tif"]:
+		imageio.imwrite(path, data)
+	else:
+		data = (255*data).astype("uint8")
+		imageio.imwrite(path, data)

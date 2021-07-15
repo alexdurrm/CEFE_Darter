@@ -135,7 +135,7 @@ class test_color_ratio(unittest.TestCase):
 
 if __name__=='__main__':
 	PATH_TEST = "Images/Test/image_list_test.csv"
-	metric = get_files("Images/Test/", 2, types_allowed=(".jpg"), ignored_folders=[], only_endnodes=True)
+	metric = get_files("TestImages/Fish/", 2, types_allowed=(".jpg"), ignored_folders=[], only_endnodes=True)
 	metric.to_csv(PATH_TEST, index=True)
 	path_list = pd.read_csv(PATH_TEST)[COL_IMG_PATH]
 

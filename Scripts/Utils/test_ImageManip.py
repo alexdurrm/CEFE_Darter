@@ -10,6 +10,11 @@ import math
 #																	 #
 ######################################################################
 
+FORMATS_IN=[".CR2", ".jpg", ".png", ".tif", ".tiff", ".npy"]
+FORMATS_OUT=[".jpg", ".png", ".tif", ".tiff", ".npy"]
+DIR_TEST="TestImages/"
+PATH_INPUT_IMG=DIR_TEST+"img_test_"
+PATH_OUTPUT_IMG=DIR_TEST+"output_test"
 
 class test_fly_over_image(unittest.TestCase):
 	def test(self):
@@ -185,5 +190,38 @@ class test_decorator(unittest.TestCase):
 			with self.assertRaises(AssertionError):
 				_ = resize_img(image, (42,42))
 
+class test_loadings(unittest.TestCase):
+	def test(self):
+		list_img_name = [PATH_INPUT_IMG+str(idx)+f for idx in range(3) for f in FORMATS_IN]
+		for img_name in list_img_name:
+			img = openImage(img_name)
+			self.assertTrue(isinstance(img, np.ndarray))
+			self.assertEqual(img.ndim, 3)
+
+class test_savings(unittest.TestCase):
+	def test(self):
+		for channels in [1,2,3]:
+			images = np.random.rand(3, 100, 100, channels).astype("float32")
+			for f in FORMATS_OUT:
+				#prepare directory
+				path = PATH_OUTPUT_IMG+str(channels)
+				if os.path.exists(path):
+					shutil.rmtree(path)
+				if f in [".jpg", ".png", ".tif", ".tiff"]:
+					#if wrong dimensions check the error for those formats
+					if images.shape[-1]==2:
+						with self.assertRaises(AssertionError):
+							save_images(images, path, f, verbosity=2)
+					else:
+						save_images(images, path, f, verbosity=2)
+						self.assertTrue(os.path.exists(path))
+						self.assertTrue(os.path.exists(os.path.join(path,"0"+f)))
+						self.assertTrue(os.path.exists(os.path.join(path,"1"+f)))
+						self.assertTrue(os.path.exists(os.path.join(path,"2"+f)))
+						shutil.rmtree(path)
+				else:
+					save_images(images, path+f, verbosity=2)
+					self.assertTrue(os.path.exists(path+f))
+					os.remove(path+f)
 if __name__=='__main__':
 	unittest.main()

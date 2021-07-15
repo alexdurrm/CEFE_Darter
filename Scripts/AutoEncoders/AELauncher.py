@@ -11,14 +11,19 @@ np.random.seed(500)
 from Models import *
 from CommonAE import *
 
-def get_augmentation(output_shape):
-	return K.Sequential([
-		K.layers.experimental.preprocessing.RandomTranslation(height_factor=(-0.1, 0.1), width_factor=(-0.1, 0.1)),
-		K.layers.experimental.preprocessing.RandomRotation(0.2),
-		K.layers.experimental.preprocessing.RandomFlip(mode="horizontal"),
-		K.layers.experimental.preprocessing.RandomCrop(height=output_shape[0]//2 , width=output_shape[1]//2),
-		K.layers.experimental.preprocessing.Resizing(output_shape[0], output_shape[1])
-		], name="data_augmentation")
+def get_augmentation(output_shape, do_augment, verbosity=0):
+	if do_augment:
+		print("Adding augmentation")
+		return K.Sequential([
+			K.layers.experimental.preprocessing.RandomTranslation(height_factor=(-0.1, 0.1), width_factor=(-0.1, 0.1)),
+			K.layers.experimental.preprocessing.RandomRotation(0.2),
+			K.layers.experimental.preprocessing.RandomFlip(mode="horizontal"),
+			K.layers.experimental.preprocessing.RandomCrop(height=output_shape[0]//2 , width=output_shape[1]//2),
+			K.layers.experimental.preprocessing.Resizing(output_shape[0], output_shape[1])
+			], name="data_augmentation")
+	else:
+		print("Adding NO augmentation")
+		return None
 
 def train_model(model, train, test, loss_func, output_dir, epochs, batch_size, callbacks, augmenter=None, verbosity=0):
 	if not os.path.exists(output_dir):
@@ -75,7 +80,6 @@ def LD_selection(model_type, train, test, epochs, batch_size, list_LD, loss_func
 		os.makedirs(output_dir)
 	losses, val_losses = [], []
 	prediction_shape = train.shape[1:]
-	augmenter = get_augmentation(prediction_shape)
 	#for each latent dim train a network
 	for latent_dim in list_LD:
 		#prepare the network
@@ -136,7 +140,7 @@ def main(args):
 	# TRAIN
 	elif args.command == "train":
 		train, test = load_train_test(train_path=args.dataset, test_path=args.test, descriptor=False, verbose=args.verbose)
-		augmenter = get_augmentation(train.shape[1:]) if args.data_augment else None
+		augmenter = get_augmentation(train.shape[1:], args.data_augment, args.verbose)
 		callbacks = get_callbacks(args.model_type, test, output_dir, args.save_activations, args.early_stopping, args.sample_preds, args.verbose)
 		if isinstance(args.latent_dim, int):
 			model = get_model(args.model_type, train.shape[1:], args.latent_dim, verbosity=args.verbose)
@@ -186,4 +190,6 @@ if __name__=="__main__":
 	test_parser.add_argument("model_path", help="path to the model to load")
 
 	args = parser.parse_args()
+	if args.verbose>=1:
+		print(args)
 	main(args)

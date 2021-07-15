@@ -77,6 +77,9 @@ def do_MDS(data, n_components):
 	return fit_data
 
 def show_3D(data, groups=None, title=""):
+	"""
+	when data is 3dims plot it in a 3D graph
+	"""
 	x = data[:, 0]
 	y = data[:, 1]
 	z = data[:, 2]
@@ -102,6 +105,9 @@ def show_3D(data, groups=None, title=""):
 	plt.close()
 
 def show_by_class(images, groups, scores, title="", output_dir=None, nrows=6):
+	"""
+	visualize images with the best scores for each group predicted
+	"""
 	groups_id = np.unique(groups)
 	f , axs = plt.subplots(nrows=nrows, ncols=len(groups_id), squeeze=False)
 	f.suptitle(title)
@@ -128,9 +134,13 @@ def chunks(lst, n):
 	for i in range(0, len(lst), n):
 		yield lst[i:min(len(lst),i + n)]
 
-def get_df(model, test, list_layers, output_dir):
-	print(model.summary())
-
+def get_df(model, test, list_layers, verbosity=1):
+	"""
+	given a Sequential model and a list of layer names,
+	return a list of the layer's activation
+	"""
+	if verbosity>=1:
+		print(model.summary())
 	#get deep features from specified layers
 	deep_features=[]
 	for layer in model.layers:
@@ -145,13 +155,22 @@ def get_df(model, test, list_layers, output_dir):
 				# ldf = np.array([GramMatrix(img) for img in ldf])
 			deep_features.append(np.reshape(ldf, (ldf.shape[0], -1)))
 			#np.save(os.path.join(output_dir,"df_hab_{}.npy".format(layer.name)), ldf)
+	if verbosity>=1:
+		print("Deep features shape: {}".format(deep_features.shape))
 	return deep_features
 
-def get_AE_df(model, test, list_layers, output_dir):
-	print(model.summary())
+def get_AE_df(model, test, list_layers, verbosity=1):
+	"""
+	given an autoencoder model, test data and a list of layer names
+	return the list of activations for these layers
+	"""
+	if verbosity>=1:
+		print(model.summary())
+		print(model.encoder.summary())
+		print(model.decoder.summary())
 	deep_features=[]
-	deep_features += get_df(model.encoder, test, list_layers, output_dir)
-	deep_features += get_df(model.decoder, test, list_layers, output_dir)
+	deep_features += get_df(model.encoder, test, list_layers, verbosity-1)
+	deep_features += get_df(model.decoder, test, list_layers, verbosity-1)
 	return deep_features
 
 def do_kmeans(data, img, color_img, k_grps, output_dir, title, palette_size, save_clusters, show3D=False):
@@ -231,6 +250,7 @@ def do_kmeans(data, img, color_img, k_grps, output_dir, title, palette_size, sav
 
 if __name__=="__main__":
 	DEFAULT_MODEL="vgg16"
+	VERBOSE=1
 	DEFAULT_K=[2,3,4,5,6,7,8]
 	#parsing parameters
 	parser = argparse.ArgumentParser(description="Clusterize given numpy images using network deep features and k means")
@@ -243,6 +263,7 @@ if __name__=="__main__":
 	parser.add_argument("-k", "--klusters", nargs="+", type=int, default=DEFAULT_K, help="kernels to use for clusterisation, default {}".format(DEFAULT_K))
 	parser.add_argument("-p", "--palette_size", type=int, default=0, help="number of images to save in a palette")
 	parser.add_argument("--save_clusters", default=False, action="store_true", help="add this argument if you want to save a numpy of the predicted clusters")
+	parser.add_argument("-v", "--verbose", default=VERBOSE, type=int, choices=[0,1,2], help="set the level of visualization, default: {}".format(VERBOSE))
 
 	args = parser.parse_args()
 	n_pca=args.dim
@@ -256,19 +277,19 @@ if __name__=="__main__":
 	if args.model=="vgg16":
 		from tensorflow.keras.applications.vgg16 import VGG16
 		model = VGG16(weights='imagenet', include_top=True)
-		deep_features = get_df(model, test, layers_to_extract, args.output_dir)
+		deep_features = get_df(model, test, layers_to_extract, args.verbose)
 	elif args.model=="places":
 		from AutoEncoders.VGG16Places.vgg16_places_365 import VGG16_Places365
 		model = VGG16_Places365(weights='places', include_top=True)
-		deep_features = get_df(model, test, layers_to_extract, args.output_dir)
+		deep_features = get_df(model, test, layers_to_extract, args.verbose)
 	elif args.model=="hybrid":
 		from AutoEncoders.VGG16Places.vgg16_hybrid_places_1365 import VGG16_Hybrid_1365
 		model = VGG16_Hybrid_1365(weights='places', include_top=True)
-		deep_features = get_df(model, test, layers_to_extract, args.output_dir)
+		deep_features = get_df(model, test, layers_to_extract, args.verbose)
 	elif args.model=="AEconvo":
 		layers_to_extract = ["max_pooling2d","max_pooling2d_1","max_pooling2d_2","last_pool_encoder"]#, "output_encoder"]
 		model = keras.models.load_model(args.optional, compile=False)
-		deep_features = get_AE_df(model, test, layers_to_extract, args.output_dir)
+		deep_features = get_AE_df(model, test, layers_to_extract, args.verbose)
 
 	#add a concatenation of features
 	# layers_to_extract.append("01_pools")
