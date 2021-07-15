@@ -11,25 +11,6 @@ np.random.seed(500)
 from Models import *
 from CommonAE import *
 
-def get_callbacks(model_type, test, output_dir, save_activations, early_stopping, sample_preds, verbosity=0):
-	#prepare callbacks
-	if verbosity>=1: print("Retrieving callbacks save_activation:{}, early_stopping:{}, sample_preds:{}".format(save_activations, early_stopping, sample_preds))
-	#select a sample of test
-	#append callbacks
-	callbacks = []
-	if save_activations:
-		# callbacks.append(SaveActivations(val_img=test[0], saving_dir=output_dir))
-		print("No activation")
-	if early_stopping:
-		callbacks.append(K.callbacks.EarlyStopping(monitor='val_loss', patience=6))
-		callbacks.append(K.callbacks.EarlyStopping(monitor='loss', patience=6))
-	if sample_preds: 
-		sample = test[[i*10%len(test) for i in range(sample_preds)]]
-		callbacks.append(SavePredictionSample(sample=sample, saving_dir=output_dir, verbosity=verbosity-1))
-		if model_type=="variational_AE":
-			callbacks.append(SaveSampling(sample_preds, test.shape[1:], saving_dir=output_dir))
-	return callbacks
-
 def get_augmentation(output_shape):
 	return K.Sequential([
 		K.layers.experimental.preprocessing.RandomTranslation(height_factor=(-0.1, 0.1), width_factor=(-0.1, 0.1)),
@@ -143,7 +124,7 @@ def main(args):
 	"""
 	#prepare directory output
 	output_dir = os.path.abspath(args.output_dir)
-	
+
 	#get loss
 	loss = get_loss_from_name(args.loss)
 
@@ -159,15 +140,15 @@ def main(args):
 		callbacks = get_callbacks(args.model_type, test, output_dir, args.save_activations, args.early_stopping, args.sample_preds, args.verbose)
 		if isinstance(args.latent_dim, int):
 			model = get_model(args.model_type, train.shape[1:], args.latent_dim, verbosity=args.verbose)
-			train_model(model, train, test, loss, output_dir, args.epochs, args.batch_size, callbacks, augmenter, args.verbose)
+			train_model(model, train, test, loss, output_dir, args.epochs, args.batch, callbacks, augmenter, args.verbose)
 		else:
-			LD_selection(args.model_type, train, test, args.epochs, args.batch_size, args.latent_dim, loss, output_dir, 
-				args.save_activations, args.early_stopping, args.sample_preds, 
+			LD_selection(args.model_type, train, test, args.epochs, args.batch, args.latent_dim, loss, output_dir,
+				args.save_activations, args.early_stopping, args.sample_preds,
 				augmenter, args.verbose)
 
 	else:
 		raise ValueError("Unknown command: {}".format(args.command))
-		
+
 
 if __name__=="__main__":
 	LOSS="mse"
@@ -178,7 +159,7 @@ if __name__=="__main__":
 	SAMPLE_PREDS=4
 
 	parser = argparse.ArgumentParser(description="Script used to train, test and research optimal latend dim on different Autoencoders")
-	parser.add_argument("dataset", help="path of the numpy dataset dataset to use")
+	parser.add_argument("dataset", help="path of the numpy dataset to use as training (and 10% used for testing if --test not given)")
 	parser.add_argument("--loss", type=str, choices=['mse', 'ssim'], default=LOSS, help="network loss, default {}".format(LOSS))
 	parser.add_argument("--output_dir", default=DIR_SAVED_MODELS, help="path where to save the trained network, default {}".format(DIR_SAVED_MODELS))
 	parser.add_argument("--sample_preds", type=int, default=SAMPLE_PREDS, help="number of predictions image sample to save per epoch, default {}".format(SAMPLE_PREDS))
@@ -191,7 +172,7 @@ if __name__=="__main__":
 	LATENT_DIM = 8
 	training_parser = subparsers.add_parser("train")
 	training_parser.add_argument("model_type", choices=model_types, help='The architecture of the model used')
-	training_parser.add_argument("--test", type=str, default=None, help="optionnal path to a numpy used as test, if None given split 10 percent of the dataset, default None")	
+	training_parser.add_argument("--test", type=str, default=None, help="optionnal path to a numpy used as test, if None given split 10 percent of the dataset, default None")
 	training_parser.add_argument("-l", "--latent_dim", type=int, nargs='+', default=LATENT_DIM, help="the latent dimention, if multiple are given multiple networks will be trained, default {}".format(LATENT_DIM))
 	training_parser.add_argument("-b", "--batch", type=int, default=BATCH_SIZE, help="batch size for training, default {}".format(BATCH_SIZE))
 	training_parser.add_argument("-e", "--epochs", type=int, default=EPOCHS, help="number of epochs max for training, default {}".format(EPOCHS))
@@ -199,7 +180,7 @@ if __name__=="__main__":
 	training_parser.add_argument("--data_augment", action='store_true', default=False, help="option to use in-training data augmentation, default to False")
 	training_parser.add_argument("--save_activations", action='store_true', default=False, help="option to save mean activation layers")
 	training_parser.add_argument("--early_stopping", action='store_true', default=False, help="if model training should be stopped when loss do not progress")
-	
+
 	#specific parameters for a simple testing
 	test_parser = subparsers.add_parser("test")
 	test_parser.add_argument("model_path", help="path to the model to load")

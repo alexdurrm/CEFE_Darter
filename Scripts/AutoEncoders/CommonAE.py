@@ -15,6 +15,26 @@ import numpy as np
 #				CALLBACKS
 #
 ########################################
+
+def get_callbacks(model_type, test, output_dir, save_activations, early_stopping, sample_preds, verbosity=0):
+	#prepare callbacks
+	if verbosity>=1: print("Retrieving callbacks save_activation:{}, early_stopping:{}, sample_preds:{}".format(save_activations, early_stopping, sample_preds))
+	#select a sample of test
+	#append callbacks
+	callbacks = []
+	if save_activations:
+		raise NotImplementedError
+		# callbacks.append(SaveActivations(val_img=test[0], saving_dir=output_dir))
+	if early_stopping:
+		callbacks.append(K.callbacks.EarlyStopping(monitor='val_loss', patience=6))
+		callbacks.append(K.callbacks.EarlyStopping(monitor='loss', patience=6))
+	if sample_preds:
+		sample = test[[i*10%len(test) for i in range(sample_preds)]]
+		callbacks.append(SavePredictionSample(sample=sample, saving_dir=output_dir, verbosity=verbosity-1))
+		if model_type=="variational_AE":
+			callbacks.append(SaveSampling(sample_preds, test.shape[1:], saving_dir=output_dir))
+	return callbacks
+
 class SavePredictionSample(Callback):
 	def __init__(self, sample, saving_dir, verbosity=0):
 		super().__init__()
@@ -132,7 +152,7 @@ def get_MSE(img1, img2):
 	return tf.reduce_mean(tf.math.squared_difference(img1, img2))
 
 def get_SSIM_Loss(y_true, y_pred):
-	return 1- tf.reduce_mean(tf.image.ssim(y_true, y_pred, 1.0))	
+	return 1- tf.reduce_mean(tf.image.ssim(y_true, y_pred, 1.0))
 
 ####################################################################
 #
@@ -180,7 +200,7 @@ def plot_training_losses(losses, val_losses, title="losses train and test", save
 def plot_loss_per_ld(best_losses, best_val_losses, list_LD, title="", save_path=None, verbosity=0):
 	"""
 	plot a graph of best losses and best_val_losses for each latent dim
-	if save_path is given save the result else show it 
+	if save_path is given save the result else show it
 	"""
 	ax = plt.subplot(1, 1, 1)
 	ax.set_title(title)
@@ -197,7 +217,7 @@ def plot_loss_per_ld(best_losses, best_val_losses, list_LD, title="", save_path=
 
 def visualize_conv_filters(model, layer, verbosity=0):
 	"""
-	given a model and a layer name 
+	given a model and a layer name
 	return a list of input images that maximizes the activation of this layer
 	"""
 	## TODO
