@@ -8,9 +8,6 @@ import shutil
 from CommonAE import *
 import Models
 
-import warnings
-warnings.filterwarnings("ignore", category=DeprecationWarning)
-
 TEST_DIR="test_dir123456_tmp"
 
 class test_MSE(unittest.TestCase):

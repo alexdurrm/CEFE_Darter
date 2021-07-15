@@ -4,23 +4,15 @@ from sklearn.model_selection import train_test_split
 import argparse
 import numpy as np
 
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 tf.random.set_seed(500)
 np.random.seed(500)
 
-from Models import *
-from CommonAE import *
-
-def get_augmentation(output_shape, verbosity=0):
-	if verbosity>=1:
-		print("Adding augmentation")
-	return K.Sequential([
-		K.layers.experimental.preprocessing.RandomTranslation(height_factor=(-0.1, 0.1), width_factor=(-0.1, 0.1)),
-		K.layers.experimental.preprocessing.RandomRotation(0.2),
-		K.layers.experimental.preprocessing.RandomFlip(mode="horizontal"),
-		K.layers.experimental.preprocessing.RandomCrop(height=output_shape[0]//2 , width=output_shape[1]//2),
-		K.layers.experimental.preprocessing.Resizing(output_shape[0], output_shape[1])
-		], name="data_augmentation")
+from AutoEncoders.Models import *
+from AutoEncoders.CommonAE import *
+from Utils.FileManagement import save_args
 
 def load_train_test(train_path, test_path=None, descriptor=False, verbose=0):
 	"""
@@ -38,6 +30,8 @@ def load_train_test(train_path, test_path=None, descriptor=False, verbose=0):
 		if verbose>=1: print("splitting dataset {} in 90% train and 10% test".format(train_path))
 	#do verification
 	assert train.shape[1:]==test.shape[1:], "train and test should contain images of similar shape, here {} and {}".format(train.shape[1:], test.shape[1:])
+	assert train.min()>=0 and test.min()>=0, "train and test should contain values between 0 and 1, here min {} and {}".format(train.min(), test.min())
+	assert train.max()<=1 and test.max()<=1, "train and test should contain values between 0 and 1, here max {} and {}".format(train.max(), test.max())
 	#if true return also a dataset descriptor
 	if descriptor:
 		try:
@@ -48,19 +42,26 @@ def load_train_test(train_path, test_path=None, descriptor=False, verbose=0):
 	else:
 		return train, test
 
-def train_model(model, train, test, loss_name, output_dir, epochs, batch_size, callbacks, do_augment=False, verbosity=0):
-	#prepare output directory
-	if not os.path.exists(output_dir):
-		os.makedirs(output_dir)
+def train_model(model_type, train, test, epochs, batch_size, loss_name, output_dir, save_activations, early_stopping, sample_preds, latent_dim, do_augment=False, verbosity=0):
+	K.backend.clear_session()
+	#prepare the network directory
+	prediction_shape = train.shape[1:]
+	network_name = "{}_{}_LD{}_pred{}x{}x{}".format(model_type, loss_name, latent_dim, *prediction_shape)
+	net_output_dir = os.path.join(output_dir, network_name)
+	if not os.path.exists(net_output_dir):
+		os.makedirs(net_output_dir)
+	#get the callbacks
+	callbacks = get_callbacks(model_type, test, output_dir, save_activations, early_stopping, sample_preds, verbosity-1)
 	#get the loss
 	loss_func = get_loss_from_name(loss_name)
 	#wrap the network if augmentation needed
+	model = get_model(model_type, prediction_shape, latent_dim, verbosity-1)
 	if do_augment:
-		wrap_model = K.Sequential([get_augmentation(train.shape[1:], verbosity-1), model])
+		wrap_model = K.Sequential([get_augmentation(prediction_shape, verbosity-1), model])
 	else:
 		wrap_model = K.Sequential([model])
-	wrap_model.compile("Adam", loss=loss_func)
 	#train the network
+	wrap_model.compile("Adam", loss=loss_func)
 	history = wrap_model.fit(x=train, y=train,
 		batch_size= batch_size,
 		validation_data= (test, test),
@@ -71,39 +72,30 @@ def train_model(model, train, test, loss_name, output_dir, epochs, batch_size, c
 	#plot the training losses
 	plot_training_losses(history.history['loss'], history.history['val_loss'],
 		title="losses train and test",
-		save_path=os.path.join(output_dir,"losses {}".format(model.name)),
+		save_path=os.path.join(output_dir,"losses "+network_name),
 		verbosity=verbosity-1)
 	#save the model
-	if output_dir:
-		model.save(os.path.join(output_dir, model.name), overwrite=True)
+	model.save(net_output_dir, overwrite=True)
 	return history
 
-def LD_selection(model_type, train, test, epochs, batch_size, list_LD, loss_name, output_dir, save_activations, early_stopping, sample_preds, do_augment=False, verbosity=0):
+def LD_selection(model_type, train, test, epochs, batch_size, loss_name, output_dir, save_activations, early_stopping, sample_preds, list_LD, do_augment=False, verbosity=0):
+	#prepare directory
 	if not os.path.exists(output_dir):
 		os.makedirs(output_dir)
 	losses, val_losses = [], []
-	prediction_shape = train.shape[1:]
 	#for each latent dim train a network
 	for latent_dim in list_LD:
-		K.backend.clear_session()
-		#prepare the network
-		network_name = model_type+"{}_{}_LD{}_pred{}x{}x{}".format(model_type, loss_name, latent_dim, *prediction_shape)
-		autoencoder = get_model(model_type, prediction_shape, latent_dim, verbosity-1)
-		#train and save the network
-		net_output_dir = os.path.join(output_dir, network_name)
-		callbacks = get_callbacks(model_type, test, net_output_dir, save_activations, early_stopping, sample_preds)
-		history = train_model(autoencoder, train, test, loss_name, net_output_dir, epochs, batch_size, callbacks, do_augment, verbosity-1)
+		print(latent_dim)
+		history = train_model(model_type, train, test, epochs, batch_size, loss_name, output_dir, save_activations, early_stopping, sample_preds, latent_dim, do_augment=False, verbosity=0)
 		#store losses
 		losses.append(history.history['loss'])
 		val_losses.append(history.history['val_loss'])
 	#plot the best validation for each latent dim
-	best_losses, best_val_losses = [],[]
-	for val_loss, loss in zip(val_losses, losses):
-		best_losses.append(min(loss))
-		best_val_losses.append(min(val_loss))
+	best_losses = [min(l) for l in losses]
+	best_val_losses = [min(l) for l in val_losses]
 	plot_loss_per_ld(best_losses, best_val_losses, list_LD,
-		title="best losses per latent dim for {}".format(autoencoder.name),
-		save_path=os.path.join(output_dir, "best losses {}".format(autoencoder.name))
+		title="best losses per latent dim",
+		save_path=os.path.join(output_dir, "best losses per latent dim")
 		)
 
 def test_model(model_path, test, loss_name, sample_preds, output_dir=None, verbosity=0):
@@ -137,7 +129,7 @@ def main(args):
 	#TEST
 	if args.command == "test":
 		dataset = np.load(args.dataset)
-		res = test_model(args.model_path, dataset, loss, args.sample_preds, output_dir, args.verbose)
+		res = test_model(args.model_path, dataset, args.loss, args.sample_preds, output_dir, args.verbose)
 		print(res)
 	# TRAIN
 	elif args.command == "train":
@@ -145,11 +137,13 @@ def main(args):
 		callbacks = get_callbacks(args.model_type, test, output_dir, args.save_activations, args.early_stopping, args.sample_preds, args.verbose)
 		if isinstance(args.latent_dim, int):
 			model = get_model(args.model_type, train.shape[1:], args.latent_dim, verbosity=args.verbose)
-			train_model(model, train, test, args.loss, output_dir, args.epochs, args.batch, callbacks, args.data_augment, args.verbose)
-		else:
-			LD_selection(args.model_type, train, test, args.epochs, args.batch, args.latent_dim, args.loss, output_dir,
+			train_model(args.model_type, train, test, args.epochs, args.batch, args.loss, output_dir,
 				args.save_activations, args.early_stopping, args.sample_preds,
-				args.data_augment, args.verbose)
+				latent_dim=args.latent_dim, do_augment=args.data_augment, verbosity=args.verbose)
+		else:
+			LD_selection(args.model_type, train, test, args.epochs, args.batch, args.loss, output_dir,
+				args.save_activations, args.early_stopping, args.sample_preds,
+				list_LD=args.latent_dim, do_augment=args.data_augment, verbosity=args.verbose)
 
 	else:
 		raise ValueError("Unknown command: {}".format(args.command))
@@ -176,7 +170,7 @@ if __name__=="__main__":
 	BATCH_SIZE = 25
 	LATENT_DIM = 8
 	training_parser = subparsers.add_parser("train")
-	training_parser.add_argument("model_type", choices=model_types, help='The architecture of the model used')
+	training_parser.add_argument("model_type", choices=model_types, help='The architecture name of the model used')
 	training_parser.add_argument("--test", type=str, default=None, help="optionnal path to a numpy used as test, if None given split 10 percent of the dataset, default None")
 	training_parser.add_argument("-l", "--latent_dim", type=int, nargs='+', default=LATENT_DIM, help="the latent dimention, if multiple are given multiple networks will be trained, default {}".format(LATENT_DIM))
 	training_parser.add_argument("-b", "--batch", type=int, default=BATCH_SIZE, help="batch size for training, default {}".format(BATCH_SIZE))
@@ -191,6 +185,5 @@ if __name__=="__main__":
 	test_parser.add_argument("model_path", help="path to the model to load")
 
 	args = parser.parse_args()
-	if args.verbose>=1:
-		print(args)#TODO save params experiment in txt file
 	main(args)
+	save_args(args, os.path.join(args.output_dir, "AE_"+args.command+"_params.txt"))

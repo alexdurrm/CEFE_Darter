@@ -71,7 +71,18 @@ LIST_COLUMNS_EXP=[COL_CONTENT_EXP_PATH, COL_STYLE_EXP_PATH, COL_EXP_ID]
 ### matplotlib parameters
 FLAT_UI = ["#8c8c8c", "#5f9e6e", "#cc8963", "#5975a4", "#857aab", "#b55d60", "#c1b37f", "#8d7866", "#d095bf", "#71aec0"]
 
-
+def save_args(args, textfile):
+	"""
+	given a namespace args and a name
+	will save it in the specified textfile path
+	"""
+	if args.verbose>=1:
+		print(vars(args))
+	if os.path.exists(textfile):
+		os.path.delete(textfile)
+	with open(textfile, "w+") as file:
+		for k,v in vars(args).items():
+			file.write(str(k)+ " : "+str(v)+"\n")
 
 def load_info_from_filepath(file_path):
 	'''

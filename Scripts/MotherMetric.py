@@ -701,3 +701,4 @@ if __name__ == '__main__':
 
 	args = parser.parse_args()
 	main(args)
+	save_args(args, os.path.join(args.output_dir, "Metrics_"+args.command+"_params.txt"))

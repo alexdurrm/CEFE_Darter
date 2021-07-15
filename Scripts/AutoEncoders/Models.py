@@ -5,6 +5,14 @@ import tensorflow as tf
 import tensorflow.keras as K
 import numpy as np
 
+#enable local imports
+if __name__!='__main__':
+	import sys
+	import os
+	new_path = os.path.dirname(os.path.realpath(__file__))
+	if new_path not in sys.path:
+		sys.path.append(new_path)
+
 from CommonAE import *
 
 #TODO: rename layers and check coherence with clusterize
@@ -232,6 +240,7 @@ class VGG16AE(Model):
 #								FUNCTIONS
 #
 #####################################################################################
+
 def get_model(model_type, pred_shape, latent_dim, verbosity=0):
 	K.backend.clear_session()
 	if verbosity>=1: print(model_type)
@@ -251,3 +260,21 @@ def get_model(model_type, pred_shape, latent_dim, verbosity=0):
 		print(model.encoder.summary())
 		print(model.decoder.summary())
 	return model
+
+
+#####################################################################################
+#
+#								AUGMENTER
+#
+#####################################################################################
+
+def get_augmentation(output_shape, verbosity=0):
+	if verbosity>=1:
+		print("Adding augmentation")
+	return K.Sequential([
+		K.layers.experimental.preprocessing.RandomTranslation(height_factor=(-0.1, 0.1), width_factor=(-0.1, 0.1)),
+		K.layers.experimental.preprocessing.RandomRotation(0.2),
+		K.layers.experimental.preprocessing.RandomFlip(mode="horizontal"),
+		K.layers.experimental.preprocessing.RandomCrop(height=output_shape[0]//2 , width=output_shape[1]//2),
+		K.layers.experimental.preprocessing.Resizing(output_shape[0], output_shape[1])
+		], name="data_augmentation")

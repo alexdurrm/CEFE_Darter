@@ -4,44 +4,17 @@ import shutil
 import os
 
 from AELauncher import *
-from CommonAE import get_loss_from_name
 
 TEST_DATA_PATH="test123456_temp.npy"
 TEST_NETWORK_DIR="testNetwork123456_temp"
 
-class test_augmentation(unittest.TestCase):
-    def test(self):
-        """
-        check if the function do not fail when called
-        and if augmentation produces a different result for input
-        """
-        #without reshape
-        a=np.random.randint(100, size=(60,50,50,1))
-        aug=get_augmentation((50,50))
-        b=aug(a).numpy()
-        self.assertNotEqual((a!=b).sum() , 0)
-        self.assertEqual(a.shape, b.shape)  #check the output is not a
-        #with reshape
-        foo=get_augmentation((78, 22))
-        b=foo(a).numpy()
-        self.assertEqual(len(a), len(b))
-        self.assertNotEqual(a.shape, b.shape)
-        self.assertEqual(a.shape[-1], b.shape[-1]) #same channels
-        #check result is always different
-        boo=get_augmentation((60,50))
-        x = boo(a).numpy()
-        y = boo(a).numpy()
-        self.assertTrue((x==y).all())
-
 class test_train(unittest.TestCase):
     def test(self):
         data = np.random.rand(10,112,112,3) #10 random RGB images between 0 and 1
-        model = Convolutional(8, data.shape[1:])
         for model_type in ["VGG16AE", "convolutional", "perceptron", "sparse_convolutional", "variational_AE"]:
-            callbacks = get_callbacks(model_type, data, TEST_NETWORK_DIR,
-                        save_activations=False, early_stopping=True, sample_preds=3, verbosity=1)
-            model = get_model(model_type, data.shape[1:], 8)
-            train_model(model, data, data, "ssim", TEST_NETWORK_DIR, 2, 5, callbacks, do_augment=False)
+            train_model(model_type, data, data, 2, 5, "ssim", TEST_NETWORK_DIR,
+                        save_activations=True, early_stopping=True, sample_preds=4,
+                        latent_dim=8, do_augment=True, verbosity=0)
             self.assertTrue(os.path.exists(TEST_NETWORK_DIR))
             shutil.rmtree(TEST_NETWORK_DIR)
 
@@ -75,8 +48,8 @@ class test_latent_search(unittest.TestCase):
     def test(self):
         data = np.random.rand(10,112,112,3)
         for model_type in ["VGG16AE", "convolutional", "perceptron", "sparse_convolutional", "variational_AE"]:
-            LD_selection(model_type, data, data, 2, 5, [2,4], 'mse', TEST_NETWORK_DIR,
-                        save_activations=False, early_stopping=True, sample_preds=3, do_augment=True)
+            LD_selection(model_type, data, data, 2, 5, 'mse', TEST_NETWORK_DIR,
+                        False, True, 3, [8,16], True, 0)
             shutil.rmtree(TEST_NETWORK_DIR)
 
 # class test_main(unittest.TestCase):
