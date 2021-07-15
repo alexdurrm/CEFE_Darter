@@ -8,6 +8,8 @@ import shutil
 from CommonAE import *
 import Models
 
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 TEST_DIR="test_dir123456_tmp"
 
@@ -34,7 +36,7 @@ class test_SSIM(unittest.TestCase):
 		tensorSSIM = get_SSIM_Loss(tensor1, tensor2).numpy()
 
 		#skimage fails to calculate with a win_size 11 as tf so lets accept an approximate
-		self.assertAlmostEqual(npSSIM, tensorSSIM, 2)	
+		self.assertAlmostEqual(npSSIM, tensorSSIM, 2)
 
 class test_SavePredictionSample(unittest.TestCase):
 	def test(self):

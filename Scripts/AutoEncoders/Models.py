@@ -186,14 +186,15 @@ class VariationalAE(Model):
 
 class VGG16AE(Model):
 	def __init__(self, latent_dim, pred_shape, name="VGG16AE"):
+		assert pred_shape[-1]==3, "VGGAE only accept RGB images, received shape {}".format(pred_shape)
 		super(VGG16AE, self).__init__(name=name)
 		self.latent_dim = latent_dim
-		self.encoder = tf.keras.Sequential([
+		self.encoder = K.Sequential([
 			VGG16(weights='imagenet', include_top=False,
 							 input_shape=pred_shape)
 		])
 
-		self.decoder = tf.keras.Sequential([
+		self.decoder = K.Sequential([
 			UpSampling2D(size = (2,2), name = 'upsp1'),
 			Conv2D(512, 3, activation = 'relu', padding = 'same', name = 'conv6_1'),
 			Conv2D(512, 3, activation = 'relu', padding = 'same', name = 'conv6_2'),
@@ -218,6 +219,7 @@ class VGG16AE(Model):
 			Conv2D(64, 3, activation = 'relu', padding = 'same', name = 'conv10_2'),
 
 			Conv2D(pred_shape[-1], 3, activation = 'sigmoid', padding = 'same', name = 'conv11'),
+			K.layers.experimental.preprocessing.Resizing(pred_shape[0], pred_shape[1], interpolation='bilinear')
 		])
 
 	def call(self, x):
@@ -232,7 +234,6 @@ class VGG16AE(Model):
 #####################################################################################
 def get_model(model_type, pred_shape, latent_dim, verbosity=0):
 	K.backend.clear_session()
-
 	if verbosity>=1: print(model_type)
 	if model_type=="perceptron":
 		model = Perceptron(latent_dim, pred_shape)

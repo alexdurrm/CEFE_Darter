@@ -11,43 +11,16 @@ np.random.seed(500)
 from Models import *
 from CommonAE import *
 
-def get_augmentation(output_shape, do_augment, verbosity=0):
-	if do_augment:
+def get_augmentation(output_shape, verbosity=0):
+	if verbosity>=1:
 		print("Adding augmentation")
-		return K.Sequential([
-			K.layers.experimental.preprocessing.RandomTranslation(height_factor=(-0.1, 0.1), width_factor=(-0.1, 0.1)),
-			K.layers.experimental.preprocessing.RandomRotation(0.2),
-			K.layers.experimental.preprocessing.RandomFlip(mode="horizontal"),
-			K.layers.experimental.preprocessing.RandomCrop(height=output_shape[0]//2 , width=output_shape[1]//2),
-			K.layers.experimental.preprocessing.Resizing(output_shape[0], output_shape[1])
-			], name="data_augmentation")
-	else:
-		print("Adding NO augmentation")
-		return None
-
-def train_model(model, train, test, loss_func, output_dir, epochs, batch_size, callbacks, augmenter=None, verbosity=0):
-	if not os.path.exists(output_dir):
-		os.makedirs(output_dir)
-	#wrap the network if augmentation needed
-	wrap_model = K.Sequential([augmenter, model]) if augmenter else K.Sequential([model])
-	wrap_model.compile("Adam", loss=loss_func)
-	#train the network
-	history = wrap_model.fit(x=train, y=train,
-		batch_size=batch_size,
-		validation_data=(test, test),
-		epochs= epochs,
-		callbacks= callbacks,
-		shuffle= True
-		)
-	#plot the training losses
-	plot_training_losses(history.history['loss'], history.history['val_loss'],
-		title="losses train and test",
-		save_path=os.path.join(output_dir,"losses {}".format(model.name)),
-		verbosity=verbosity-1)
-	#save the model
-	if output_dir:
-		model.save(os.path.join(output_dir, model.name), overwrite=True)
-	return history
+	return K.Sequential([
+		K.layers.experimental.preprocessing.RandomTranslation(height_factor=(-0.1, 0.1), width_factor=(-0.1, 0.1)),
+		K.layers.experimental.preprocessing.RandomRotation(0.2),
+		K.layers.experimental.preprocessing.RandomFlip(mode="horizontal"),
+		K.layers.experimental.preprocessing.RandomCrop(height=output_shape[0]//2 , width=output_shape[1]//2),
+		K.layers.experimental.preprocessing.Resizing(output_shape[0], output_shape[1])
+		], name="data_augmentation")
 
 def load_train_test(train_path, test_path=None, descriptor=False, verbose=0):
 	"""
@@ -75,20 +48,51 @@ def load_train_test(train_path, test_path=None, descriptor=False, verbose=0):
 	else:
 		return train, test
 
-def LD_selection(model_type, train, test, epochs, batch_size, list_LD, loss_func, output_dir, save_activations, early_stopping, sample_preds, augmenter=None, verbosity=0):
+def train_model(model, train, test, loss_name, output_dir, epochs, batch_size, callbacks, do_augment=False, verbosity=0):
+	#prepare output directory
+	if not os.path.exists(output_dir):
+		os.makedirs(output_dir)
+	#get the loss
+	loss_func = get_loss_from_name(loss_name)
+	#wrap the network if augmentation needed
+	if do_augment:
+		wrap_model = K.Sequential([get_augmentation(train.shape[1:], verbosity-1), model])
+	else:
+		wrap_model = K.Sequential([model])
+	wrap_model.compile("Adam", loss=loss_func)
+	#train the network
+	history = wrap_model.fit(x=train, y=train,
+		batch_size= batch_size,
+		validation_data= (test, test),
+		epochs= epochs,
+		callbacks= callbacks,
+		shuffle= True
+		)
+	#plot the training losses
+	plot_training_losses(history.history['loss'], history.history['val_loss'],
+		title="losses train and test",
+		save_path=os.path.join(output_dir,"losses {}".format(model.name)),
+		verbosity=verbosity-1)
+	#save the model
+	if output_dir:
+		model.save(os.path.join(output_dir, model.name), overwrite=True)
+	return history
+
+def LD_selection(model_type, train, test, epochs, batch_size, list_LD, loss_name, output_dir, save_activations, early_stopping, sample_preds, do_augment=False, verbosity=0):
 	if not os.path.exists(output_dir):
 		os.makedirs(output_dir)
 	losses, val_losses = [], []
 	prediction_shape = train.shape[1:]
 	#for each latent dim train a network
 	for latent_dim in list_LD:
+		K.backend.clear_session()
 		#prepare the network
-		network_name = model_type+"_LD{}_pred{}x{}x{}".format(latent_dim, *prediction_shape)
+		network_name = model_type+"{}_{}_LD{}_pred{}x{}x{}".format(model_type, loss_name, latent_dim, *prediction_shape)
 		autoencoder = get_model(model_type, prediction_shape, latent_dim, verbosity-1)
 		#train and save the network
 		net_output_dir = os.path.join(output_dir, network_name)
 		callbacks = get_callbacks(model_type, test, net_output_dir, save_activations, early_stopping, sample_preds)
-		history = train_model(autoencoder, train, test, loss_func, net_output_dir, epochs, batch_size, callbacks, augmenter, verbosity-1)
+		history = train_model(autoencoder, train, test, loss_name, net_output_dir, epochs, batch_size, callbacks, do_augment, verbosity-1)
 		#store losses
 		losses.append(history.history['loss'])
 		val_losses.append(history.history['val_loss'])
@@ -102,7 +106,7 @@ def LD_selection(model_type, train, test, epochs, batch_size, list_LD, loss_func
 		save_path=os.path.join(output_dir, "best losses {}".format(autoencoder.name))
 		)
 
-def test_model(model_path, test, loss, sample_preds, output_dir=None, verbosity=0):
+def test_model(model_path, test, loss_name, sample_preds, output_dir=None, verbosity=0):
 	"""
 	given a model, a test dataset, and a loss function
 	will output in output_dir the results of the model prediction and a sample of it
@@ -111,9 +115,11 @@ def test_model(model_path, test, loss, sample_preds, output_dir=None, verbosity=
 	output_dir = output_dir if output_dir else model_path
 	if not os.path.exists(output_dir):
 		os.makedirs(output_dir)
+	#get loss
+	loss_func = get_loss_from_name(loss_name)
 	# load model and save predictions
 	model = tf.keras.models.load_model(model_path, compile=False)
-	model.compile(optimizer="Adam", loss=loss)
+	model.compile(optimizer="Adam", loss=loss_func)
 	predictions = model.predict(test)
 	np.save(os.path.join(output_dir,"predictions.npy"), predictions)
 	#save a sample of these predictions
@@ -128,10 +134,6 @@ def main(args):
 	"""
 	#prepare directory output
 	output_dir = os.path.abspath(args.output_dir)
-
-	#get loss
-	loss = get_loss_from_name(args.loss)
-
 	#TEST
 	if args.command == "test":
 		dataset = np.load(args.dataset)
@@ -140,15 +142,14 @@ def main(args):
 	# TRAIN
 	elif args.command == "train":
 		train, test = load_train_test(train_path=args.dataset, test_path=args.test, descriptor=False, verbose=args.verbose)
-		augmenter = get_augmentation(train.shape[1:], args.data_augment, args.verbose)
 		callbacks = get_callbacks(args.model_type, test, output_dir, args.save_activations, args.early_stopping, args.sample_preds, args.verbose)
 		if isinstance(args.latent_dim, int):
 			model = get_model(args.model_type, train.shape[1:], args.latent_dim, verbosity=args.verbose)
-			train_model(model, train, test, loss, output_dir, args.epochs, args.batch, callbacks, augmenter, args.verbose)
+			train_model(model, train, test, args.loss, output_dir, args.epochs, args.batch, callbacks, args.data_augment, args.verbose)
 		else:
-			LD_selection(args.model_type, train, test, args.epochs, args.batch, args.latent_dim, loss, output_dir,
+			LD_selection(args.model_type, train, test, args.epochs, args.batch, args.latent_dim, args.loss, output_dir,
 				args.save_activations, args.early_stopping, args.sample_preds,
-				augmenter, args.verbose)
+				args.data_augment, args.verbose)
 
 	else:
 		raise ValueError("Unknown command: {}".format(args.command))
@@ -162,15 +163,15 @@ if __name__=="__main__":
 	OPTIMIZER="Adam"
 	SAMPLE_PREDS=4
 
-	parser = argparse.ArgumentParser(description="Script used to train, test and research optimal latend dim on different Autoencoders")
-	parser.add_argument("dataset", help="path of the numpy dataset to use as training (and 10% used for testing if --test not given)")
+	parser = argparse.ArgumentParser(description="Script used to train, test and research optimal latent dim on different Autoencoders")
+	parser.add_argument("dataset",type=str, help="path of the numpy dataset to use as training (and 10percent used for testing if --test not given)")
 	parser.add_argument("--loss", type=str, choices=['mse', 'ssim'], default=LOSS, help="network loss, default {}".format(LOSS))
 	parser.add_argument("--output_dir", default=DIR_SAVED_MODELS, help="path where to save the trained network, default {}".format(DIR_SAVED_MODELS))
 	parser.add_argument("--sample_preds", type=int, default=SAMPLE_PREDS, help="number of predictions image sample to save per epoch, default {}".format(SAMPLE_PREDS))
 	parser.add_argument("-v", "--verbose", default=VERBOSE, type=int, help="set verbosity, default: {}".format(VERBOSE))
 	subparsers = parser.add_subparsers(title="command", dest="command", help='action to perform')
 
-	#specific parameters for a simple training
+	# specific parameters for a simple training
 	EPOCHS = 50
 	BATCH_SIZE = 25
 	LATENT_DIM = 8
@@ -191,5 +192,5 @@ if __name__=="__main__":
 
 	args = parser.parse_args()
 	if args.verbose>=1:
-		print(args)
+		print(args)#TODO save params experiment in txt file
 	main(args)

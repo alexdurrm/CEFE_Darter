@@ -12,7 +12,7 @@ TEST_NETWORK_DIR="testNetwork123456_temp"
 class test_augmentation(unittest.TestCase):
     def test(self):
         """
-        check if the function do not fail when called 
+        check if the function do not fail when called
         and if augmentation produces a different result for input
         """
         #without reshape
@@ -31,19 +31,17 @@ class test_augmentation(unittest.TestCase):
         boo=get_augmentation((60,50))
         x = boo(a).numpy()
         y = boo(a).numpy()
-        self.assertTrue((x!=y).any())
-
+        self.assertTrue((x==y).all())
 
 class test_train(unittest.TestCase):
     def test(self):
-        #train_model(model, train, test, loss_func, output_dir, epochs, batch_size, callbacks, augmenter=None, verbosity=0)
         data = np.random.rand(10,112,112,3) #10 random RGB images between 0 and 1
         model = Convolutional(8, data.shape[1:])
-        loss = get_loss_from_name("ssim")
-        for model_type in ["convolutional", "perceptron", "sparse_convolutional", "variational_AE"]: #  "VGG16AE", TODO:debug VGGAE
-            callbacks = get_callbacks(model_type, data, TEST_NETWORK_DIR, True, True, 3)
+        for model_type in ["VGG16AE", "convolutional", "perceptron", "sparse_convolutional", "variational_AE"]:
+            callbacks = get_callbacks(model_type, data, TEST_NETWORK_DIR,
+                        save_activations=False, early_stopping=True, sample_preds=3, verbosity=1)
             model = get_model(model_type, data.shape[1:], 8)
-            train_model(model, data, data, loss, TEST_NETWORK_DIR, 2, 5, callbacks, augmenter=None)
+            train_model(model, data, data, "ssim", TEST_NETWORK_DIR, 2, 5, callbacks, do_augment=False)
             self.assertTrue(os.path.exists(TEST_NETWORK_DIR))
             shutil.rmtree(TEST_NETWORK_DIR)
 
@@ -52,11 +50,10 @@ class test_test(unittest.TestCase):
         """
         just check if the function do not fail when called with ssim or mse
         """
-        #test_model(model_path, test, loss, output_dir, sample_preds, verbosity=0)
         #construct data
         data = np.random.rand(10,112,112,3) #10 random RGB images between 0 and 1
         path = os.path.join(TEST_NETWORK_DIR, "predictions.npy")
-        for model_type in ["convolutional"]:#, "perceptron", "sparse_convolutional", "variational_AE", "VGG16AE"]:
+        for model_type in ["VGG16AE", "convolutional", "perceptron", "sparse_convolutional", "variational_AE"]:
             model = get_model(model_type, data.shape[1:], 8)
             model.compile("Adam", "mse")
             model.fit(x=data, y=data, batch_size=5, epochs= 2)
@@ -64,26 +61,22 @@ class test_test(unittest.TestCase):
             del model
 
             #train model with MSE
-            loss = get_loss_from_name("mse")
-            test_model(TEST_NETWORK_DIR, data, loss, 3, TEST_NETWORK_DIR)
+            test_model(TEST_NETWORK_DIR, data, "mse", 3, TEST_NETWORK_DIR)
             self.assertTrue(os.path.exists(path))
 
             #train model with SSIM
-            loss = get_loss_from_name("ssim")
-            test_model(TEST_NETWORK_DIR, data, loss, 3, TEST_NETWORK_DIR)
+            test_model(TEST_NETWORK_DIR, data, "ssim", 3, TEST_NETWORK_DIR)
             self.assertTrue(os.path.exists(path))
             #delete the network folder and data
             shutil.rmtree(TEST_NETWORK_DIR)
 
-        
+
 class test_latent_search(unittest.TestCase):
     def test(self):
-        # LD_selection(model_type, train, test, epochs, batch_size, list_LD, loss, dir_results, sample_preds, augmenter=None, verbosity=0)
         data = np.random.rand(10,112,112,3)
-        loss = get_loss_from_name("mse")
-        aug = get_augmentation(data.shape[1:])
-        for model_type in ["convolutional", "perceptron", "sparse_convolutional", "variational_AE"]:#, , "VGG16AE"]:
-            LD_selection(model_type, data, data, 2, 5, [2,4], loss, TEST_NETWORK_DIR, True, True, 3, augmenter=aug)
+        for model_type in ["VGG16AE", "convolutional", "perceptron", "sparse_convolutional", "variational_AE"]:
+            LD_selection(model_type, data, data, 2, 5, [2,4], 'mse', TEST_NETWORK_DIR,
+                        save_activations=False, early_stopping=True, sample_preds=3, do_augment=True)
             shutil.rmtree(TEST_NETWORK_DIR)
 
 # class test_main(unittest.TestCase):

@@ -24,10 +24,10 @@ def get_callbacks(model_type, test, output_dir, save_activations, early_stopping
 	callbacks = []
 	if save_activations:
 		raise NotImplementedError
-		# callbacks.append(SaveActivations(val_img=test[0], saving_dir=output_dir))
+		# callbacks.append(SaveActivations(val_img=test[0], saving_dir=output_dir))	## TODO: make it
 	if early_stopping:
-		callbacks.append(K.callbacks.EarlyStopping(monitor='val_loss', patience=6))
-		callbacks.append(K.callbacks.EarlyStopping(monitor='loss', patience=6))
+		callbacks.append(tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=6))
+		callbacks.append(tf.keras.callbacks.EarlyStopping(monitor='loss', patience=6))
 	if sample_preds:
 		sample = test[[i*10%len(test) for i in range(sample_preds)]]
 		callbacks.append(SavePredictionSample(sample=sample, saving_dir=output_dir, verbosity=verbosity-1))
