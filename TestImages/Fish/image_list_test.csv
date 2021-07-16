@@ -1,0 +1,7 @@
+,Image_path,filename,type,folder,habitat,color_control,tv_loss,layers,sex,fish_n,species,img_width,img_height,image_extension
+0,Images/Test/berrenense/BARR_EFBR_M01.jpg,BARR_EFBR_M01.jpg,original fish,berrenense,not_listed,,,,M,01,berrenense,6561,2511,.jpg
+1,Images/Test/berrenense/BARR_EFBR_F01.jpg,BARR_EFBR_F01.jpg,original fish,berrenense,not_listed,,,,F,01,berrenense,6100,2010,.jpg
+2,Images/Test/caeruleum/CAER_TRFK_F11.jpg,CAER_TRFK_F11.jpg,original fish,caeruleum,gravel,,,,F,11,caeruleum,5833,2238,.jpg
+3,Images/Test/caeruleum/CAER_TRFK_M11.jpg,CAER_TRFK_M11.jpg,original fish,caeruleum,gravel,,,,M,11,caeruleum,5921,2444,.jpg
+4,Images/Test/camurum/CAMR_SFKR_F03.jpg,CAMR_SFKR_F03.jpg,original fish,camurum,boulder,,,,F,03,camurum,6635,2281,.jpg
+5,Images/Test/camurum/CAMR_MFVR_M03.jpg,CAMR_MFVR_M03.jpg,original fish,camurum,boulder,,,,M,03,camurum,6690,2334,.jpg

@@ -1,21 +1,23 @@
 import numpy as np
 import pandas as pd
+from sklearn.model_selection import train_test_split
 
 import argparse
 from glob import glob
 import os
+import random
 
 import imageio
 
 from Utils.Preprocess import *
 from Utils.FileManagement import COL_IMG_PATH
+from Utils.ImageManip import *
 
 FORMATS_IN = [".jpg", ".npy", ".tiff", ".tif", ".CR2"]
 FORMATS_OUT = [".jpg", ".npy", ".tiff", ".tif"]
 
 
-
-def get_paths(input, expected_img_ext, force=False):
+def get_paths(input, expected_img_ext=None, verbose=0):
 	"""
 	given the input string "AAA.csv" "BBB.npy" "C**.jpg" "X*.tiff"
 	check that the path given are coherent with the expected format
@@ -31,54 +33,46 @@ def get_paths(input, expected_img_ext, force=False):
 
 	#check the image extentions
 	for rev_idx, path in enumerate(list_paths[::-1]):
-		if os.path.splitext(path)[-1] != expected_img_ext:
-			if force:
-				del list_paths[-1-idx]
-				print("Removed {} because of unexpected extension".format(path))
-			else:
-				raise ValueError("One of the image is not of the expected extension {}: {}".format(expected_img_ext, path))
+		if expected_img_ext and os.path.splitext(path)[-1] != expected_img_ext:
+			del list_paths[-1-rev_idx]
+			print("get_paths: Removed {} because of unexpected extension".format(path))
+	#return if list of images valid
+	if not list_paths:
+		raise ValueError("get_paths: No valid path found in:\n{}".format(input))
+	if verbose>=1: print("get_paths: loading paths\n{}".format(list_paths))
 	return list_paths
 
 
+# def save_data(data, output_path, out_format, orginal_names=None):
+# 	if out_format==".npy":
+# 		np.save(output_path, data)
+# 		print("Saved at {}".format(output_path))
+# 	elif out_format in (".tif", ".tiff", ".jpg"):
+# 		for idx, img in enumerate(data):
+# 			img_name = os.path.splitext(original_names[idx])[0] if original_names else str(idx)
+# 			imageio.imwrite(os.path.join(output_path, img_name)+out_format, data)
 
-def save_data(data, output_path, out_format, orginal_names=None):
-	if out_format==".npy":
-		np.save(output_path, data)
-		print("Saved at {}".format(output_path))
-	elif out_format in (".tif", ".tiff", ".jpg"):
-		for idx, img in enumerate(data):
-			img_name = os.path.splitext(original_names[idx])[0] if original_names else str(idx)
-			imageio.imwrite(os.path.join(output_path, img_name)+out_format, data)
 
-def open_data(input):
+def uniformize_shapes(list_images, policy, keep_ratio):
 	"""
-	given the input return the input data, either a list of paths or a numpy array
+	Given a list of images returns an array of those images resized at the same shape
 	"""
-	ext = os.path.splitext(path)[-1]
-
-	if ext==".npy":
-		return np.load(path)
-	else:
-		return load_paths(input)
-
-def check_shapes(list_paths, policy="strict"):
-	"""
-	check all images are of the same shape,
-	if not apply a policy and return a shape
-	"""
-	ref_shape = open_img(list_paths[0]).shape
-	for path in list_paths[1:]:
-		shape = open_img(path)
-		if shape != ref_shape and (shape[-1]==ref_shape[-1]):
+	# get the reference shape
+	ref_shape = list_images[0].shape
+	for image in list_images[1:]:
+		shape = image.shape
+		if (shape[-1]!=ref_shape[-1]):
+			raise ValueError("{} {} does not have the same number of channels as the other images: {}".format(path, shape, ref_shape))
+		if shape != ref_shape:
 			if policy=="strict":
 				raise ValueError("{} {} is not of the expected shape: {}".format(path, shape, ref_shape))
 			elif policy=="minimum":
 				ref_shape = tuple(min(a,b) for a,b in zip(ref_shape, shape))
 			elif policy=="maximum":
 				ref_shape = tuple(max(a,b) for a,b in zip(ref_shape, shape))
-		else:
-			raise ValueError("{} {} does not have the same number of channels as the other images: {}".format(path, shape, ref_shape))
-	return ref_shape[:-1]	#return new width and height
+	#resize if needed
+	resized_list =  np.array([resize_img_to_fit(img, ref_shape, keep_ratio) for img in list_images])
+	return resized_list
 
 def get_agg_numpies(list_paths):
 	"""
@@ -92,24 +86,50 @@ def get_agg_numpies(list_paths):
 		data = np.concatenate((data, np.load(path)), axis=0)
 	return data
 
+def augment(list_images, do_H_symetry, crop_level, randomize=True, verbose=0):
+	"""get_agg_numpies
+	given a list of images
+	"""
+	#horizontal symmetry
+	len_a = len(list_images)
+	if do_H_symetry:
+		list_images += [np.flip(img, axis=(-2)) for img in list_images]
+		if verbose>=1: print("Augment: doing horizontal symmetry from {} to {}".format(len(len_a, list_images)))
+	#cropping by level
+	len_a = len(list_images)
+	if crop_level:
+		for idx in range(len_a):
+			list_images += crop_by_levels_augment(img, crop_level, verbose-2)
+		if verbose>=1: print("Augment: doing crop level from {} to {}".format(len(len_a, list_images)))
+	#randomize images
+	if randomize:
+		random.shuffle(list_images)
+	return list_images
+
 def main(args):
 	#get a list of path to load
-	prep_input = get_paths(args.input, args.input_format, force=args.force)
-	if prep_input:
-		#if is a numpy format load and aggregate them in a 4D array
-		if args.input_format==".npy":
-			prep_input = get_agg_numpies(prep_input)
-		#preprocess inputs
-		preprocessor = Preprocess(resize, args.normalize, args.standardize, args.type_img, args.channel_img)
-		prep_images = preprocessor(prep_input)
-		#augment
-		## TODO: AUGMENTATION
-		#save prep_images
-		save_data(preped_image, args.output, args.out_format)
-
-
+	list_path = get_paths(args.input, args.input_format, args.verbose)
+	#preprocess inputs
+	preprocessor = Preprocess(args.resize, args.normalize, args.standardize, args.type_img, args.channel_img)
+	if args.input_format==".npy":
+		list_images = get_agg_numpies(list_path)
+		list_images = preprocessor(list_images)
 	else:
-		print("no valid path found")
+		list_images = preprocessor(list_path)
+	#uniformely resize images if needed
+	if args.resize_policy or args.output_format==".npy":
+		resize_policy = args.resize_policy if args.resize_policy else "strict"
+		list_images = uniformize_shapes(list_images, resize_policy, args.keep_ratio)
+	#augment and save
+	if args.train_test_split:
+		train, test = train_test_split(list_images, train_size=args.train_test_split, shuffle=True)
+		train = augment(train, args.add_H_sym, args.crop_levels, not args.no_randomize, verbose=args.verbose)
+		save_images(train, os.path.join(args.output, "train"), extension=args.output_format, verbose=args.verbose)
+		test = augment(test, args.add_H_sym, args.crop_levels, not args.no_randomize, verbose=args.verbose)
+		save_images(test, os.path.join(args.output, "test"), extension=args.output_format, verbose=args.verbose)
+	else:
+		list_images = augment(list_images, args.add_H_sym, args.crop_levels, not args.no_randomize, verbose=args.verbose)
+		save_images(list_images, args.output, extension=args.output_format, verbose=args.verbose)
 
 
 if __name__=='__main__':
@@ -118,19 +138,16 @@ if __name__=='__main__':
 	STANDARDIZE=False
 	IMG_TYPE=IMG.DEFAULT
 	IMG_CHANNEL=CHANNEL.DEFAULT
-	VERBOSE=1
+	VERBOSE=0
 
 	parser = argparse.ArgumentParser(description="Script used to prepare datasets, convert images, basically centralize image manipulations into one script")
 	#input params
 	parser.add_argument("input", help="images to modify, can be the path of a .csv file containing a list of filepath under the column name \"{}\", regular expression (between quotes), or path".format(COL_IMG_PATH))
 	parser.add_argument("input_format", choices=FORMATS_IN, help="the format of your input images, can be one of the supported formats: {}".format(FORMATS_IN))
 	#output params
-	parser.add_argument("--train_test_split", default=None, type=int, choices=, help="if is set will split the data and save two different sets, default None")
 	parser.add_argument("output", help="path of the directory (if output_format is .jpg, .tiff ou .tif) or the file where to store the result (if output_format is .npy)")
 	parser.add_argument("output_format", choices=FORMATS_OUT, help="the format of your output images, can be one of the supported formats: {}. !!!.npy requires all the images to be the same shape or to set a reshape parameter!!!".format(FORMATS_OUT))
-	#other parameters
-	parser.add_argument("-f", "--force", action="store_true", default=False, help="if some of the given path are invalid, just ignore them and do not throw an exception")
-	parser.add_argument("--resize-policy", default="strict", choices=["strict", "minimum", "maximum"], help="if images are of different sizes what policy should we adopt, strict fails, minimum takes the minimum shape, maximum takes the maximum shape")
+	parser.add_argument("--train_test_split", default=None, type=int, help="if is set will split the data and save two different sets by the value given in percentage, default None")
 	#Preprocessing
 	parser.add_argument("-r", "--resize", type=int, nargs=2, default=RESIZE, help="resize image to this value, default is {}".format(RESIZE))
 	parser.add_argument("-n", "--normalize", default=NORMALIZE, type=lambda x: bool(eval(x)), help="if image should be normalized, default: {}".format(NORMALIZE))
@@ -139,11 +156,13 @@ if __name__=='__main__':
 	parser.add_argument("-c", "--channel_img", default=IMG_CHANNEL.name, type=lambda x: CHANNEL[x], choices=list(CHANNEL), help="The channel used for the image, default: {}".format(IMG_CHANNEL))
 	parser.add_argument("-v", "--verbose", default=VERBOSE, type=int, choices=[0,1,2], help="set the level of visualization, default: {}".format(VERBOSE))
 
-	#augmentation
-	parser.add_argument("--add-H-sym", default=False, action="store_true", help="add Horizontal symmetric images to the output data")
-	parser.add_argument("--crop-levels", default=0, type=int, choices=[1,2,3], help="augment the images with cropings, of the original image, 1 is no augmentation, 2 adds 4(2*2) quarter images, 3 adds 20=(4+16(2*2+4*4)) heights of the original image")
+	#augmentation and other parameters
+	parser.add_argument("--resize_policy", default=None, choices=["strict", "minimum", "maximum"], help="if images are of different sizes what policy should we adopt, strict fails, minimum takes the minimum shape, maximum takes the maximum shape, default None")
+	parser.add_argument("--add_H_sym", default=False, action="store_true", help="add Horizontal symmetric images to the output data, default false")
+	parser.add_argument("--keep_ratio", default=False, action="store_true", help="Preserve image ratio if resized, default false")
+	parser.add_argument("--crop_levels", default=0, type=int, choices=[1,2,3], help="augment the images with cropings, of the original image, 1 is no augmentation, 2 adds 4(2*2) quarter images, 3 adds 20=(4+16(2*2+4*4)) heights of the original image")
+	parser.add_argument("--no_randomize", default=False, action="store_true", help="By default results are randomized, is set will not randomize")
 
 	args = parser.parse_args()
-	if verbose>=1:
-		print(args)
 	main(args)
+	save_args(args, os.path.join(args.output_dir, "convertDataParams.txt"))

@@ -14,7 +14,6 @@ if __name__!='__main__':
 	if new_path not in sys.path:
 		sys.path.append(new_path)
 
-
 from ImageManip import *
 
 
@@ -81,7 +80,7 @@ class Preprocess:
 		"""
 		#load image if needed and check for expected type
 		if isinstance(input, str):
-			image = imageio.imread(input)
+			image = openImage(input)
 			print(input, image.shape, image.dtype)
 		elif isinstance(input, np.ndarray):
 			image = input
@@ -111,21 +110,17 @@ class Preprocess:
 		image = image if image.ndim==3 else image[..., np.newaxis]
 		#normalize and standardize
 		if self.normalize:
-			print("Preprocessed ", image.shape, image.dtype)
 			image = normalize_img(image)
 		if self.standardize:
 			image = standardize_img(image)
 		return image
 
-	def preprocess_list_img(self, img_list):	## TODO: prallelize?
+	def preprocess_list_img(self, img_list):
 		"""
 		preprocess a list of images (can be list of path or of numpy arrays)
 		returns a list of preprocessed images
 		"""
-		new_list = []
-		for img in img_list:
-			new_list += [do_preprocess(img)]
-		return new_list
+		return [self.do_preprocess(img) for img in img_list]
 
 	def __call__(self, input, numpy_name=""):
 		'''
@@ -136,7 +131,7 @@ class Preprocess:
 		'''
 		#if list of images
 		if isinstance(input, list) or (isinstance(input, np.ndarray) and input.ndim==4):
-			res = preprocess_list_img(input)
+			res = self.preprocess_list_img(input)
 			self.image=None
 			self.df_parameters.loc[0, COL_IMG_PATH] = ""
 		else:

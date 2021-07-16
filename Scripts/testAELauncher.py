@@ -44,13 +44,13 @@ class test_test(unittest.TestCase):
             shutil.rmtree(TEST_NETWORK_DIR)
 
 
-class test_latent_search(unittest.TestCase):
-    def test(self):
-        data = np.random.rand(10,112,112,3)
-        for model_type in ["VGG16AE", "convolutional", "perceptron", "sparse_convolutional", "variational_AE"]:
-            LD_selection(model_type, data, data, 2, 5, 'mse', TEST_NETWORK_DIR,
-                        False, True, 3, [8,16], True, 0)
-            shutil.rmtree(TEST_NETWORK_DIR)
+# class test_latent_search(unittest.TestCase):
+#     def test(self):
+#         data = np.random.rand(10,112,112,3)
+#         for model_type in ["VGG16AE", "convolutional", "perceptron", "sparse_convolutional", "variational_AE"]:
+#             LD_selection(model_type, data, data, 2, 5, 'mse', TEST_NETWORK_DIR,
+#                         False, True, 3, [8,16], True, 0)
+#             shutil.rmtree(TEST_NETWORK_DIR)
 
 # class test_main(unittest.TestCase):
 #     def test(self):

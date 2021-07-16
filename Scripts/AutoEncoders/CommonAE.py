@@ -180,7 +180,7 @@ def show_predictions(sample_test, prediction, title, saving_dir=None, verbosity=
 		axs[0][i].imshow(visu_test, cmap='gray', vmin=0, vmax=1)
 
 		visu_pred = prediction[i] if prediction[i].shape[-1]!=2 else np.mean(prediction[i], axis=-1)
-		axs[1][i].set_title("reconstructed {}".format(i))
+		axs[1][i].set_title("pred {}".format(i))
 		axs[1][i].imshow(visu_pred, cmap='gray', vmin=0, vmax=1)
 	if saving_dir:
 		plt.savefig(os.path.join(saving_dir, title)+".jpg")

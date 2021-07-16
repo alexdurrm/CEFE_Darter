@@ -4,14 +4,14 @@ import cv2
 import rawpy as rp
 import imageio
 import os
-import shutil
 
 ######################################################################
 #																	 #
 #	 File storing different functions used in image manipulation	 #
 #																	 #
 ######################################################################
-
+WORKING_TYPE="float32"
+## TODO: THE whole file has to be coordinated with numpy float32 and be parrallelized
 
 def img_manip_decorator(function):
 	"""
@@ -71,9 +71,9 @@ def resize_img(image, new_shape=(None, None)):
 	different from cv2 resize because new_shape can have None values
 	if None None is the new shape given the returned image is the same as the one in parameters
 	"""
-	if new_shape[0] or new_shape[1]:
-		rX = new_shape[0] if new_shape[0] else image.shape[0]
-		rY = new_shape[1] if new_shape[1] else image.shape[1]
+	rX = new_shape[0] if new_shape[0] else image.shape[0]
+	rY = new_shape[1] if new_shape[1] else image.shape[1]
+	if rX!=image.shape[0] or rY!=image.shape[1]:
 		image = cv2.resize(image, dsize=(rY, rX), interpolation=cv2.INTER_CUBIC)	#numpy and cv2 have inverted axes X and Y
 	return image
 
@@ -85,6 +85,7 @@ def resize_img_to_fit(image, new_shape, keep_ratio):
 	output the resized image
 	"""
 	if keep_ratio:
+		#calculate a new shape that preserves the ratio
 		new_ratio = new_shape[1]/new_shape[0]
 		old_ratio = image.shape[1]/image.shape[0]
 		if new_ratio < old_ratio:   #nouveau est plus vertical on adapte le y
@@ -95,7 +96,7 @@ def resize_img_to_fit(image, new_shape, keep_ratio):
 	return image
 
 @img_manip_decorator
-def standardize_img(image):
+def standardize_img(image, type=WORKING_TYPE):
 	"""
 	bring the image to values between 0 and 1
 	"""
@@ -104,15 +105,15 @@ def standardize_img(image):
 	else:
 		image = ((image - np.min(image)) / (np.max(image) - np.min(image)))
 	assert np.max(image)<=1 and np.min(image)>=0, "bad normalization,{} {} instead of {} {}".format(np.min(image), np.max(image), mini, maxi)
-	return image.astype("float32")
+	return image.astype(type)
 
 @img_manip_decorator
-def normalize_img(image):
+def normalize_img(image, type=WORKING_TYPE):
 	"""
 	bring the distribution of the image to reach a mean of 0 and a standard deviation of 1
 	"""
 	image = (image - np.mean(image)) / np.std(image)	#image - np.mean(image, axis=(0,1))) / np.std(image, axis=(0,1)
-	return image.astype("float32")
+	return image.astype(type)
 
 @img_manip_decorator
 def rgb_2_darter(image):
@@ -120,7 +121,7 @@ def rgb_2_darter(image):
 	transfer the given image from the RGB domain space to the darter domain space
 	"""
 	assert image.shape[-1]==3, "Image of wrong dimensions, should be NxMx3 but is {}".format(image.shape)
-	im_out = np.zeros([image.shape[0], image.shape[1], 2], dtype = np.float32)
+	im_out = np.zeros([image.shape[0], image.shape[1], 2], dtype = image.dtype)
 
 	im_out[:, :, 1] = (140.7718694130528 +
 		0.021721843447502408  * image[:, :, 0] +
@@ -161,56 +162,66 @@ def openImage(path, verbosity=0):
 		image = image[..., np.newaxis]
 	return image
 
-def openTiff(path):
+def openTiff(path, type=WORKING_TYPE):
 	"""
 	open a .tiff image and return a float32 numpy array
 	"""
 	ext = os.path.splitext(path)[1]
 	assert ext in [".tiff", ".tif"], "Wrong image format, expected \'.tiff\', or \'.tif\', got {}".format(ext)
 	img = imageio.imread(path)
-	return img.astype("float32")
+	return img.astype(type)
 
-def openCR2(path):
+def openCR2(path, default_method=True, type=WORKING_TYPE):
 	"""
 	open a .CR2 image and return a float32 numpy array
 	"""
 	ext = os.path.splitext(path)[1]
 	assert ext==".CR2", "Wrong image format, expected \'.CR2\', got {}".format(ext)
 	raw = rp.imread(path)
-	rgb = raw.postprocess(use_camera_wb=True)
-	return rgb.astype("float32")
+	if default_method:
+		rgb = raw.postprocess(use_camera_wb=True)
+	else:
+		rawParams = rp.Params(gamma=(1, 1),
+							  no_auto_bright=True,
+							  user_wb=(1, 1, 1, 1),
+							  output_bps=16,
+							  half_size=True)
+		rgb = raw.postprocess(params = rawParams)
+	return rgb.astype(type)
 
-def openNpy(path):
+def openNpy(path, type=WORKING_TYPE):
 	"""
 	open a .npy image and return a float32 numpy array
 	"""
 	ext = os.path.splitext(path)[1]
 	assert ext==".npy", "Wrong image format, expected \'.npy\', got {}".format(ext)
-	return np.load(path).astype("float32")
+	return np.load(path).astype(type)
 
-def openImg(path):
+def openImg(path, type=WORKING_TYPE):
 	"""
 	open a .png or .jpg image and return a float32 numpy array
 	"""
 	ext = os.path.splitext(path)[1]
 	assert ext in [".jpg", ".png"], "Wrong image format, expected \'.jpg\' or \'.png\', got {}".format(ext)
 	img = imageio.imread(path)
-	return (img/255.0).astype("float32")
+	return (img/255.0).astype(type)
 
 #### SAVINGS
-def save_images(data, path, extension=None, verbosity=0):
+def save_images(data, path, filenames=None, extension=None, verbose=0):	## TODO: get formats for each extension and prepare accordingly
 	"""
 	given a data of type numpy array will save it in the specified type
 	if multiple images need to be saved a directory will be created at specified path
 	"""
+	#if not given explicit format infer from path
 	path, ext = os.path.splitext(path)
 	if not extension:
 		extension = ext
 	assert extension in [".jpg", ".png", ".tiff", ".tif", ".npy"], "wrong extention {}".format(extension)
+
 	#if save to numpy
 	if extension==".npy":
 		np.save(path+extension, data)
-		if verbosity>=1:
+		if verbose>=1:
 			print("saving {}".format(path+extension))
 	#if save to common format
 	elif extension in [".jpg", ".png", ".tiff", ".tif"]:
@@ -219,29 +230,73 @@ def save_images(data, path, extension=None, verbosity=0):
 			if not os.path.exists(path):
 				os.makedirs(path)
 			for idx, img in enumerate(data):
-				saveImg(img, os.path.join(path, str(idx)+extension))
-				if verbosity>=2:
-					print("saving {}".format(os.path.join(path, str(idx)+extension)))
+				filepath = os.path.join(path, filenames[idx]+extension) if filenames else os.path.join(path, str(idx)+extension)
+				saveImg(img, filepath, extension)
+				if verbose>=2:
+					print("saving {}".format(filepath))
 		else:
-			saveImg(data, path+extension)
-			if verbosity>=1:
+			saveImg(data, path, extension)
+			if verbose>=1:
 				print("saving {}".format(path+extension))
 	#if unknown format
 	else:
 		raise ValueError("extension must be one of the expected image format, received {}".format(extension))
 
 #TODO: handle formats
-def saveImg(data, path):
+def saveImg(image, path, ext):
 	"""
-	given a numpy array and a path will save it
+	given a numpy array, a path and an extension will save it
 	"""
-	assert data.shape[-1]!=2 and data.ndim==3, "cannot save an image with shape {} in this format {}".format(data.shape, os.path.splitext(path)[-1])
-	ext = os.path.splitext(path)[1]
-	if ext=="":
-		ext=".jpg"
+	assert image.shape[-1]!=2 and image.ndim==3, "cannot save an image with shape {} in this format {}".format(image.shape, os.path.splitext(path)[-1])
+	#append extension to filepath
+	path = os.path.splitext(path)[0]+ext
 	assert ext in [".jpg", ".png", ".tiff", ".tif"], "Wrong image format, expected \'.jpg\', \'.png\', \'.tiff\', or \'.tif\', got {}".format(ext)
 	if ext in [".tiff", ".tif"]:
-		imageio.imwrite(path, data)
-	else:
-		data = (255*data).astype("uint8")
-		imageio.imwrite(path, data)
+		imageio.imwrite(path, image)
+	elif ext in [".jpg", ".png"]:
+		image = (255*image).astype("uint8")
+		imageio.imwrite(path, image)
+
+################################################################################
+#
+#				AUGMENTATIONS
+#
+################################################################################
+
+def crop_by_levels_augment(image, levels=1, verbose=0):
+	"""
+	given an image
+	return a list of images cropped by level, each level is a division by 2
+	the returned array of images are of the same shape as the inputs
+	if level is 0 returns empty list
+	if level is 1 returns list of 4 images
+	if level is 2 returns list of 4+16=20 images
+	"""
+	augmented = []
+	for level in range(1, levels):
+		level_crop_shape = (image.shape[0]/2**level, image.shape[1]/2**level)
+		j=0
+		#for each image return crops from slinding window and corresponding mirror
+		for sample in fly_over_image(image, window=level_crop_shape, stride=level_crop_shape):
+			augmented.append(resize_img(sample, image.shape[:-1]))
+			#if visualize
+			if verbose>=3:
+				j+=1
+				plt.imshow(augmented[i], cmap='gray')
+				plt.title("image augment crop {}".format(j))
+				plt.show()
+	if verbose>=1:
+		print("Crop_by_levels_augment: augmentation gone from {} to {} images".format(len(list_images), len(augmented)))
+	return augmented
+
+
+################################################################################
+#
+#				VISUALISATIONS
+#
+################################################################################
+
+def see_image(image, title="", cmap="gray"):
+	plt.imshow(image, cmap=cmap)
+	plt.title(title)
+	plt.show()

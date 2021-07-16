@@ -1,4 +1,3 @@
-import tensorflow as tf
 import tensorflow.keras as K
 from sklearn.model_selection import train_test_split
 import argparse
@@ -6,9 +5,6 @@ import numpy as np
 
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
-
-tf.random.set_seed(500)
-np.random.seed(500)
 
 from AutoEncoders.Models import *
 from AutoEncoders.CommonAE import *
@@ -78,25 +74,26 @@ def train_model(model_type, train, test, epochs, batch_size, loss_name, output_d
 	model.save(net_output_dir, overwrite=True)
 	return history
 
-def LD_selection(model_type, train, test, epochs, batch_size, loss_name, output_dir, save_activations, early_stopping, sample_preds, list_LD, do_augment=False, verbosity=0):
-	#prepare directory
-	if not os.path.exists(output_dir):
-		os.makedirs(output_dir)
-	losses, val_losses = [], []
-	#for each latent dim train a network
-	for latent_dim in list_LD:
-		output_net = os.path.join(output_dir, "LD_"+str(latent_dim))
-		history = train_model(model_type, train, test, epochs, batch_size, loss_name, output_net, save_activations, early_stopping, sample_preds, latent_dim, do_augment=False, verbosity=0)
-		#store losses
-		losses.append(history.history['loss'])
-		val_losses.append(history.history['val_loss'])
-	#plot the best validation for each latent dim
-	best_losses = [min(l) for l in losses]
-	best_val_losses = [min(l) for l in val_losses]
-	plot_loss_per_ld(best_losses, best_val_losses, list_LD,
-		title="best losses per latent dim",
-		save_path=os.path.join(output_dir, "best losses per latent dim")
-		)
+# ERRORS WHEN MULTIPLE TRAININGS
+# def LD_selection(model_type, train, test, epochs, batch_size, loss_name, output_dir, save_activations, early_stopping, sample_preds, list_LD, do_augment=False, verbosity=0):
+# 	#prepare directory
+# 	if not os.path.exists(output_dir):
+# 		os.makedirs(output_dir)
+# 	losses, val_losses = [], []
+# 	#for each latent dim train a network
+# 	for latent_dim in list_LD:
+# 		output_net = os.path.join(output_dir, "LD_"+str(latent_dim))
+# 		history = train_model(model_type, train, test, epochs, batch_size, loss_name, output_net, save_activations, early_stopping, sample_preds, latent_dim, do_augment=False, verbosity=0)
+# 		#store losses
+# 		losses.append(history.history['loss'])
+# 		val_losses.append(history.history['val_loss'])
+# 	#plot the best validation for each latent dim
+# 	best_losses = [min(l) for l in losses]
+# 	best_val_losses = [min(l) for l in val_losses]
+# 	plot_loss_per_ld(best_losses, best_val_losses, list_LD,
+# 		title="best losses per latent dim",
+# 		save_path=os.path.join(output_dir, "best losses per latent dim")
+# 		)
 
 def test_model(model_path, test, loss_name, sample_preds, output_dir=None, verbosity=0):
 	"""
@@ -110,7 +107,7 @@ def test_model(model_path, test, loss_name, sample_preds, output_dir=None, verbo
 	#get loss
 	loss_func = get_loss_from_name(loss_name)
 	# load model and save predictions
-	model = tf.keras.models.load_model(model_path, compile=False)
+	model = K.models.load_model(model_path, compile=False)
 	model.compile(optimizer="Adam", loss=loss_func)
 	predictions = model.predict(test)
 	np.save(os.path.join(output_dir,"predictions.npy"), predictions)
@@ -134,16 +131,14 @@ def main(args):
 	# TRAIN
 	elif args.command == "train":
 		train, test = load_train_test(train_path=args.dataset, test_path=args.test, descriptor=False, verbose=args.verbose)
-		callbacks = get_callbacks(args.model_type, test, output_dir, args.save_activations, args.early_stopping, args.sample_preds, args.verbose)
-		if isinstance(args.latent_dim, int):
-			model = get_model(args.model_type, train.shape[1:], args.latent_dim, verbosity=args.verbose)
-			train_model(args.model_type, train, test, args.epochs, args.batch, args.loss, output_dir,
-				args.save_activations, args.early_stopping, args.sample_preds,
-				latent_dim=args.latent_dim, do_augment=args.data_augment, verbosity=args.verbose)
-		else:
-			LD_selection(args.model_type, train, test, args.epochs, args.batch, args.loss, output_dir,
-				args.save_activations, args.early_stopping, args.sample_preds,
-				list_LD=args.latent_dim, do_augment=args.data_augment, verbosity=args.verbose)
+		# if isinstance(args.latent_dim, int):
+		train_model(args.model_type, train, test, args.epochs, args.batch, args.loss, output_dir,
+			args.save_activations, args.early_stopping, args.sample_preds,
+			latent_dim=args.latent_dim, do_augment=args.data_augment, verbosity=args.verbose)
+		# else:
+			# LD_selection(args.model_type, train, test, args.epochs, args.batch, args.loss, output_dir,
+			# 	args.save_activations, args.early_stopping, args.sample_preds,
+			# 	list_LD=args.latent_dim, do_augment=args.data_augment, verbosity=args.verbose)
 
 	else:
 		raise ValueError("Unknown command: {}".format(args.command))
@@ -172,7 +167,7 @@ if __name__=="__main__":
 	training_parser = subparsers.add_parser("train")
 	training_parser.add_argument("model_type", choices=model_types, help='The architecture name of the model used')
 	training_parser.add_argument("--test", type=str, default=None, help="optionnal path to a numpy used as test, if None given split 10 percent of the dataset, default None")
-	training_parser.add_argument("-l", "--latent_dim", type=int, nargs='+', default=LATENT_DIM, help="the latent dimention, if multiple are given multiple networks will be trained, default {}".format(LATENT_DIM))
+	training_parser.add_argument("-l", "--latent_dim", type=int, default=LATENT_DIM, help="the latent dimention, if multiple are given multiple networks will be trained, default {}".format(LATENT_DIM))
 	training_parser.add_argument("-b", "--batch", type=int, default=BATCH_SIZE, help="batch size for training, default {}".format(BATCH_SIZE))
 	training_parser.add_argument("-e", "--epochs", type=int, default=EPOCHS, help="number of epochs max for training, default {}".format(EPOCHS))
 	# training_parser.add_argument("--optimizer", type=str, choices=['Adam'], default=OPTIMIZER, help="network optimizer, default {}".format(OPTIMIZER))
