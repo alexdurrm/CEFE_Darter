@@ -15,13 +15,22 @@ import numpy as np
 #				CALLBACKS
 #
 ########################################
+def scheduler(epoch, lr):
+	"""
+	update the learning rate at epoch 10  and 30
+	"""
+	if epoch==10 or epoch==30:
+		return lr * 0.1
+	else:
+		return lr
 
-def get_callbacks(model_type, test, output_dir, save_activations, early_stopping, sample_preds, verbosity=0):
-	#prepare callbacks
-	if verbosity>=1: print("Retrieving callbacks save_activation:{}, early_stopping:{}, sample_preds:{}".format(save_activations, early_stopping, sample_preds))
-	#select a sample of test
+def get_callbacks(model_type, test, output_dir, save_activations, early_stopping, sample_preds, lr_scheduler, verbosity=0):
+	if verbosity>=1:
+		print("get_callbacks:: Retrieving callbacks save_activation:{}, early_stopping:{}, sample_preds:{}, lr_scheduler:{}".format(save_activations, early_stopping, sample_preds, lr_scheduler))
 	#append callbacks
 	callbacks = []
+	if lr_scheduler:
+		callbacks.append(tf.keras.callbacks.LearningRateScheduler(scheduler))
 	if save_activations:
 		callbacks.append(SaveActivations(val_img=test[0], saving_dir=output_dir, verbose=verbosity-1))
 	if early_stopping:
@@ -32,6 +41,7 @@ def get_callbacks(model_type, test, output_dir, save_activations, early_stopping
 		callbacks.append(SavePredictionSample(sample=sample, saving_dir=output_dir, verbosity=verbosity-1))
 		if model_type=="variational_AE":
 			callbacks.append(SaveSampling(sample_preds, test.shape[1:], saving_dir=output_dir))
+	if verbosity>=1: print("get_callbacks:: Added {} callbacks".format(len(callbacks)))
 	return callbacks
 
 
@@ -43,13 +53,12 @@ class SavePredictionSample(Callback):
 		self.verbosity = verbosity
 
 	def on_epoch_end(self, epoch, logs=None):
-		model = self.model.layers[-1]	#retrieve the autoencoder from the wrapped model
-		outputs = model.predict(self.sample)
+		outputs = self.model.predict(self.sample)
 		if self.verbosity>=1:
 			print("SavePredictionSample: on epoch end")
-			print("\nCommonAE.SavePredictionSample: sample: {}/ {} / {} / {} / {}".format(type(self.sample), self.sample.shape, self.sample.min(), self.sample.max(), self.sample.dtype))
-			print("\nCommonAE.SavePredictionSample: output: {}/ {} / {} / {} / {}".format(type(outputs), outputs.shape, outputs.min(), outputs.max(), outputs.dtype))
-		title = "reconstructions epoch {} model {}".format(epoch, model.name)
+			print("\nCommonAE.SavePredictionSample:: sample: {}/ {} / {} / {} / {}".format(type(self.sample), self.sample.shape, self.sample.min(), self.sample.max(), self.sample.dtype))
+			print("\nCommonAE.SavePredictionSample:: output: {}/ {} / {} / {} / {}".format(type(outputs), outputs.shape, outputs.min(), outputs.max(), outputs.dtype))
+		title = "reconstructions epoch {} model {}".format(epoch, self.model.name)
 		show_predictions(self.sample, outputs, title, self.saving_dir, self.verbosity-1)
 
 
@@ -61,29 +70,26 @@ class SaveActivations(Callback):
 		self.verbose = verbose
 
 	def on_epoch_end(self, epoch, logs=None):
-		model = self.model.layers[-1]	#retrieve the autoencoder from the wrapped model
-		model.compile("Adam","mse")
-		print(model.summary())
 		if epoch%10!=0:
 			return
-		n_encoder_layers = len(model.encoder.layers)
-		n_decoder_layers = len(model.decoder.layers)
+		n_encoder_layers = len(self.model.encoder.layers)
+		n_decoder_layers = len(self.model.decoder.layers)
 
 		activations = [self.validation_img[np.newaxis,...]]
 		layer_names = ["input"]
 
 		if self.verbose>=1:
-			print(model.encoder.summary())
-			print(model.decoder.summary())
+			print(self.model.encoder.summary())
+			print(self.model.decoder.summary())
 
 		for i in range(n_encoder_layers):
-			print(model.encoder.layers[i])
-			activations.append( tf.keras.backend.function([model.encoder.layers[i].input], model.encoder.layers[i].output.numpy())([activations[-1], 1]) )
-			layer_names.append(model.encoder.layers[i].name)
+			print(self.model.encoder.layers[i])
+			activations.append( tf.keras.backend.function([self.model.encoder.layers[i].input], self.model.encoder.layers[i].output.numpy())([activations[-1], 1]) )
+			layer_names.append(self.model.encoder.layers[i].name)
 
 		for i in range(n_decoder_layers):
-			activations.append( tf.keras.backend.function([model.decoder.layers[i].input], model.decoder.layers[i].output.numpy())([activations[-1], 1]) )
-			layer_names.append(model.decoder.layers[i].name)
+			activations.append( tf.keras.backend.function([self.model.decoder.layers[i].input], self.model.decoder.layers[i].output.numpy())([activations[-1], 1]) )
+			layer_names.append(self.model.decoder.layers[i].name)
 
 		fig = plt.figure(figsize=(24, 18), dpi=100)
 		fig.suptitle("mean activations per layers")
@@ -127,15 +133,14 @@ class SaveSampling(Callback):
 
 	def on_epoch_end(self, epoch, logs=None):
 		#plot examples samples
-		model = self.model.layers[-1]	#retrieve the autoencoder from the wrapper model
-		samples = model.sample(self.n_sample, self.prediction_shape)
+		samples = self.model.sample(self.n_sample, self.prediction_shape)
 		fig, axs = plt.subplots(nrows=1, ncols=self.n_sample, sharex=True, sharey=True)
 		fig.suptitle("VarAE sampling")
 		for i in range(self.n_sample):
 			visu_sample = samples[i] if samples[i].shape[-1]!=2 else samples[i,...,0]+samples[i,...,1]
 			axs[i].imshow(visu_sample, cmap='gray', vmin=0, vmax=1)
 			axs[i].set_title("sample {}".format(i))
-		plt.savefig(os.path.join(self.saving_dir, "{} sampling.jpg".format(model.name)))
+		plt.savefig(os.path.join(self.saving_dir, "{} sampling.jpg".format(self.model.name)))
 		plt.close()
 
 
@@ -180,7 +185,8 @@ def show_predictions(sample_test, prediction, title, saving_dir=None, verbosity=
 		axs[0][i].imshow(visu_test, cmap='gray', vmin=0, vmax=1)
 
 		visu_pred = prediction[i] if prediction[i].shape[-1]!=2 else np.mean(prediction[i], axis=-1)
-		axs[1][i].set_title("pred {}".format(i))
+		mse = get_MSE(sample_test[i], prediction[i])
+		axs[1][i].set_title("pred {}\nmse: {:.3f}".format(i, mse))
 		axs[1][i].imshow(visu_pred, cmap='gray', vmin=0, vmax=1)
 	if saving_dir:
 		plt.savefig(os.path.join(saving_dir, title)+".jpg")
@@ -224,29 +230,29 @@ def plot_loss_per_ld(best_losses, best_val_losses, list_LD, title="", save_path=
 		plt.show()
 	plt.close()
 
-def visualize_conv_filters(model, layer, verbosity=0):
-	"""
-	given a model and a layer name
-	return a list of input images that maximizes the activation of this layer
-	"""
-	## TODO
-	shape_input = tf.shape(model.inputs)
-	# model = tf.keras.models.Model(inputs=model.inputs, outputs=layer)
-
-	plt.suptitle("max activation image for layer {} filters".format(layer.name))
-	rows, cols = shape_input[-1]//10+1, shape_input[-1]%10
-	f, axs = plt.subplots(rows, cols)
-	for i in range(layer.shape[-1]):
-		ones = tf.ones(shape_input[:-1])
-		input = tf.Variable(tf.random.uniform(shape_input))
-		loss = tf.math.reduce_sum(tf.math.substract(ones ,layer[...,i]))
-		opt = tf.keras.optimizers.Adam()
-		for j in range(100):
-			opt.minimize(loss, [input])
-		axs[i//10+1, i%10+1].imshow(input.numpy(), vmin=0, vmax=1, cmap='hot')
-	if verbosity>=1:
-		plt.show()
-	plt.close()
+# def visualize_conv_filters(model, layer, verbosity=0):
+# 	"""
+# 	given a model and a layer name
+# 	return a list of input images that maximizes the activation of this layer
+# 	"""
+# 	## TODO
+# 	shape_input = tf.shape(model.inputs)
+# 	# model = tf.keras.models.Model(inputs=model.inputs, outputs=layer)
+#
+# 	plt.suptitle("max activation image for layer {} filters".format(layer.name))
+# 	rows, cols = shape_input[-1]//10+1, shape_input[-1]%10
+# 	f, axs = plt.subplots(rows, cols)
+# 	for i in range(layer.shape[-1]):
+# 		ones = tf.ones(shape_input[:-1])
+# 		input = tf.Variable(tf.random.uniform(shape_input))
+# 		loss = tf.math.reduce_sum(tf.math.substract(ones ,layer[...,i]))
+# 		opt = tf.keras.optimizers.Adam()
+# 		for j in range(100):
+# 			opt.minimize(loss, [input])
+# 		axs[i//10+1, i%10+1].imshow(input.numpy(), vmin=0, vmax=1, cmap='hot')
+# 	if verbosity>=1:
+# 		plt.show()
+# 	plt.close()
 
 
 if __name__=='__main__':

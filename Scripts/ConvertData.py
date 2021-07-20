@@ -10,7 +10,7 @@ import random
 import imageio
 
 from Utils.Preprocess import *
-from Utils.FileManagement import COL_IMG_PATH
+from Utils.FileManagement import COL_IMG_PATH, save_args
 from Utils.ImageManip import *
 
 FORMATS_IN = [".jpg", ".npy", ".tiff", ".tif", ".CR2"]
@@ -90,20 +90,21 @@ def augment(list_images, do_H_symetry, crop_level, randomize=True, verbose=0):
 	"""get_agg_numpies
 	given a list of images
 	"""
+	#cropping by level
+	len_a = len(list_images)
+	if crop_level>1:
+		augmented = np.array([crop_by_levels_augment(img, crop_level, verbose-1) for img in list_images]).reshape((-1, *list_images.shape[-3:]))
+		list_images = np.concatenate((list_images, augmented))
+		if verbose>=1: print("Augment: doing crop level {} from {} to {}".format(crop_level, len_a, len(list_images)))
 	#horizontal symmetry
 	len_a = len(list_images)
 	if do_H_symetry:
-		list_images += [np.flip(img, axis=(-2)) for img in list_images]
-		if verbose>=1: print("Augment: doing horizontal symmetry from {} to {}".format(len(len_a, list_images)))
-	#cropping by level
-	len_a = len(list_images)
-	if crop_level:
-		for idx in range(len_a):
-			list_images += crop_by_levels_augment(img, crop_level, verbose-2)
-		if verbose>=1: print("Augment: doing crop level from {} to {}".format(len(len_a, list_images)))
+		augmented = [np.flip(img, axis=(-2)) for img in list_images]
+		list_images  = np.concatenate((list_images, augmented))
+		if verbose>=1: print("Augment: doing horizontal symmetry from {} to {}".format(len_a, len(list_images)))
 	#randomize images
 	if randomize:
-		random.shuffle(list_images)
+		np.random.shuffle(list_images)
 	return list_images
 
 def main(args):
@@ -122,11 +123,12 @@ def main(args):
 		list_images = uniformize_shapes(list_images, resize_policy, args.keep_ratio)
 	#augment and save
 	if args.train_test_split:
-		train, test = train_test_split(list_images, train_size=args.train_test_split, shuffle=True)
+		train, test = train_test_split(list_images, test_size=args.train_test_split, shuffle=True)
 		train = augment(train, args.add_H_sym, args.crop_levels, not args.no_randomize, verbose=args.verbose)
-		save_images(train, os.path.join(args.output, "train"), extension=args.output_format, verbose=args.verbose)
+		path, ext = os.path.splitext(args.output)
+		save_images(train, path+"_train"+ext, extension=args.output_format, verbose=args.verbose)
 		test = augment(test, args.add_H_sym, args.crop_levels, not args.no_randomize, verbose=args.verbose)
-		save_images(test, os.path.join(args.output, "test"), extension=args.output_format, verbose=args.verbose)
+		save_images(test, path+"_test"+ext, extension=args.output_format, verbose=args.verbose)
 	else:
 		list_images = augment(list_images, args.add_H_sym, args.crop_levels, not args.no_randomize, verbose=args.verbose)
 		save_images(list_images, args.output, extension=args.output_format, verbose=args.verbose)
@@ -165,4 +167,5 @@ if __name__=='__main__':
 
 	args = parser.parse_args()
 	main(args)
-	save_args(args, os.path.join(args.output_dir, "convertDataParams.txt"))
+	output_dir = os.path.split(args.output)[0]
+	save_args(args, os.path.join(output_dir, "convertDataParams.txt"))

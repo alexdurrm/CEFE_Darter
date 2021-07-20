@@ -242,7 +242,6 @@ class VGG16AE(Model):
 #####################################################################################
 
 def get_model(model_type, pred_shape, latent_dim, verbosity=0):
-	K.backend.clear_session()
 	if verbosity>=1: print(model_type)
 	if model_type=="perceptron":
 		model = Perceptron(latent_dim, pred_shape)
@@ -268,13 +267,24 @@ def get_model(model_type, pred_shape, latent_dim, verbosity=0):
 #
 #####################################################################################
 
-def get_augmentation(output_shape, verbosity=0):
+
+def get_augmentation(ds, output_shape, batch_size, shuffle=False, augment=False, verbosity=0):
 	if verbosity>=1:
 		print("Adding augmentation")
-	return K.Sequential([
+	data_aug = K.Sequential([
 		K.layers.experimental.preprocessing.RandomTranslation(height_factor=(-0.1, 0.1), width_factor=(-0.1, 0.1)),
 		K.layers.experimental.preprocessing.RandomRotation(0.2),
 		K.layers.experimental.preprocessing.RandomFlip(mode="horizontal"),
 		K.layers.experimental.preprocessing.RandomCrop(height=output_shape[0]//2 , width=output_shape[1]//2),
 		K.layers.experimental.preprocessing.Resizing(output_shape[0], output_shape[1])
 		], name="data_augmentation")
+
+	# Use buffered prefecting on all datasets
+	ds = ds.batch(batch_size).prefetch(100)
+	# Use data augmentation only on the training set
+	if augment:
+		# ds = ds.map(lambda x: data_aug(x, training=True))
+		ds = ds.map(lambda x,y: (data_aug(x, training=True),)*2)
+	if shuffle:
+		ds = ds.shuffle(100)
+	return ds

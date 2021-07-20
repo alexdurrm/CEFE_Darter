@@ -81,10 +81,10 @@ class Preprocess:
 		#load image if needed and check for expected type
 		if isinstance(input, str):
 			image = openImage(input)
-			print(input, image.shape, image.dtype)
+			print("Preprocess:so_preprocess:: ", input, image.shape, image.dtype)
 		elif isinstance(input, np.ndarray):
 			image = input
-			print("numpy img:", image.shape, image.dtype)
+			print("Preprocess:so_preprocess:: numpy img:", image.shape, image.dtype)
 		else:
 			raise TypeError("Given type {}, expected type str or np.ndarray".format(type(input)))
 		assert image.ndim==3 and image.shape[-1]==3, "wrong image dimension: {}".format(image.shape)

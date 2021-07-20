@@ -33,10 +33,10 @@ def img_manip_decorator(function):
 			#if visu is true show the input and output images
 			if kwargs.pop("visu", False):
 				fig, axs = plt.subplots(nrows=1, ncols=2, sharex=True, sharey=True)
-				visu_input = input_img if input_img.shape[-1]!=2 else input_img[...,0]+input_img[...,1]
-				axs[0].imshow(visu_input, cmap='gray')
-				visu_out = output if output.shape[-1]!=2 else output[..., 0]+output[...,1]
-				axs[1].imshow(visu_out, cmap='gray')
+				visu_input = input_img if input_img.shape[-1]!=2 else np.mean(input_img, axis=-1)
+				axs[0].imshow(visu_input, vmin=0, vmax=1, cmap='gray')
+				visu_out = output if output.shape[-1]!=2 else np.mean(output, axis=-1)
+				axs[1].imshow(visu_out, vmin=0, vmax=1, cmap='gray')
 				plt.title(function.__name__)
 				plt.show()
 				plt.close()
@@ -44,7 +44,9 @@ def img_manip_decorator(function):
 			#first remove the list form parameters
 			if not kwargs.pop("image", None):
 				args = args[1:]
-			output = np.array([function(img, *args, **kwargs) for img in input_img])
+			output = [function(img, *args, **kwargs) for img in input_img]
+			if isinstance(input_img, np.ndarray):
+				output = np.array(output)
 		return output
 	return wrap
 
@@ -74,7 +76,7 @@ def resize_img(image, new_shape=(None, None)):
 	rX = new_shape[0] if new_shape[0] else image.shape[0]
 	rY = new_shape[1] if new_shape[1] else image.shape[1]
 	if rX!=image.shape[0] or rY!=image.shape[1]:
-		image = cv2.resize(image, dsize=(rY, rX), interpolation=cv2.INTER_CUBIC)	#numpy and cv2 have inverted axes X and Y
+		image = cv2.resize(image, dsize=(rY, rX), interpolation=cv2.INTER_LINEAR)	#numpy and cv2 have inverted axes X and Y
 	return image
 
 @img_manip_decorator
@@ -92,7 +94,7 @@ def resize_img_to_fit(image, new_shape, keep_ratio):
 			new_shape = [round(image.shape[0]/image.shape[1]*new_shape[1]), new_shape[1]]
 		elif new_ratio > old_ratio:   #nouveau est plus horizontal on adapte le x
 			new_shape = [new_shape[0], round(image.shape[1]/image.shape[0]*new_shape[0])]
-	image = cv2.resize(image, dsize=(new_shape[1], new_shape[0]), interpolation=cv2.INTER_CUBIC)	#numpy and cv2 have inverted axes X and Y
+	image = cv2.resize(image, dsize=(new_shape[1], new_shape[0]), interpolation=cv2.INTER_LINEAR)	#numpy and cv2 have inverted axes X and Y
 	return image
 
 @img_manip_decorator
@@ -116,12 +118,14 @@ def normalize_img(image, type=WORKING_TYPE):
 	return image.astype(type)
 
 @img_manip_decorator
-def rgb_2_darter(image):
+def rgb_2_darter(image, type=WORKING_TYPE):	#TODO careful with the image type
 	"""
 	transfer the given image from the RGB domain space to the darter domain space
 	"""
 	assert image.shape[-1]==3, "Image of wrong dimensions, should be NxMx3 but is {}".format(image.shape)
-	im_out = np.zeros([image.shape[0], image.shape[1], 2], dtype = image.dtype)
+	if image.dtype!="uint8":
+		image = image*255.0
+	im_out = np.zeros([image.shape[0], image.shape[1], 2], dtype = type)
 
 	im_out[:, :, 1] = (140.7718694130528 +
 		0.021721843447502408  * image[:, :, 0] +
@@ -268,25 +272,20 @@ def crop_by_levels_augment(image, levels=1, verbose=0):
 	given an image
 	return a list of images cropped by level, each level is a division by 2
 	the returned array of images are of the same shape as the inputs
-	if level is 0 returns empty list
-	if level is 1 returns list of 4 images
-	if level is 2 returns list of 4+16=20 images
+	if level is 1 returns empty list
+	if level is 2 returns list of 4 images
+	if level is 3 returns list of 4+16=20 images
 	"""
 	augmented = []
 	for level in range(1, levels):
-		level_crop_shape = (image.shape[0]/2**level, image.shape[1]/2**level)
-		j=0
+		level_crop_shape = (round(image.shape[0]/2**level), round(image.shape[1]/2**level))
+		if verbose >=1:
+			print("crop_by_levels_augment:: level {}".format(level))
 		#for each image return crops from slinding window and corresponding mirror
-		for sample in fly_over_image(image, window=level_crop_shape, stride=level_crop_shape):
-			augmented.append(resize_img(sample, image.shape[:-1]))
-			#if visualize
-			if verbose>=3:
-				j+=1
-				plt.imshow(augmented[i], cmap='gray')
-				plt.title("image augment crop {}".format(j))
-				plt.show()
+		gen_samples = fly_over_image(image, window=level_crop_shape, stride=level_crop_shape)
+		augmented += [resize_img(sample, image.shape[:-1]) for sample in gen_samples]
 	if verbose>=1:
-		print("Crop_by_levels_augment: augmentation gone from {} to {} images".format(len(list_images), len(augmented)))
+		print("Crop_by_levels_augment: augmentation gone from 1 to {} images".format(len(augmented)))
 	return augmented
 
 
@@ -297,6 +296,7 @@ def crop_by_levels_augment(image, levels=1, verbose=0):
 ################################################################################
 
 def see_image(image, title="", cmap="gray"):
-	plt.imshow(image, cmap=cmap)
+	visu = np.mean(image, axis=-1) if image.shape[-1]==2 else image
+	plt.imshow(visu, vmin=0, vmax=1, cmap=cmap)
 	plt.title(title)
 	plt.show()

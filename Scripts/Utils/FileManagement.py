@@ -28,9 +28,38 @@ DICT_HABITAT['olmstedi'] = 'sand'
 DICT_HABITAT['pyrrhogaster'] = 'sand'
 DICT_HABITAT['swaini'] = 'detritus'
 DICT_HABITAT['zonale'] = 'gravel'
-
 DICT_HABITAT['zonistium'] = 'sand'
 DICT_HABITAT['punctulatum'] = 'bedrock'
+
+
+HABITAT_SCORE_3GRPS = {}
+HABITAT_SCORE_3GRPS["name_grps"] = ["class 1", "class 2", "class 3"]
+HABITAT_SCORE_3GRPS['caeruleum'] = [3,1,1]
+HABITAT_SCORE_3GRPS['zonale'] = [2,1,2]
+HABITAT_SCORE_3GRPS['zonistium'] = [1,2,1]
+HABITAT_SCORE_3GRPS['gracile'] = [1,3,1]
+HABITAT_SCORE_3GRPS['pyrrhogaster'] = [1,2,1]
+HABITAT_SCORE_3GRPS['barrenense'] = [2,2,1]
+HABITAT_SCORE_3GRPS['olmstedi'] = [1,1,1]
+HABITAT_SCORE_3GRPS['chlorosomum'] = [1,2,1]
+HABITAT_SCORE_3GRPS['camurum'] = [2,0,1]
+HABITAT_SCORE_3GRPS['swaini'] = [2,2,1]
+HABITAT_SCORE_3GRPS['punctulatum'] = [1,3,2]
+
+
+HABITAT_SCORE_6GRPS = {}
+HABITAT_SCORE_6GRPS["name_grps"] = ["class 1", "class 2", "class 3", "class 4", "class 5", "class 6"]
+HABITAT_SCORE_6GRPS['caeruleum'] = [3,1,1,1,1,2]
+HABITAT_SCORE_6GRPS['zonale'] = [2,2,1,1,1,2]
+HABITAT_SCORE_6GRPS['zonistium'] = [1,3,1,2,2,1]
+HABITAT_SCORE_6GRPS['gracile'] = [1,3,1,1,2,1]
+HABITAT_SCORE_6GRPS['pyrrhogaster'] = [1,3,1,2,2,1]
+HABITAT_SCORE_6GRPS['barrenense'] = [2,2,2,0,0,1]
+HABITAT_SCORE_6GRPS['olmstedi'] = [1,2,1,3,2,1]
+HABITAT_SCORE_6GRPS['chlorosomum'] = [1,2,1,2,2,1]
+HABITAT_SCORE_6GRPS['camurum'] = [2,0,3,0,1,3]
+HABITAT_SCORE_6GRPS['swaini'] = [2,2,1,1,1,1]
+HABITAT_SCORE_6GRPS['punctulatum'] = [1,2,1,1,2,1]
 
 
 ### COLUMN NAMES FOR THE IMAGE CSV FILE
@@ -71,6 +100,7 @@ LIST_COLUMNS_EXP=[COL_CONTENT_EXP_PATH, COL_STYLE_EXP_PATH, COL_EXP_ID]
 ### matplotlib parameters
 FLAT_UI = ["#8c8c8c", "#5f9e6e", "#cc8963", "#5975a4", "#857aab", "#b55d60", "#c1b37f", "#8d7866", "#d095bf", "#71aec0"]
 
+
 def save_args(args, textfile):
 	"""
 	given a namespace args and a name
@@ -79,7 +109,7 @@ def save_args(args, textfile):
 	if args.verbose>=1:
 		print(vars(args))
 	if os.path.exists(textfile):
-		os.path.delete(textfile)
+		os.remove(textfile)
 	with open(textfile, "w+") as file:
 		for k,v in vars(args).items():
 			file.write(str(k)+ " : "+str(v)+"\n")

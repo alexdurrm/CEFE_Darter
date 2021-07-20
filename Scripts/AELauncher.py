@@ -1,13 +1,12 @@
 import tensorflow.keras as K
+from tensorflow.data import Dataset
 from sklearn.model_selection import train_test_split
 import argparse
 import numpy as np
+import os
 
-import warnings
-warnings.filterwarnings("ignore", category=DeprecationWarning)
-
-from AutoEncoders.Models import *
-from AutoEncoders.CommonAE import *
+from AutoEncoders.Models import get_model, get_augmentation
+from AutoEncoders.CommonAE import get_loss_from_name, show_predictions, plot_training_losses, get_callbacks
 from Utils.FileManagement import save_args
 
 def load_train_test(train_path, test_path=None, descriptor=False, verbose=0):
@@ -38,8 +37,8 @@ def load_train_test(train_path, test_path=None, descriptor=False, verbose=0):
 	else:
 		return train, test
 
-def train_model(model_type, train, test, epochs, batch_size, loss_name, output_dir, save_activations, early_stopping, sample_preds, latent_dim, do_augment=False, verbosity=0):
-	K.backend.clear_session()
+
+def train_model(model_type, model_path, train, test, epochs, batch_size, loss_name, learning_rate, output_dir, save_activations, early_stopping, sample_preds, latent_dim, do_augment, lr_scheduler, verbosity=0):
 	#prepare the network directory
 	prediction_shape = train.shape[1:]
 	network_name = "{}_{}_LD{}_pred{}x{}x{}".format(model_type, loss_name, latent_dim, *prediction_shape)
@@ -47,18 +46,29 @@ def train_model(model_type, train, test, epochs, batch_size, loss_name, output_d
 	if not os.path.exists(net_output_dir):
 		os.makedirs(net_output_dir)
 	#get the callbacks
-	callbacks = get_callbacks(model_type, test, output_dir, save_activations, early_stopping, sample_preds, verbosity-1)
+	callbacks = get_callbacks(model_type, test, output_dir, save_activations, early_stopping, sample_preds, lr_scheduler, verbosity-1)
+
+	#add augmentation if needed
+	if do_augment:
+		raise NotImplementedError("was too long to add correctly")
+		train = Dataset.from_tensor_slices((train, train))
+		test = Dataset.from_tensor_slices((test, test))
+		train = get_augmentation(train, prediction_shape, batch_size, shuffle=True, augment=True, verbosity=verbosity-1)
+		test = get_augmentation(test, prediction_shape, batch_size, verbosity=verbosity-1)
+
 	#get the loss
 	loss_func = get_loss_from_name(loss_name)
-	#wrap the network if augmentation needed
-	model = get_model(model_type, prediction_shape, latent_dim, verbosity-1)
-	if do_augment:
-		wrap_model = K.Sequential([get_augmentation(prediction_shape, verbosity-1), model])
+
+	#get the network
+	if model_path:
+		model = K.models.load_model(model_path, compile=False)
 	else:
-		wrap_model = K.Sequential([model])
+		model = get_model(model_type, prediction_shape, latent_dim, verbosity-1)
+
 	#train the network
-	wrap_model.compile("Adam", loss=loss_func)
-	history = wrap_model.fit(x=train, y=train,
+	optimizer = K.optimizers.Adam(learning_rate=learning_rate)
+	model.compile(optimizer, loss_func)
+	history = model.fit(x=train, y=train,
 		batch_size= batch_size,
 		validation_data= (test, test),
 		epochs= epochs,
@@ -72,35 +82,16 @@ def train_model(model_type, train, test, epochs, batch_size, loss_name, output_d
 		verbosity=verbosity-1)
 	#save the model
 	model.save(net_output_dir, overwrite=True)
+	K.backend.clear_session()
 	return history
 
-# ERRORS WHEN MULTIPLE TRAININGS
-# def LD_selection(model_type, train, test, epochs, batch_size, loss_name, output_dir, save_activations, early_stopping, sample_preds, list_LD, do_augment=False, verbosity=0):
-# 	#prepare directory
-# 	if not os.path.exists(output_dir):
-# 		os.makedirs(output_dir)
-# 	losses, val_losses = [], []
-# 	#for each latent dim train a network
-# 	for latent_dim in list_LD:
-# 		output_net = os.path.join(output_dir, "LD_"+str(latent_dim))
-# 		history = train_model(model_type, train, test, epochs, batch_size, loss_name, output_net, save_activations, early_stopping, sample_preds, latent_dim, do_augment=False, verbosity=0)
-# 		#store losses
-# 		losses.append(history.history['loss'])
-# 		val_losses.append(history.history['val_loss'])
-# 	#plot the best validation for each latent dim
-# 	best_losses = [min(l) for l in losses]
-# 	best_val_losses = [min(l) for l in val_losses]
-# 	plot_loss_per_ld(best_losses, best_val_losses, list_LD,
-# 		title="best losses per latent dim",
-# 		save_path=os.path.join(output_dir, "best losses per latent dim")
-# 		)
 
 def test_model(model_path, test, loss_name, sample_preds, output_dir=None, verbosity=0):
 	"""
 	given a model, a test dataset, and a loss function
 	will output in output_dir the results of the model prediction and a sample of it
 	"""
-	#prepare directory output
+	# prepare directory output
 	output_dir = output_dir if output_dir else model_path
 	if not os.path.exists(output_dir):
 		os.makedirs(output_dir)
@@ -131,15 +122,11 @@ def main(args):
 	# TRAIN
 	elif args.command == "train":
 		train, test = load_train_test(train_path=args.dataset, test_path=args.test, descriptor=False, verbose=args.verbose)
-		# if isinstance(args.latent_dim, int):
-		train_model(args.model_type, train, test, args.epochs, args.batch, args.loss, output_dir,
-			args.save_activations, args.early_stopping, args.sample_preds,
-			latent_dim=args.latent_dim, do_augment=args.data_augment, verbosity=args.verbose)
-		# else:
-			# LD_selection(args.model_type, train, test, args.epochs, args.batch, args.loss, output_dir,
-			# 	args.save_activations, args.early_stopping, args.sample_preds,
-			# 	list_LD=args.latent_dim, do_augment=args.data_augment, verbosity=args.verbose)
 
+		train_model(args.model_type, args.model_path, train, test, args.epochs, args.batch, args.loss, args.learning_rate, output_dir,
+			args.save_activations, args.early_stopping, args.sample_preds,
+			latent_dim=args.latent_dim, do_augment=args.data_augment, lr_scheduler=args.lr_scheduler,
+			verbosity=args.verbose)
 	else:
 		raise ValueError("Unknown command: {}".format(args.command))
 
@@ -148,9 +135,13 @@ if __name__=="__main__":
 	LOSS="mse"
 	DIR_SAVED_MODELS="Results"
 	VERBOSE=0
-	model_types = ["convolutional", "perceptron", "sparse_convolutional", "variational_AE", "VGG16AE"]
+	MODEL_TYPES = ["convolutional", "perceptron", "sparse_convolutional", "variational_AE", "VGG16AE"]
 	OPTIMIZER="Adam"
 	SAMPLE_PREDS=4
+	EPOCHS = 50
+	BATCH_SIZE = 25
+	LATENT_DIM = 8
+	LR = 0.001
 
 	parser = argparse.ArgumentParser(description="Script used to train, test and research optimal latent dim on different Autoencoders")
 	parser.add_argument("dataset",type=str, help="path of the numpy dataset to use as training (and 10percent used for testing if --test not given)")
@@ -161,19 +152,19 @@ if __name__=="__main__":
 	subparsers = parser.add_subparsers(title="command", dest="command", help='action to perform')
 
 	# specific parameters for a simple training
-	EPOCHS = 50
-	BATCH_SIZE = 25
-	LATENT_DIM = 8
 	training_parser = subparsers.add_parser("train")
-	training_parser.add_argument("model_type", choices=model_types, help='The architecture name of the model used')
+	training_parser.add_argument("model_type", choices=MODEL_TYPES, help='The architecture name of the model used')
+	training_parser.add_argument("--model_path", default=None, help="path to the model to load, if set will ignore model_type")
 	training_parser.add_argument("--test", type=str, default=None, help="optionnal path to a numpy used as test, if None given split 10 percent of the dataset, default None")
 	training_parser.add_argument("-l", "--latent_dim", type=int, default=LATENT_DIM, help="the latent dimention, if multiple are given multiple networks will be trained, default {}".format(LATENT_DIM))
 	training_parser.add_argument("-b", "--batch", type=int, default=BATCH_SIZE, help="batch size for training, default {}".format(BATCH_SIZE))
 	training_parser.add_argument("-e", "--epochs", type=int, default=EPOCHS, help="number of epochs max for training, default {}".format(EPOCHS))
-	# training_parser.add_argument("--optimizer", type=str, choices=['Adam'], default=OPTIMIZER, help="network optimizer, default {}".format(OPTIMIZER))
+	training_parser.add_argument("--learning_rate", type=float, default=LR, help="Starting learning rate, default {}".format(LR))
 	training_parser.add_argument("--data_augment", action='store_true', default=False, help="option to use in-training data augmentation, default to False")
 	training_parser.add_argument("--save_activations", action='store_true', default=False, help="option to save mean activation layers")
 	training_parser.add_argument("--early_stopping", action='store_true', default=False, help="if model training should be stopped when loss do not progress")
+	training_parser.add_argument("--lr_scheduler", action='store_true', default=False, help="Add a learning rate scheduler in callbacks")
+	# training_parser.add_argument("--optimizer", type=str, choices=['Adam'], default=OPTIMIZER, help="network optimizer, default {}".format(OPTIMIZER))
 
 	#specific parameters for a simple testing
 	test_parser = subparsers.add_parser("test")
