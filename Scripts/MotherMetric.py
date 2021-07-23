@@ -181,13 +181,13 @@ class AutoencoderMetrics(MotherMetric):
 		#prepare df
 		df = pd.DataFrame()
 		params = self.preprocess.get_params()
-		df.loc[0, params.columns] = params.iloc[0]
 		#get the deep features
 		test = image[np.newaxis, ...]
 		prediction = self.model.predict(test)[0]
 		deep_features = get_deep_features(self.model.encoder, test, verbose=self.verbose-1)
 		# for each layer of the AE store a serie of metrics
 		for i, layer_activation in enumerate(deep_features):
+			df.loc[i, params.columns] = params.iloc[0]
 			df.loc[i, [COL_MODEL_NAME, COL_MSE_AE, COL_SSIM_AE]] = [self.model.name, get_MSE(image, prediction).numpy(), get_SSIM_Loss(image, prediction).numpy()]
 			df.loc[i, COL_LAYER_IDX] = i
 			df.loc[i, COL_GINI_ACTIVATION_AE] = get_gini(layer_activation)

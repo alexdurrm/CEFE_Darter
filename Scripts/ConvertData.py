@@ -112,6 +112,7 @@ def main(args):
 		list_images = preprocessor(list_images)
 	else:
 		list_images = preprocessor(list_path)
+	if args.verbose>=2: see_image(list_images[0], title="after preprocessed")
 	#uniformely resize images if needed
 	if args.resize_policy or args.output_format==".npy":
 		resize_policy = args.resize_policy if args.resize_policy else "strict"
@@ -152,7 +153,7 @@ if __name__=='__main__':
 	parser.add_argument("-s", "--standardize", default=STANDARDIZE, type=lambda x: bool(eval(x)), help="if image should be standardized, default: {}".format(STANDARDIZE))
 	parser.add_argument("-t", "--type_img", default=IMG_TYPE.name, type=lambda x: IMG[x], choices=list(IMG), help="the type of image needed, default: {}".format(IMG_TYPE))
 	parser.add_argument("-c", "--channel_img", default=IMG_CHANNEL.name, type=lambda x: CHANNEL[x], choices=list(CHANNEL), help="The channel used for the image, default: {}".format(IMG_CHANNEL))
-	parser.add_argument("-v", "--verbose", default=VERBOSE, type=int, choices=[0,1,2], help="set the level of visualization, default: {}".format(VERBOSE))
+	parser.add_argument("-v", "--verbose", default=VERBOSE, type=int, help="set the level of visualization, default: {}".format(VERBOSE))
 	parser.add_argument("--keep_ratio", default=False, action='store_true', help="If set, images resized keep the same X to Y ratio as originaly")
 	parser.add_argument("-f", "--fit_method", default=DEF_FITTING, type=str, choices=["cropping","padding"], help="If keep_ratio is set, this is the method used to keep the original image ratio, default: {}".format(DEF_FITTING))
 
