@@ -174,8 +174,10 @@ def get_AE_df(model, test, list_layers, verbosity=1):
 	return deep_features
 
 def do_kmeans(data, img, color_img, k_grps, output_dir, title, palette_size, save_clusters, show3D=False):
+	"""
+	data: a numpy array
+	"""
 	list_avg=[]
-
 	for k in k_grps:
 		print("Clustering k: ",k)
 

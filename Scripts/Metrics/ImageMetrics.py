@@ -18,7 +18,7 @@ def get_L0(vector):
 def get_SSIM(img1, img2):
 	return ssim(img1, img2, multichannel=(img1.ndim==3))
 
-def get_gini(array, visu=False):
+def get_gini(array, verbose=0):
 	'''
 	Calculate the Gini coefficient of a numpy array.
 	Author: Olivia Guest (oliviaguest)
@@ -39,11 +39,11 @@ def get_gini(array, visu=False):
 	n = array.shape[0]
 	# Gini coefficient:
 	gini_val = (np.sum((2 * index - n  - 1) * array)) / (n * np.sum(array))
-	if visu: print("GINI: {}".format(gini_val))
+	if verbose>=1: print("GINI: {}".format(gini_val))
 	return gini_val
 
 
-def get_color_ratio(image, visu=False):
+def get_color_ratio(image, verbose=0):
 	'''
 	return the color ratio slope between the two color channel
 	'''
@@ -57,7 +57,7 @@ def get_color_ratio(image, visu=False):
 
 	slope, b = np.polyfit(X, Y, 1)
 	print(slope, b)
-	if visu:
+	if verbose>=1:
 		x=np.arange(0, np.max(X), 16)
 		y=slope*x+b
 		plt.plot(x, y)
@@ -66,7 +66,7 @@ def get_color_ratio(image, visu=False):
 	return slope
 
 
-def get_statistical_features(array, axis=None, visu=False):
+def get_statistical_features(array, axis=None, verbose=0):
 	'''
 	get an array and return the statistical features like
 	mean value, standard deviation, skewness, kurtosis, and entropy
@@ -80,12 +80,14 @@ def get_statistical_features(array, axis=None, visu=False):
 	return (mean, std, skewness, kurto, entro)
 
 
-def get_gabor_filters(image, angles, frequencies, visu=False):
+def get_gabor_filters(image, angles, frequencies, verbose=0):
 	'''
 	produces a set of gabor filters and
 	angles is the angles of the gabor filters, given in degrees
 	return a map of the mean activation of each gabor filter
 	'''
+	if image.ndim==3 and image.shape[-1]==1:
+		image=image[...,0]
 	assert image.ndim==2 , "Should be a 2D array"
 
 	activation_map = np.empty(shape=[len(angles), len(frequencies)])
@@ -93,13 +95,13 @@ def get_gabor_filters(image, angles, frequencies, visu=False):
 	for t, theta in enumerate(rad_angles):
 		for f, freq in enumerate(frequencies):
 			real, _ = gabor(image, freq, theta)
-			if visu:
+			if verbose>=2:
 				plt.imshow(real, cmap="gray")
 				plt.title("gabor theta:{}  frequency:{}".format(t, f))
 				plt.colorbar()
 				plt.show()
 			activation_map[t, f] = np.mean(real)
-	if visu:
+	if verbose>=1:
 		ax = sns.heatmap(activation_map, annot=True, center=1, xticklabels=frequencies, yticklabels=angles)
 		plt.show()
 	return activation_map
@@ -107,10 +109,12 @@ def get_gabor_filters(image, angles, frequencies, visu=False):
 
 def get_Haralick_descriptors(image, distances, angles):
 	'''
+	image: a numpy array of uint8
 	get an image and calculates its grey level co-occurence matrix
 	calculate it along different angles and distances
 	returns a few characteristics about this GLCM
 	'''
+	assert image.dtype=="uint8", "should be uint8, is {}".format(image.dtype)
 	assert image.ndim==2, "Image should be 2D"
 
 	glcm = greycomatrix(image, distances, angles, levels=None, symmetric=False, normed=False)

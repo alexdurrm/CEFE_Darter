@@ -60,7 +60,8 @@ def train_model(model_type, model_path, train, test, epochs, batch_size, loss_na
 	loss_func = get_loss_from_name(loss_name)
 
 	#get the network
-	if model_path:
+	if model_path or model_type=="transfer":
+		print("loading model from {}".format(model_path))
 		model = K.models.load_model(model_path, compile=False)
 	else:
 		model = get_model(model_type, prediction_shape, latent_dim, verbosity-1)
@@ -135,7 +136,7 @@ if __name__=="__main__":
 	LOSS="mse"
 	DIR_SAVED_MODELS="Results"
 	VERBOSE=0
-	MODEL_TYPES = ["convolutional", "perceptron", "sparse_convolutional", "variational_AE", "VGG16AE"]
+	MODEL_TYPES = ["convolutional", "perceptron", "sparse_convolutional", "variational_AE", "VGG16AE", "transfer"]
 	OPTIMIZER="Adam"
 	SAMPLE_PREDS=4
 	EPOCHS = 50

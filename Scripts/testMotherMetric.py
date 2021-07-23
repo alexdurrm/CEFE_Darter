@@ -12,7 +12,9 @@ class test_AE(unittest.TestCase):
 			"normalize":True,
 			"standardize":True,
 			"img_type":IMG["DARTER"],
-			"img_channel":CHANNEL["GRAY"]
+			"img_channel":CHANNEL["GRAY"],
+			"keep_ratio":True,
+			"fit_method":"mean"
 		}
 		preprocess = Preprocess(**params_preprocess)
 		metric = AutoencoderMetrics(args.model, prediction_shape, preprocess=preprocess)
@@ -25,7 +27,9 @@ class test_DF(unittest.TestCase):
 			"normalize":True,
 			"standardize":True,
 			"img_type":IMG["DARTER"],
-			"img_channel":CHANNEL["GRAY"]
+			"img_channel":CHANNEL["GRAY"],
+			"keep_ratio":True,
+			"fit_method":"min"
 		}
 		preprocess = Preprocess(**params_preprocess)
 		metric = DeepFeatureMetrics("vgg16", (120,120,1), preprocess=preprocess)
@@ -38,7 +42,9 @@ class test_FFT(unittest.TestCase):
 			"normalize":True,
 			"standardize":True,
 			"img_type":IMG["DARTER"],
-			"img_channel":CHANNEL["GRAY"]
+			"img_channel":CHANNEL["GRAY"],
+			"keep_ratio":True,
+			"fit_method":"max"
 		}
 		fft_range=[10, 80]
 		preprocess = Preprocess(**params_preprocess)
@@ -58,7 +64,9 @@ class test_GABOR(unittest.TestCase):
 			"normalize":True,
 			"standardize":True,
 			"img_type":IMG["DARTER"],
-			"img_channel":CHANNEL["GRAY"]
+			"img_channel":CHANNEL["GRAY"],
+			"keep_ratio":True,
+			"fit_method":0.5
 		}
 		preprocess = Preprocess(**params_preprocess)
 		metric = GaborMetrics(angles=[12, 25], frequencies=[1,2], preprocess=preprocess)
@@ -71,7 +79,9 @@ class test_HARALICK(unittest.TestCase):
 			"normalize":True,
 			"standardize":True,
 			"img_type":IMG["DARTER"],
-			"img_channel":CHANNEL["GRAY"]
+			"img_channel":CHANNEL["GRAY"],
+			"keep_ratio":True,
+			"fit_method":"mean"
 		}
 		preprocess = Preprocess(**params_preprocess)
 		metric = HaralickMetrics(distances=[2, 5], angles=[90, 45], preprocess=preprocess)
@@ -84,7 +94,9 @@ class test_LBP(unittest.TestCase):
 			"normalize":True,
 			"standardize":True,
 			"img_type":IMG["DARTER"],
-			"img_channel":CHANNEL["GRAY"]
+			"img_channel":CHANNEL["GRAY"],
+			"keep_ratio":True,
+			"fit_method":"mean"
 		}
 		preprocess = Preprocess(**params_preprocess)
 		metric = BestLBPMetrics(points=[4,8], radius=[2,4], n_best=20, preprocess=preprocess)
@@ -100,7 +112,9 @@ class test_PHOG(unittest.TestCase):
 			"normalize":True,
 			"standardize":True,
 			"img_type":IMG["DARTER"],
-			"img_channel":CHANNEL["GRAY"]
+			"img_channel":CHANNEL["GRAY"],
+			"keep_ratio":True,
+			"fit_method":"mean"
 		}
 		preprocess = Preprocess(**params_preprocess)
 		metric = PHOGMetrics(orientations=[4, 8], level=3, preprocess=preprocess)
@@ -113,7 +127,9 @@ class test_stats(unittest.TestCase):
 			"normalize":True,
 			"standardize":True,
 			"img_type":IMG["DARTER"],
-			"img_channel":CHANNEL["GRAY"]
+			"img_channel":CHANNEL["GRAY"],
+			"keep_ratio":True,
+			"fit_method":"mean"
 		}
 		preprocess = Preprocess(**params_preprocess)
 		metric = StatMetrics(preprocess, load_from=load_from)
@@ -126,7 +142,9 @@ class test_color_ratio(unittest.TestCase):
 			"normalize":True,
 			"standardize":True,
 			"img_type":IMG["DARTER"],
-			"img_channel":CHANNEL["ALL"]
+			"img_channel":CHANNEL["ALL"],
+			"keep_ratio":True,
+			"fit_method":"mean"
 		}
 		preprocess = Preprocess(**params_preprocess)
 		metric = ColorRatioMetrics(preprocess)

@@ -43,8 +43,9 @@ COL_IMG_TYPE="image_type"
 COL_IMG_CHANNEL="channel_image"
 COL_IMG_RESIZE_X="image_resize_x"
 COL_IMG_RESIZE_Y="image_resize_y"
+COL_IMG_KEEP_RATIO="image_keep_ratio"
+COL_IMG_FIT_METHOD="image_resize_fitting_method"
 COL_IMG_PATH="Image_path"
-
 
 
 class Preprocess:
@@ -53,7 +54,7 @@ class Preprocess:
 	it stores the preprocessed image so that we can fetch it multiple times without reprocessing everytime
 	it also stores the parameters used to preprocess the image
 	'''
-	def __init__(self, resize, normalize, standardize, img_type, img_channel):
+	def __init__(self, resize, normalize, standardize, img_type, img_channel, keep_ratio, fit_method, verbose=0):
 		'''
 		initialise a process
 		'''
@@ -63,14 +64,19 @@ class Preprocess:
 		self.img_channel = img_channel
 		self.resizeX = resize[0]
 		self.resizeY = resize[1]
+		self.keep_ratio = keep_ratio
+		self.fit_method = fit_method
 
+		self.verbose=verbose
 		self.image=None
 
 		self.df_parameters = pd.DataFrame({COL_NORMALIZE:self.normalize, COL_STANDARDIZE:self.standardize,
 			COL_IMG_TYPE:self.img_type.name,
 			COL_IMG_CHANNEL:self.img_channel.name,
 			COL_IMG_RESIZE_X:self.resizeX,
-			COL_IMG_RESIZE_Y:self.resizeY}, index=[0])
+			COL_IMG_RESIZE_Y:self.resizeY,
+			COL_IMG_KEEP_RATIO:self.keep_ratio,
+			COL_IMG_FIT_METHOD:self.fit_method}, index=[0])
 
 	def do_preprocess(self, input):
 		"""
@@ -81,17 +87,17 @@ class Preprocess:
 		#load image if needed and check for expected type
 		if isinstance(input, str):
 			image = openImage(input)
-			print("Preprocess:so_preprocess:: ", input, image.shape, image.dtype)
+			if self.verbose>=1:print("Preprocess:do_preprocess:: input: ", input, image.shape, image.dtype)
 		elif isinstance(input, np.ndarray):
 			image = input
-			print("Preprocess:so_preprocess:: numpy img:", image.shape, image.dtype)
+			if self.verbose>=1:print("Preprocess:do_preprocess:: input numpy img: ", image.shape, image.dtype)
 		else:
 			raise TypeError("Given type {}, expected type str or np.ndarray".format(type(input)))
 		assert image.ndim==3 and image.shape[-1]==3, "wrong image dimension: {}".format(image.shape)
 
 		#start preprocessing with a resize
 		if self.resizeX or self.resizeY:
-			image = resize_img(image, [self.resizeX, self.resizeY])
+			image = resize_img_to_fit(image, (self.resizeX, self.resizeY), self.keep_ratio, self.fit_method)
 		#convert the image type
 		if self.img_type == IMG.DARTER:                     #darter
 			image = rgb_2_darter(image)
@@ -113,6 +119,8 @@ class Preprocess:
 			image = normalize_img(image)
 		if self.standardize:
 			image = standardize_img(image)
+
+		if self.verbose>=1:print("Preprocess:do_preprocess:: output numpy img: ", image.shape, image.dtype)
 		return image
 
 	def preprocess_list_img(self, img_list):
@@ -156,6 +164,7 @@ if __name__=='__main__':
 	IMG_TYPE=IMG.DEFAULT
 	IMG_CHANNEL=CHANNEL.DEFAULT
 	VERBOSE=1
+	DEF_FITTING=None
 	#parsing parameters
 	parser = argparse.ArgumentParser(description="Preprocess an image, apply transformations on a given image")
 	parser.add_argument("input_path", help="path of the image to open")
@@ -167,6 +176,9 @@ if __name__=='__main__':
 	parser.add_argument("-t", "--type_img", default=IMG_TYPE.name, type=lambda x: IMG[x], choices=list(IMG), help="the type of image needed, default: {}".format(IMG_TYPE))
 	parser.add_argument("-c", "--channel_img", default=IMG_CHANNEL.name, type=lambda x: CHANNEL[x], choices=list(CHANNEL), help="The channel used for the image, default: {}".format(IMG_CHANNEL))
 	parser.add_argument("-v", "--verbose", default=VERBOSE, type=int, choices=[0,1,2], help="set the level of visualization, default: {}".format(VERBOSE))
+	parser.add_argument("--keep_ratio", default=False, action='store_true', help="If set, images resized keep the same X to Y ratio as originaly")
+	parser.add_argument("-f", "--fit_method", default=DEF_FITTING, type=str, choices=["cropping","padding"], help="If keep_ratio is set, this is the method used to keep the original image ratio, default: {}".format(DEF_FITTING))
+
 	args = parser.parse_args()
 
 	params_preprocess={
@@ -174,7 +186,9 @@ if __name__=='__main__':
 		"normalize":args.normalize,
 		"standardize":args.standardize,
 		"img_type":args.type_img,
-		"img_channel":args.channel_img
+		"img_channel":args.channel_img,
+		"keep_ratio":args.keep_ratio,
+		"fit_method":args.fit_method
 	}
 	preprocess = Preprocess(**params_preprocess)
 	img_out = preprocess(args.input_path)

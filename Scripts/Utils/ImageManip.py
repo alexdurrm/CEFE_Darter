@@ -18,7 +18,7 @@ def img_manip_decorator(function):
 	function to visualize the manipulated image of the manipulation functions
 	also makes sure the input array corresponds to the correct expected dimensions (3 dims or a list of 3 dims)
 	and the output corresponds to an array of 3 dims (or a list of 3 dims arrays)
-	an optionnal argument "visu" can be set to true if we want to visualize the manipulation done
+	an optionnal argument "verbose" can be set to true if we want to visualize the manipulation done
 	"""
 	def wrap(*args, **kwargs):
 		#take image and check its type and shape
@@ -31,7 +31,7 @@ def img_manip_decorator(function):
 			if output.ndim==2:
 				output = output[..., np.newaxis]
 			#if visu is true show the input and output images
-			if kwargs.pop("visu", False):
+			if kwargs.pop("verbose", 0)>=2:
 				fig, axs = plt.subplots(nrows=1, ncols=2, sharex=True, sharey=True)
 				visu_input = input_img if input_img.shape[-1]!=2 else np.mean(input_img, axis=-1)
 				axs[0].imshow(visu_input, vmin=0, vmax=1, cmap='gray')
@@ -80,22 +80,84 @@ def resize_img(image, new_shape=(None, None)):
 	return image
 
 @img_manip_decorator
-def resize_img_to_fit(image, new_shape, keep_ratio):
+def resize_img_to_fit(image, new_shape, keep_ratio, fit_method="padding"):
 	"""
-	given an image and an output shape (newX, newY), resize the image to fit the output_shape
-	if keep_ratio is true the image is transformed to have smaller or equal dimensions to the new shape but will keep its original ratio
-	output the resized image
+	given an image and an output shape (newX, newY), resize the image to fit the new shape
+	if keep_ratio is true the image is transformed to keep its X to Y ratio
+	fit_method can be "smaller" or "bigger":
+		if "padding" the image returned will be smaller on both axis and added padding corresponding to the padidng method
+		if "cropping" the returned image will be a centered crop of the image resized in the shape new_shape
+	padding_method is only relevant when fit_method is "smaller" and indicate the padding strategy to use: "mean", "min", "max", or a value
+	output the resized image of the shape new_shape
 	"""
 	if keep_ratio:
 		#calculate a new shape that preserves the ratio
 		new_ratio = new_shape[1]/new_shape[0]
 		old_ratio = image.shape[1]/image.shape[0]
-		if new_ratio < old_ratio:   #nouveau est plus vertical on adapte le y
-			new_shape = [round(image.shape[0]/image.shape[1]*new_shape[1]), new_shape[1]]
-		elif new_ratio > old_ratio:   #nouveau est plus horizontal on adapte le x
-			new_shape = [new_shape[0], round(image.shape[1]/image.shape[0]*new_shape[0])]
-	image = cv2.resize(image, dsize=(new_shape[1], new_shape[0]), interpolation=cv2.INTER_LINEAR)	#numpy and cv2 have inverted axes X and Y
+		#resize the image to be smaller or equal for all axis
+		if fit_method=="padding":
+			if new_ratio < old_ratio:   #nouveau est plus vertical on adapte le y
+				temp_shape = (round(image.shape[0]/image.shape[1]*new_shape[1]), new_shape[1])
+			elif new_ratio > old_ratio:   #nouveau est plus horizontal on adapte le x
+				temp_shape = (new_shape[0], round(image.shape[1]/image.shape[0]*new_shape[0]))
+			else:
+				temp_shape = new_shape
+			image = resize_img(image, new_shape=temp_shape)
+			image = padd_img(image, padding_shape=new_shape)
+		#resize the image to be bigger or equal for all axis
+		elif fit_method=="cropping":
+			if new_ratio > old_ratio:   #nouveau est plus vertical on adapte le y
+				temp_shape = (round(image.shape[0]/image.shape[1]*new_shape[1]), new_shape[1])
+			elif new_ratio < old_ratio:   #nouveau est plus horizontal on adapte le x
+				temp_shape = (new_shape[0], round(image.shape[1]/image.shape[0]*new_shape[0]))
+			else:
+				temp_shape = new_shape
+			image = resize_img(image, new_shape=temp_shape)
+			image = crop_img(image, crop_shape=new_shape)
+		else:
+			ValueError("Unknown method: {}".format(fit_method))
+	else:
+		image = resize_img(image, new_shape=new_shape)
 	return image
+
+@img_manip_decorator
+def padd_img(image, padding_shape, padding_method="mean"):
+	"""
+	image=numpy array with ndim>=2
+	padding_shape= tuple of int shape of the output image
+	padding_method: "mean", "min", "max", "zero" or value method to get the value of the padding
+	return padded image to the shape padding_shape
+	"""
+	assert image.shape[0]<=padding_shape[0] and image.shape[1]<=padding_shape[1], "Can't do a padding on an image bigger than the padding shape, {} to {}".format(image.shape, padding_shape)
+	if padding_method=="mean":
+		padding = np.full(shape=(*padding_shape, *image.shape[2:]), fill_value=image.mean(), dtype=image.dtype)
+	elif padding_method=="min":
+		padding = np.full(shape=(*padding_shape, *image.shape[2:]), fill_value=image.min(), dtype=image.dtype)
+	elif padding_method=="max":
+		padding = np.full(shape=(*padding_shape, *image.shape[2:]), fill_value=image.max(), dtype=image.dtype)
+	elif isinstance(padding_method, int) or isinstance(padding_method, float):
+		padding = np.zeros(shape=(*padding_shape, *image.shape[2:]), fill_value=image.mean(), dtype=image.dtype)
+	else:
+		raise ValueError("Unrecognized padding method: {}".format(padding_method))
+	anchor = [int((padding_shape[0]-image.shape[0])/2.0), int((padding_shape[1]-image.shape[1])/2.0)]
+	padding[anchor[0]:anchor[0]+image.shape[0], anchor[1]:anchor[1]+image.shape[1]]=image[:,:]
+	return padding
+
+@img_manip_decorator
+def crop_img(image, crop_shape):
+	"""
+	image: numpy array with ndim>=2
+	crop_shape: a pair of int the size of the crop we want to make
+	padding: if the crop shape is larger than the image given will padd the returned image with mean value of the original image
+	"""
+	#if no need to crop just return the image
+	if image.shape==crop_shape:
+		return image
+	#place the anchor and do the cropping
+	assert crop_shape[0]<=image.shape[0] and crop_shape[0]<=image.shape[0], "Cannot crop shape {} out of image {}".format(crop_shape, image.shape)
+	anchor = [int((image.shape[0]-crop_shape[0])/2.0), int((image.shape[1]-crop_shape[1])/2.0)]
+	return image[anchor[0]:anchor[0]+crop_shape[0], anchor[1]:anchor[1]+crop_shape[1]]
+
 
 @img_manip_decorator
 def standardize_img(image, type=WORKING_TYPE):

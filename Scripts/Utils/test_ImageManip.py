@@ -186,7 +186,7 @@ class test_decorator(unittest.TestCase):
 			with self.assertRaises(AssertionError):
 				_ = standardize_img(image)
 			with self.assertRaises(AssertionError):
-				_ = resize_img_to_fit(image, (42,42))
+				_ = resize_img_to_fit(image, (42,42), True)
 			with self.assertRaises(AssertionError):
 				_ = resize_img(image, (42,42))
 

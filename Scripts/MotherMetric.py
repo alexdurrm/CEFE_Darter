@@ -10,7 +10,7 @@ from Metrics.ImageMetrics import *
 from Metrics.PHOG.anna_phog import anna_phog
 from Metrics.Fourier import get_pspec, get_Fourier_slope
 from Metrics.DeepNetworks import get_deep_features
-from AutoEncoders.CommonAE import get_MSE
+from AutoEncoders.CommonAE import get_MSE, get_SSIM_Loss
 
 ###############################################################################
 #
@@ -21,12 +21,20 @@ from AutoEncoders.CommonAE import get_MSE
 class MotherMetric:
 	'''
 	Parent class for each metric, takes care of the data processing
+	store the result of the metric and its parameters in self.data
+	Takes a Preprocess object which is used to prepare the image for the metric
+	(ex: some metrics take a 1 channel image)
 	'''
-	def __init__(self, preprocess=None, load_from=None):
+	def __init__(self, preprocess=None, load_from=None, verbose=0):
+		"""
+		preprocess: a preprocess that always prepare images in a consistent way
+		load_from: path of a .csv to which append the obtained results
+		"""
+		self.verbose=verbose
 		if preprocess:
 			self.preprocess = preprocess
 		else:
-			self.preprocess = Preprocess()
+			self.preprocess = Preprocess((None,None), False, False, IMG.DEFAULT, CHANNEL.DEFAULT, False)
 		#if given a valid path load the data
 		self.data = pd.DataFrame()
 		if load_from:
@@ -34,7 +42,9 @@ class MotherMetric:
 
 	def __call__(self, path=None, *args, **kwargs):
 		'''
-		prepare the image and call the function on it, then store the result
+		Given an image path returns
+		path: path of an image
+		prepare the image and call the function on it, then store the result is self.data
 		'''
 		if not path:
 			image = self.preprocess.get_image()
@@ -58,7 +68,7 @@ class MotherMetric:
 		try:
 			self.data = pd.read_csv(data_path, index_col=0)
 		except FileNotFoundError:
-			print("nothing to load, continuing with current data")
+			print("MotherMetric::load: no csv to load, continuing with current data")
 
 	def save(self, output_path):
 		'''
@@ -69,7 +79,7 @@ class MotherMetric:
 		if not os.path.exists(directory):
 			os.makedirs(directory)
 		self.data.to_csv(output_path, index=True)
-		print("saved at {}".format(output_path))
+		print("MotherMetric::save: csv saved at {}".format(output_path))
 
 	def clear(self):
 		'''
@@ -78,7 +88,11 @@ class MotherMetric:
 		del self.data
 		self.data = pd.DataFrame()
 
-	def function(self):
+	def function(self, image):
+		"""
+		function that children class override to perform metric calculations
+		should receive an image
+		"""
 		raise NotImplementedError
 
 ###############################################################################
@@ -112,7 +126,7 @@ class MotherMetric:
 # 		model.compile("Adam", "mse")
 # 		super().__init__(*args, **kwargs)
 #
-# 	def function(self, image, verbose):
+# 	def function(self, image):
 # 		df = pd.DataFrame()
 # 		params = self.preprocess.get_params()
 #
@@ -125,7 +139,7 @@ class MotherMetric:
 # 			df.loc[i, [COL_MODEL_NAME_AE, COL_ITERATION_AE]] = [self.model.name, i]
 # 			df.loc[i, [COL_GINI_AE, COL_KURTO_AE, COL_ENTRO_AE]] = [get_gini(prediction), kurtosis(prediction, axis=None), entropy(prediction, axis=None)]
 # 			df.loc[i, [COL_GINI_LATENT_AE, COL_KURTO_LATENT_AE, COL_ENTRO_LATENT_AE, COL_MEAN_ACTIVATION_AE]] = [get_gini(prediction), kurtosis(prediction, axis=None), entropy(prediction, axis=None), np.mean(prev_latent)]
-# 			df.loc[i, [COL_MSE_AE, COL_SSIM_AE]] = [get_MSE(start_pxl, prediction), get_SSIM(start_pxl, prediction)]
+# 			df.loc[i, [COL_MSE_AE, COL_SSIM_AE]] = [get_MSE(start_pxl, prediction).numpy(), get_SSIM_Loss(start_pxl, prediction).numpy()]
 # 			df.loc[i, [COL_LATENT_DIST_AE]] = [np.mean(np.square(start_latent - latent), axis=(axis_latent))]
 # 			i+=1
 # 		return df
@@ -150,37 +164,37 @@ COL_L0_ACTIVATION_AE="L0_activation_layer"
 
 class AutoencoderMetrics(MotherMetric):
 	def __init__(self, model_path, *args, **kwargs):
+		"""
+		model_path: path of the autoencoder to use to get the metrics
+		"""
 		import tensorflow.keras as K
 		self.model = K.models.load_model(model_path, compile=False)
 		self.model.compile("Adam", "mse")
 		super().__init__(*args, **kwargs)
 
 	def function(self, image):
+		"""
+		image: a numpy array float [0:1]
+		returns a dataframe containing a list of values extracted from the
+		activations of the autoencoder by this image
+		"""
+		#prepare df
 		df = pd.DataFrame()
 		params = self.preprocess.get_params()
 		df.loc[0, params.columns] = params.iloc[0]
-
+		#get the deep features
 		test = image[np.newaxis, ...]
 		prediction = self.model.predict(test)[0]
-		deep_features = get_deep_features(self.model.encoder, test)
-
-		# df.loc[0, [COL_MODEL_NAME, COL_MSE_AE, COL_SSIM_AE]] = [self.model.name, get_MSE(image, prediction), get_SSIM(image, prediction)]
-		for i, layer in enumerate(deep_features):
-			#more suited for tests
-			# df.loc[0, COL_GINI_ACTIVATION_AE+"_"+str(i)] = get_gini(layer)
-			# df.loc[0, COL_KURTO_ACTIVATION_AE+"_"+str(i)] = kurtosis(layer, axis=None)
-			# df.loc[0, COL_ENTRO_ACTIVATION_AE+"_"+str(i)] = entropy(layer, axis=None)
-			# df.loc[0, COL_MEAN_ACTIVATION_AE+"_"+str(i)] = np.mean(layer, axis=None)
-			# df.loc[0, COL_L0_ACTIVATION_AE+"_"+str(i)] = get_L0(layer)
-
-			#more suited for quick seaborn plots
-			df.loc[i, [COL_MODEL_NAME, COL_MSE_AE, COL_SSIM_AE]] = [self.model.name, get_MSE(image, prediction), get_SSIM(image, prediction)]
+		deep_features = get_deep_features(self.model.encoder, test, verbose=self.verbose-1)
+		# for each layer of the AE store a serie of metrics
+		for i, layer_activation in enumerate(deep_features):
+			df.loc[i, [COL_MODEL_NAME, COL_MSE_AE, COL_SSIM_AE]] = [self.model.name, get_MSE(image, prediction).numpy(), get_SSIM_Loss(image, prediction).numpy()]
 			df.loc[i, COL_LAYER_IDX] = i
-			df.loc[i, COL_GINI_ACTIVATION_AE] = get_gini(layer)
-			df.loc[i, COL_KURTO_ACTIVATION_AE] = kurtosis(layer, axis=None)
-			df.loc[i, COL_ENTRO_ACTIVATION_AE] = entropy(layer, axis=None)
-			df.loc[i, COL_MEAN_ACTIVATION_AE] = np.mean(layer, axis=None)
-			df.loc[i, COL_L0_ACTIVATION_AE] = get_L0(layer)
+			df.loc[i, COL_GINI_ACTIVATION_AE] = get_gini(layer_activation)
+			df.loc[i, COL_KURTO_ACTIVATION_AE] = kurtosis(layer_activation, axis=None)
+			df.loc[i, COL_ENTRO_ACTIVATION_AE] = entropy(layer_activation, axis=None)
+			df.loc[i, COL_MEAN_ACTIVATION_AE] = np.mean(layer_activation, axis=None)
+			df.loc[i, COL_L0_ACTIVATION_AE] = get_L0(layer_activation)
 		return df
 
 ###############################################################################
@@ -202,8 +216,13 @@ class DeepFeatureMetrics(MotherMetric):
 	DeepFeatureMetrics is a class used to calculate and store
 	different metrics derived from the neurons activation of a specific neural net
 	to a given image
+	is different from AutoencoderMetrics in that it works only on two networks that are not autoencoders
 	"""
 	def __init__(self, base_model, input_shape, *args, **kwargs):
+		"""
+		base_model: name of the network to use, can be vgg16 or vgg19
+		input_shape: the shape of the input images
+		"""
 		import tensorflow.keras as K
 		#load the base model
 		if base_model == "vgg16":
@@ -222,7 +241,11 @@ class DeepFeatureMetrics(MotherMetric):
 		super().__init__(*args, **kwargs)
 
 	def function(self, image):
-		deep_feat = get_deep_features(self.base_model, image[np.newaxis,...])
+		"""
+		returns a dataframe containing the metrics extracted from the deep features
+		of the network
+		"""
+		deep_feat = get_deep_features(self.base_model, image[np.newaxis,...], verbose=self.verbose-1)
 		params = self.preprocess.get_params()
 		df = pd.DataFrame()
 		for layer_idx, layerfeatures in enumerate(deep_feat):
@@ -241,12 +264,21 @@ COL_F_WIN_SIZE="window_size_F"
 COL_FFT_RANGE_MIN="freq_range_Min_F"
 COL_FFT_RANGE_MAX="freq_range_Max_F"
 class FFTMetrics(MotherMetric):
+	"""
+	Parent class used to extract the fast fourier transform of images
+	and store them
+	the children class define what to store, the slope, all slopes, or the bin values
+	"""
 	def __init__(self, fft_range, sample_dim, *args, **kwargs):
+		"""
+		fft_range: the range of frequencies to keep for the fft
+		sample_dim: the size of the sample taken from an image on which we calculate the fft
+		"""
 		self.fft_range = fft_range
 		self.sample_dim = sample_dim
 		super().__init__(*args, **kwargs)
 
-def get_FFT_slopes_samples(image, fft_range, sample_dim, verbose=1):
+def get_FFT_slopes_samples(image, fft_range, sample_dim):
 	'''
 	Calculate the fourier slopes of a sample window of an image
 	'''
@@ -284,6 +316,9 @@ class FFTSlopes(FFTMetrics):
 COL_F_MEAN_SLOPE = "mean_fourier_slope"
 COL_F_N_SAMPLE = "samples_used_F"
 class MeanFFTSlope(FFTMetrics):
+	"""
+	child class from FFTMetrics, store the mean slope coefficient of every sample taken from an image
+	"""
 	def function(self, image):
 		df = self.preprocess.get_params()
 		slopes = get_FFT_slopes_samples(image, self.fft_range, self.sample_dim)
@@ -299,6 +334,10 @@ class MeanFFTSlope(FFTMetrics):
 COL_FREQ_F = "frequency_F"
 COL_AMPL_F = "amplitude_F"
 class FFT_bins(FFTMetrics):
+	"""
+	child class from FFTMetrics, store for each sample of an image the values of each bin of the FFT
+	can be used to visualize the slopes and verify that the coefficient is justified
+	"""
 	def function(self, image):
 		assert image.ndim==3 and image.shape[-1]==1, "Image should be 3D with only one channel, here {}".format(image.shape)
 		image = image[..., 0]
@@ -310,8 +349,10 @@ class FFT_bins(FFTMetrics):
 		stride = int(self.sample_dim/2)
 		slopes = []
 		idx, sample_idx = 0, 0
+		# store for each samples
 		for sample in fly_over_image(image, [self.sample_dim, self.sample_dim], [stride, stride], return_coord=False):
 			bins, ampl = get_pspec(sample, bin_range=self.fft_range)
+			#store for each frequency bin
 			for f, a in zip(bins, ampl):
 				df.loc[idx, params.columns] = params.iloc[0]
 				df.loc[idx, [COL_F_SAMPLE_IDX, COL_FREQ_F, COL_AMPL_F, COL_F_WIN_SIZE, COL_FFT_RANGE_MIN, COL_FFT_RANGE_MAX]] = [sample_idx, f, a, self.sample_dim, *self.fft_range]
@@ -329,16 +370,26 @@ COL_GABOR_ANGLES="gabor_angles"
 COL_GABOR_FREQ="gabor_frequencies"
 COL_GABOR_VALUES="gabor_values"
 class GaborMetrics(MotherMetric):
+	"""
+	store the image response to specific gabor filters
+	"""
 	def __init__(self, angles, frequencies, *args, **kwargs):
+		"""
+		angles: a list of angles in degrees for the filters
+		frequencies: the frequencies of the filters
+		"""
 		self.angles = angles
 		self.frequencies = frequencies
 		super().__init__(*args, **kwargs)
 
 	def function(self, image):
+		"""
+		image: numpy array of shape [w,h] or [h,w,1]
+		"""
 		params = self.preprocess.get_params()
 		df = pd.DataFrame()
-
-		activation_map = get_gabor_filters(image, self.angles, self.frequencies)
+		activation_map = get_gabor_filters(image, self.angles, self.frequencies, verbose=self.verbose)
+		# for each filter store the frquency, angle and response
 		idx=0
 		for a, angle in enumerate(self.angles):
 			for f, freq in enumerate(self.frequencies):
@@ -368,14 +419,28 @@ COL_GLCM_ANGLE="GLCM_angle"
 COL_GLCM_DIST="GLCM_dist"
 
 class HaralickMetrics(MotherMetric):
+	"""
+	Class storing some metrics derived from the Gray local co occurence matrix
+	"""
 	def __init__(self, distances, angles, *args, **kwargs):
+		"""
+		distances: list of distances to use in GLCM calculations
+		angles: list of angles to use in GLCM calculations
+		"""
 		self.distances = distances
 		self.angles = angles
 		super().__init__(*args, **kwargs)
 
 	def function(self, image):
 		assert image.shape[-1]==1, "given image for haralick descriptors should have 1 channel"
-		image = image.astype(np.uint8)
+		if image.dtype!="uint8":
+			if image.min()>=0 and image.max()<=1:
+				image = image*255
+				image = image.astype(np.uint8)
+			elif image.min()>=0 and image.max()<=255:
+				image = image.astype(np.uint8)
+			else:
+				raise ValueError("Couldn't figure out how to convert image to uint8, maybe standardize")
 		df = pd.DataFrame()
 		params = self.preprocess.get_params()
 		mean, var, corr, contrast, dissimil, homo, asm, energy, maxi, entro = get_Haralick_descriptors(image[:,:,0], self.distances, self.angles)
@@ -402,19 +467,25 @@ COL_RADIUS_LBP="radius_LBP"
 COL_BIN_LBP="bin_val_LBP"
 COL_COUNT_LBP="count_LBP_value"
 class LBPHistMetrics(MotherMetric):
+	"""
+	class to calculate the Local Binary Pattern histogram of images
+	"""
 	def __init__(self, points, radius, nbins, *args, **kwargs):
+		"""
+		point: list of number of points to use in LBP
+		radius: list of radius of the circle around the central pixel at which to calculate LBP
+		nbins: number of bins to use for the histogram
+		points and radius are used by pair
+		"""
 		assert len(points)==len(radius), "points and radius are used zipped, should be the same length"
 		self.points = points
 		self.radius = radius
 		self.nbins = nbins
 		super().__init__(*args, **kwargs)
 
-	def function(self, image, visu=False):
+	def function(self, image):
 		'''
 		calculates the Local Binary Pattern of a given image
-		P is the number of neighbors points to use
-		R is the radius of the circle around the central pixel
-		visu is to visualise the result
 		'''
 		assert image.ndim==3 and image.shape[-1]==1, "for lbp image should be one channel"
 		df = pd.DataFrame()
@@ -427,7 +498,7 @@ class LBPHistMetrics(MotherMetric):
 				df.loc[idx, params.columns] = params.iloc[0]
 				df.loc[idx, [COL_POINTS_LBP, COL_RADIUS_LBP, COL_BIN_LBP, COL_COUNT_LBP]] = [P, R, vbin, val]
 				idx+=1
-			if visu:
+			if self.verbose>=1:
 				fig, (ax0, ax1, ax2) = plt.subplots(figsize=(6, 12), nrows=3)
 				ax0.imshow(image, cmap='gray')
 				ax0.set_title("original image")
@@ -451,20 +522,26 @@ class LBPHistMetrics(MotherMetric):
 COL_RANK_LBP="rank_lbp_value"
 COL_VALUE_LBP="value_LBP"
 class BestLBPMetrics(MotherMetric):
+	"""
+	Calculate the LBP and store the LBP values which are most frequent
+	"""
 	def __init__(self, points, radius, n_best=20, *args, **kwargs):
+		"""
+		point: list of number of points to use in LBP
+		radius: list of radius of the circle around the central pixel at which to calculate LBP
+		nbest: number of LBP values which are most frequent in the image
+		points and radius are used by pair
+		"""
 		assert len(points)==len(radius), "points and radius are used zipped, should be the same length"
 		self.points = points
 		self.radius = radius
 		self.n_best = n_best
 		super().__init__(*args, **kwargs)
 
-	def function(self, image, visu=False):
+	def function(self, image):
 		'''
 		calculates the Local Binary Pattern of a given image
-		P is the number of neighbors points to use
-		R is the radius of the circle around the central pixel
-		visu is to visualise the result
-		return the path to the saved image
+		return the dataframe containing the best lbp values and their parameters
 		'''
 		df = pd.DataFrame()
 		params = self.preprocess.get_params()
@@ -490,18 +567,36 @@ COL_PHOG_ORIENTATIONS="phog_bins"
 COL_PHOG_VALUE="phog_val"
 COL_PHOG_BIN="phog_bin"
 class PHOGMetrics(MotherMetric):
+	"""
+	class to store results of Pyramid Histogram Oriented Gradient
+	"""
 	def __init__(self, orientations=8, level=0, *args, **kwargs):
+		"""
+		orientations: orientations is the HOG
+		level: level is the number of times to divide the image and calculate HOG
+		"""
 		self.orientations=orientations
 		self.level=level
 		super().__init__(*args, **kwargs)
 
 	def function(self, image):
+		"""
+		image: should be a numpy array of type uint8 [0,255]
+		"""
 		df = pd.DataFrame()
 		params = self.preprocess.get_params()
-
 		roi = [0, image.shape[0], 0, image.shape[1]]
-		phog = anna_phog(image.astype(np.uint8), self.orientations, 360, self.level, roi)
-
+		#if needed convert image to uint8
+		if image.dtype!="uint8":
+			if image.min()>=0 and image.max()<=1:
+				image = image*255
+				image = image.astype(np.uint8)
+			elif image.min()>=0 and image.max()<=255:
+				image = image.astype(np.uint8)
+			else:
+				raise ValueError("Couldn't figure out how to convert image to uint8, maybe standardize")
+		phog = anna_phog(image, self.orientations, 360, self.level, roi)
+		#store the phog values
 		for i, value in enumerate(phog):
 			df.loc[i, params.columns] = params.loc[0]
 			df.loc[i, [COL_PHOG_BIN, COL_PHOG_ORIENTATIONS, COL_PHOG_LEVELS, COL_PHOG_VALUE]] = [i, self.orientations, self.level, value]
@@ -525,7 +620,7 @@ class StatMetrics(MotherMetric):
 	'''
 	def function(self, image):
 		df = self.preprocess.get_params()
-		metrics = get_statistical_features(image)
+		metrics = get_statistical_features(image, verbose=self.verbose)
 		df.loc[0, [COL_STAT_MEAN, COL_STAT_STD, COL_STAT_SKEW, COL_STAT_KURT, COL_STAT_ENTROPY]] = metrics
 		df.loc[0, COL_GINI_VALUE] = [get_gini(image)]
 		return df
@@ -541,9 +636,9 @@ class ColorRatioMetrics(MotherMetric):
 	'''
 	Class used to calculate the ratio between 2 color channels of an image
 	'''
-	def function(self, image, visu=False):
+	def function(self, image):
 		df = self.preprocess.get_params()
-		df.loc[0,COL_COLOR_RATIO]=[get_color_ratio(image, visu)]
+		df.loc[0,COL_COLOR_RATIO]=[get_color_ratio(image, verbose=self.verbose)]
 		return df
 
 
@@ -554,44 +649,51 @@ class ColorRatioMetrics(MotherMetric):
 ###############################################################################
 
 def main(args):
+	"""
+	given the arguments will execute the command metric and store the results
+	"""
 	params_preprocess={
 		"resize":args.resize,
 		"normalize":args.normalize,
 		"standardize":args.standardize,
 		"img_type":args.type_img,
-		"img_channel":args.channel_img
+		"img_channel":args.channel_img,
+		"keep_ratio":args.keep_ratio,
+		"fit_method":args.fit_method,
+		"verbose":args.verbose
 	}
 	preprocess = Preprocess(**params_preprocess)
 	load_from = args.output_path if not args.override else None
 	if args.command == "color_ratio":
-		metric = ColorRatioMetrics(preprocess, load_from=load_from)
+		metric = ColorRatioMetrics(preprocess, load_from=load_from, verbose=args.verbose)
 	elif args.command == "stats":
-		metric = StatMetrics(preprocess, load_from=load_from)
+		metric = StatMetrics(preprocess, load_from=load_from, verbose=args.verbose)
 	elif args.command == "phog":
-		metric = PHOGMetrics(orientations=args.angles, level=args.level, preprocess=preprocess, load_from=load_from)
+		metric = PHOGMetrics(orientations=args.angles, level=args.level, preprocess=preprocess, load_from=load_from, verbose=args.verbose)
 	elif args.command == "best_lbp":
-		metric = BestLBPMetrics(points=args.points, radius=args.radius, n_best=args.bins, preprocess=preprocess, load_from=load_from)
+		metric = BestLBPMetrics(points=args.points, radius=args.radius, n_best=args.bins, preprocess=preprocess, load_from=load_from, verbose=args.verbose)
 	elif args.command == "lbp":
-		metric = LBPHistMetrics(points=args.points, radius=args.radius, nbins=args.bins, preprocess=preprocess, load_from=load_from)
+		metric = LBPHistMetrics(points=args.points, radius=args.radius, nbins=args.bins, preprocess=preprocess, load_from=load_from, verbose=args.verbose)
 	elif args.command == "haralick":
-		metric = HaralickMetrics(distances=args.distances, angles=args.angles, preprocess=preprocess, load_from=load_from)
+		metric = HaralickMetrics(distances=args.distances, angles=args.angles, preprocess=preprocess, load_from=load_from, verbose=args.verbose)
 	elif args.command == "gabor":
-		metric = GaborMetrics(angles=args.angles, frequencies=args.frequencies, preprocess=preprocess, load_from=load_from)
+		metric = GaborMetrics(angles=args.angles, frequencies=args.frequencies, preprocess=preprocess, load_from=load_from, verbose=args.verbose)
 	elif args.command == "fft_bins":
-		metric = FFT_bins(fft_range=args.fft_range, sample_dim=args.sample_dim, preprocess=preprocess, load_from=load_from)
+		metric = FFT_bins(fft_range=args.fft_range, sample_dim=args.sample_dim, preprocess=preprocess, load_from=load_from, verbose=args.verbose)
 	elif args.command == "fft_slopes":
-		metric = FFTSlopes(fft_range=args.fft_range, sample_dim=args.sample_dim, preprocess=preprocess, load_from=load_from)
+		metric = FFTSlopes(fft_range=args.fft_range, sample_dim=args.sample_dim, preprocess=preprocess, load_from=load_from, verbose=args.verbose)
 	elif args.command == "mean_fft_slopes":
-		metric = MeanFFTSlope(fft_range=args.fft_range, sample_dim=args.sample_dim, preprocess=preprocess, load_from=load_from)
+		metric = MeanFFTSlope(fft_range=args.fft_range, sample_dim=args.sample_dim, preprocess=preprocess, load_from=load_from, verbose=args.verbose)
 	elif args.command == "deep_features":
-		metric = DeepFeatureMetrics(args.model, args.resize, preprocess=preprocess, load_from=load_from)
+		metric = DeepFeatureMetrics(args.model, args.resize, preprocess=preprocess, load_from=load_from, verbose=self.verbose)
 	elif args.command == "autoencoder":
-		metric = AutoencoderMetrics(args.model_path, preprocess=preprocess, load_from=load_from)
+		metric = AutoencoderMetrics(args.model_path, preprocess=preprocess, load_from=load_from, verbose=args.verbose)
 	elif args.command == "list":
-		metric = get_files(args.input_path, args.depth, tuple(args.formats), [], only_endnodes=args.endnodes, visu=args.verbose>=1)
+		metric = get_files(args.input_path, args.depth, tuple(args.formats), [], only_endnodes=args.endnodes, verbose=args.verbose)
 		metric.to_csv(args.output_path, index=True)
 
-	if args.command != "list":	#list is the only metric that do not take a list image as input
+	#list is the only metric that do not take a list image as input
+	if args.command != "list":
 		data_image = pd.read_csv(args.input_path, index_col=0)
 		metric.metric_from_path_list(data_image[COL_IMG_PATH])
 		metric.save(args.output_path)
@@ -607,6 +709,7 @@ if __name__ == '__main__':
 	IMG_CHANNEL=CHANNEL.ALL
 	VERBOSE=1
 	OVERRIDE=True
+	DEF_FITTING=None
 
 	#parsing parameters
 	parser = argparse.ArgumentParser(description="Launch the specified metric calculations on the given csv and store the results in another csv")
@@ -614,7 +717,7 @@ if __name__ == '__main__':
 	#common parameters
 	parser.add_argument("input_path", help="path of the file to open")
 	parser.add_argument("output_path", help="where to save the csv")
-	parser.add_argument("-v", "--verbose", default=VERBOSE, type=int, choices=[0,1,2], help="set the level of visualization, default: {}".format(VERBOSE))
+	parser.add_argument("-v", "--verbose", default=VERBOSE, type=int, help="set the level of visualization, default: {}".format(VERBOSE))
 	parser.add_argument("-o", "--override", default=OVERRIDE, type=lambda x: bool(eval(x)), help="If the output file already exists, override it, else append the results. default: {}".format(OVERRIDE))
 
 	#parameters for preprocess
@@ -623,6 +726,9 @@ if __name__ == '__main__':
 	parser.add_argument("-s", "--standardize", default=STANDARDIZE, type=lambda x: bool(eval(x)), help="if image should be standardized, default: {}".format(STANDARDIZE))
 	parser.add_argument("-t", "--type_img", default=IMG_TYPE.name, type=lambda x: IMG[x], choices=list(IMG), help="the type of image needed, default: {}".format(IMG_TYPE))
 	parser.add_argument("-c", "--channel_img", default=IMG_CHANNEL.name, type=lambda x: CHANNEL[x], choices=list(CHANNEL), help="The channel used for the image, default: {}".format(IMG_CHANNEL))
+	parser.add_argument("--keep_ratio", default=False, action='store_true', help="If set, images resized keep the same X to Y ratio as originaly")
+	parser.add_argument("-f", "--fit_method", default=DEF_FITTING, type=str, choices=["cropping","padding"], help="If keep_ratio is set, this is the method used to keep the original image ratio, default: {}".format(DEF_FITTING))
+
 	subparsers = parser.add_subparsers(title="command", dest="command", help='action to perform')
 
 	#commands with no other parameters
@@ -701,4 +807,4 @@ if __name__ == '__main__':
 
 	args = parser.parse_args()
 	main(args)
-	save_args(args, os.path.join(args.output_dir, "Metrics_"+args.command+"_params.txt"))
+	save_args(args, os.path.splitext(args.output_path)[0]+"_params.txt")

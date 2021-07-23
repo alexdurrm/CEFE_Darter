@@ -12,7 +12,7 @@ DIR_ORIGINAL_FISHES=["FISH_images"]
 DIR_ORIGINAL_HABITATS=["HABITAT_images"]
 DIR_POISSONS=["Poissons/JPEG Cropped"]
 DIR_SAMUEL=["crops", "Crops"]
-DIR_PALETTES=["Palette"]
+DIR_PALETTES=["Palette", "CLUSTER_HABS_3", "CLUSTER_HABS_6"]
 DIR_IGNORED=[]
 
 
@@ -31,7 +31,7 @@ DICT_HABITAT['zonale'] = 'gravel'
 DICT_HABITAT['zonistium'] = 'sand'
 DICT_HABITAT['punctulatum'] = 'bedrock'
 
-
+#dict given by Tamra attributing to each specie a score of correspondance with each 3 clustered habitats
 HABITAT_SCORE_3GRPS = {}
 HABITAT_SCORE_3GRPS["name_grps"] = ["class 1", "class 2", "class 3"]
 HABITAT_SCORE_3GRPS['caeruleum'] = [3,1,1]
@@ -46,7 +46,7 @@ HABITAT_SCORE_3GRPS['camurum'] = [2,0,1]
 HABITAT_SCORE_3GRPS['swaini'] = [2,2,1]
 HABITAT_SCORE_3GRPS['punctulatum'] = [1,3,2]
 
-
+#dict given by Tamra attributing to each specie a score of correspondance with each 6 clustered habitats
 HABITAT_SCORE_6GRPS = {}
 HABITAT_SCORE_6GRPS["name_grps"] = ["class 1", "class 2", "class 3", "class 4", "class 5", "class 6"]
 HABITAT_SCORE_6GRPS['caeruleum'] = [3,1,1,1,1,2]
@@ -200,7 +200,7 @@ def group_files_by_experiments(df_files):
 	return experiments
 
 
-def get_files(main_path, max_depth, types_allowed, ignored_folders, only_endnodes, visu=False):
+def get_files(main_path, max_depth, types_allowed, ignored_folders, only_endnodes, verbose=0):
 	'''
 	initiate a dataframe with minimum values in it
 	max_depth is the depth of the search: 0 is for a file, 1 is to search one directory, 2 is dir and subdirs...
@@ -216,132 +216,7 @@ def get_files(main_path, max_depth, types_allowed, ignored_folders, only_endnode
 			to_visit += [(os.path.join(path, next), depth+1) for next in os.listdir(path)]
 		elif os.path.isfile(path) and path.endswith(types_allowed):
 			if depth==max_depth or not only_endnodes:
-				if visu: print("ADDING {}".format(path))
+				if verbose>=1: print("ADDING {}".format(path))
 				dict_info = load_info_from_filepath(path)
 				data.loc[len(data), [*dict_info.keys()]] = [*dict_info.values()]
 	return data
-
-
-def joinCSV(input_files):
-	path_and_params_col = [COL_IMG_PATH, COL_NORMALIZE, COL_STANDARDIZE, COL_IMG_TYPE, COL_IMG_CHANNEL, COL_IMG_RESIZE_X, COL_IMG_RESIZE_Y]
-
-	img_info_col=[COL_IMG_PATH,	COL_FILENAME, COL_TYPE,	COL_DIRECTORY, COL_HABITAT,	COL_COLOR_CONTROL, COL_TV_LOSS,
-		COL_LAYERS, COL_FISH_SEX, COL_FISH_NUMBER, COL_SPECIES,	COL_IMG_WIDTH, COL_IMG_HEIGHT, COL_IMG_EXT]
-
-	merged_df = pd.DataFrame(columns=path_and_params_col)
-
-	img_info_there=False #become true if a file contains informations about the images
-	#for each given file load it and if it recognize the file prepare it
-	#so that every column correspond to a metric with its parameters
-	#and every line corresponds to an image file
-	for file_path in input_files:
-		file = pd.read_csv(file_path, index_col=0)
-		f_type = os.path.split(file_path)[-1]
-
-		if f_type == CSV_IMAGE:
-			img_info_there=True
-			print("merging file {} as {} type".format(file_path, CSV_IMAGE))
-			merged_df = merged_df.merge(file, how="outer", on=COL_IMG_PATH)
-			continue	#add only w.r.t path image
-
-		elif f_type == CSV_EXPERIMENTS:
-			print("not merging this file {}".format(file_path))
-			continue	#don't add to the df
-
-		elif f_type == CSV_STATS_METRICS:
-			print("merging file {} as {} type".format(file_path, CSV_STATS_METRICS))
-			pass   		#no preparation needed
-
-		elif f_type == CSV_COLOR_RATIO:
-			print("merging file {} as {} type".format(file_path, CSV_COLOR_RATIO))
-			pass 		#no preparation needed
-
-		elif f_type == CSV_DEEP_FEATURES:
-			print("merging file {} as {} type".format(file_path, CSV_DEEP_FEATURES))
-			file = file.pivot(index=path_and_params_col, columns=[COL_MODEL_NAME, COL_LAYER_DF], values=[COL_SPARSENESS_DF, COL_ENTROPY_DF, COL_KURTOSIS_DF, COL_MEAN_DF])
-			merged_df.columns = ["_".join(map(str, col )) if isinstance(col, tuple) else col for col in merged_df.columns]
-			file.reset_index(inplace=True)
-
-		elif f_type == CSV_FFT_SLOPE:
-			print("merging file {} as {} type".format(file_path, CSV_FFT_SLOPE))
-			file = file.pivot(index=path_and_params_col, columns=[COL_F_WIN_SIZE, COL_FFT_RANGE_MIN, COL_FFT_RANGE_MAX, COL_F_SAMPLE_IDX], values=[COL_F_SLOPE_SAMPLE])
-			merged_df.columns = ["_".join(map(str, col )) if isinstance(col, tuple) else col for col in merged_df.columns]
-			file.reset_index(inplace=True)
-
-		elif f_type == CSV_MEAN_FFT_SLOPE:
-			print("merging file {} as {} type".format(file_path, CSV_MEAN_FFT_SLOPE))
-			file = file.pivot(index=path_and_params_col, columns=[COL_F_WIN_SIZE, COL_FFT_RANGE_MIN, COL_FFT_RANGE_MAX], values=[COL_F_MEAN_SLOPE])
-			merged_df.columns = ["_".join(map(str, col )) if isinstance(col, tuple) else col for col in merged_df.columns]
-			file.reset_index(inplace=True)
-
-		elif f_type == CSV_FFT_BINS:
-			print("merging file {} as {} type".format(file_path, CSV_FFT_BINS))
-			file = file.pivot(index=path_and_params_col, columns=[COL_F_WIN_SIZE, COL_FFT_RANGE_MIN, COL_FFT_RANGE_MAX, COL_F_SAMPLE_IDX, COL_FREQ_F], values=[COL_AMPL_F])
-			merged_df.columns = ["_".join(map(str, col )) if isinstance(col, tuple) else col for col in merged_df.columns]
-			file.reset_index(inplace=True)
-
-		elif f_type == CSV_GABOR:
-			print("merging file {} as {} type".format(file_path, CSV_GABOR))
-			file = file.pivot(index=path_and_params_col, columns=[COL_GABOR_ANGLES, COL_GABOR_FREQ], values=[COL_GABOR_VALUES])
-			merged_df.columns = ["_".join(map(str, col )) if isinstance(col, tuple) else col for col in merged_df.columns]
-			file.reset_index(inplace=True)
-
-		elif f_type == CSV_HARALICK:
-			print("merging file {} as {} type".format(file_path, CSV_HARALICK))
-			haralick_descriptors = [COL_GLCM_MEAN, COL_GLCM_VAR, COL_GLCM_CORR, COL_GLCM_CONTRAST,
-			COL_GLCM_DISSIMIL, COL_GLCM_HOMO, COL_GLCM_ASM, COL_GLCM_ENERGY, COL_GLCM_MAXP, COL_GLCM_ENTROPY]
-			file = file.pivot(index=path_and_params_col, columns=[COL_GLCM_ANGLE, COL_GLCM_DIST], values=haralick_descriptors)
-			merged_df.columns = ["_".join(map(str, col )) if isinstance(col, tuple) else col for col in merged_df.columns]
-			file.reset_index(inplace=True)
-
-		elif f_type == CSV_LBP:
-			print("merging file {} as {} type".format(file_path, CSV_LBP))
-			file = file.pivot(index=path_and_params_col, columns=[COL_POINTS_LBP, COL_RADIUS_LBP, COL_BIN_LBP], values=[COL_COUNT_LBP])
-			merged_df.columns = ["_".join(map(str, col )) if isinstance(col, tuple) else col for col in merged_df.columns]
-			file.reset_index(inplace=True)
-
-		elif f_type == CSV_BEST_LBP:
-			print("merging file {} as {} type".format(file_path, CSV_BEST_LBP))
-			file = file.pivot(index=path_and_params_col, columns=[COL_POINTS_LBP, COL_RADIUS_LBP, COL_RANK_LBP], values=[COL_VALUE_LBP, COL_COUNT_LBP])
-			merged_df.columns = ["_".join(map(str, col )) if isinstance(col, tuple) else col for col in merged_df.columns]
-			file.reset_index(inplace=True)
-
-		elif f_type == CSV_PHOG:
-			print("merging file {} as {} type".format(file_path, CSV_PHOG))
-			file = file.pivot(index=path_and_params_col, columns=[COL_PHOG_BIN, COL_PHOG_ORIENTATIONS, COL_PHOG_LEVELS], values=[COL_PHOG_VALUE])
-			merged_df.columns = ["_".join(map(str, col )) if isinstance(col, tuple) else col for col in merged_df.columns]
-			file.reset_index(inplace=True)
-
-		elif CSV_AE in f_type:
-			print("merging file {} as {} type".format(file_path, CSV_AE))
-			file = file.pivot(index=path_and_params_col, columns=[], values=[])
-			merged_df.columns = ["_".join(map(str, col)) if isinstance(col, tuple) else col for col in merged_df.columns]
-			file.reset_index(inplace=True)
-
-		else:
-			print("Unrecognized file {}".format(file_path))
-			continue
-
-		merged_df = merged_df.merge(file, how="outer", on=path_and_params_col)
-
-	if img_info_there:
-		merged_df = merged_df.pivot(index=img_info_col, columns=[COL_NORMALIZE, COL_STANDARDIZE, COL_IMG_TYPE, COL_IMG_CHANNEL, COL_IMG_RESIZE_X, COL_IMG_RESIZE_Y])
-	else:
-		merged_df = merged_df.pivot(index=COL_IMG_PATH, columns=[COL_NORMALIZE, COL_STANDARDIZE, COL_IMG_TYPE, COL_IMG_CHANNEL, COL_IMG_RESIZE_X, COL_IMG_RESIZE_Y])
-
-	merged_df.columns = ["_".join(map(str, col)) if isinstance(col, tuple) else col for col in merged_df.columns]
-	merged_df.dropna(axis=1, how="all", inplace=True)
-	# print(merged_df)
-	print(merged_df.columns)
-	merged_df.reset_index(inplace=True)
-	return merged_df
-
-if __name__ == '__main__':
-	#parsing parameters
-	parser = argparse.ArgumentParser()
-	parser.add_argument("input_files", nargs="+", type=str, help="Files to join")
-	parser.add_argument("-o", "--output_dir", type=str, default=DIR_RESULTS, help="output directory, default: {}".format(DIR_RESULTS))
-	args = parser.parse_args()
-
-	merged_df = joinCSV(args.input_files)
-	merged_df.to_csv(os.path.join(args.output_dir, "merged.csv"))

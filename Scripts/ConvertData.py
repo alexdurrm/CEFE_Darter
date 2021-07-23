@@ -43,17 +43,7 @@ def get_paths(input, expected_img_ext=None, verbose=0):
 	return list_paths
 
 
-# def save_data(data, output_path, out_format, orginal_names=None):
-# 	if out_format==".npy":
-# 		np.save(output_path, data)
-# 		print("Saved at {}".format(output_path))
-# 	elif out_format in (".tif", ".tiff", ".jpg"):
-# 		for idx, img in enumerate(data):
-# 			img_name = os.path.splitext(original_names[idx])[0] if original_names else str(idx)
-# 			imageio.imwrite(os.path.join(output_path, img_name)+out_format, data)
-
-
-def uniformize_shapes(list_images, policy, keep_ratio):
+def uniformize_shapes(list_images, policy, keep_ratio, fit_method):
 	"""
 	Given a list of images returns an array of those images resized at the same shape
 	"""
@@ -71,7 +61,7 @@ def uniformize_shapes(list_images, policy, keep_ratio):
 			elif policy=="maximum":
 				ref_shape = tuple(max(a,b) for a,b in zip(ref_shape, shape))
 	#resize if needed
-	resized_list =  np.array([resize_img_to_fit(img, ref_shape, keep_ratio) for img in list_images])
+	resized_list =  np.array([resize_img_to_fit(img, ref_shape, keep_ratio, fit_method) for img in list_images])
 	return resized_list
 
 def get_agg_numpies(list_paths):
@@ -87,8 +77,8 @@ def get_agg_numpies(list_paths):
 	return data
 
 def augment(list_images, do_H_symetry, crop_level, randomize=True, verbose=0):
-	"""get_agg_numpies
-	given a list of images
+	"""
+	given a list of images return an augmented list of these images
 	"""
 	#cropping by level
 	len_a = len(list_images)
@@ -108,10 +98,15 @@ def augment(list_images, do_H_symetry, crop_level, randomize=True, verbose=0):
 	return list_images
 
 def main(args):
+	"""
+	launch functions to convert images and given a namespace of args
+	"""
 	#get a list of path to load
 	list_path = get_paths(args.input, args.input_format, args.verbose)
 	#preprocess inputs
-	preprocessor = Preprocess(args.resize, args.normalize, args.standardize, args.type_img, args.channel_img)
+	preprocessor = Preprocess(args.resize, args.normalize, args.standardize,
+								args.type_img, args.channel_img, args.keep_ratio,
+								args.fit_method, verbose=args.verbose)
 	if args.input_format==".npy":
 		list_images = get_agg_numpies(list_path)
 		list_images = preprocessor(list_images)
@@ -120,7 +115,7 @@ def main(args):
 	#uniformely resize images if needed
 	if args.resize_policy or args.output_format==".npy":
 		resize_policy = args.resize_policy if args.resize_policy else "strict"
-		list_images = uniformize_shapes(list_images, resize_policy, args.keep_ratio)
+		list_images = uniformize_shapes(list_images, resize_policy, args.keep_ratio, args.fit_method)
 	#augment and save
 	if args.train_test_split:
 		train, test = train_test_split(list_images, test_size=args.train_test_split, shuffle=True)
@@ -141,6 +136,7 @@ if __name__=='__main__':
 	IMG_TYPE=IMG.DEFAULT
 	IMG_CHANNEL=CHANNEL.DEFAULT
 	VERBOSE=0
+	DEF_FITTING="cropping"
 
 	parser = argparse.ArgumentParser(description="Script used to prepare datasets, convert images, basically centralize image manipulations into one script")
 	#input params
@@ -157,11 +153,12 @@ if __name__=='__main__':
 	parser.add_argument("-t", "--type_img", default=IMG_TYPE.name, type=lambda x: IMG[x], choices=list(IMG), help="the type of image needed, default: {}".format(IMG_TYPE))
 	parser.add_argument("-c", "--channel_img", default=IMG_CHANNEL.name, type=lambda x: CHANNEL[x], choices=list(CHANNEL), help="The channel used for the image, default: {}".format(IMG_CHANNEL))
 	parser.add_argument("-v", "--verbose", default=VERBOSE, type=int, choices=[0,1,2], help="set the level of visualization, default: {}".format(VERBOSE))
+	parser.add_argument("--keep_ratio", default=False, action='store_true', help="If set, images resized keep the same X to Y ratio as originaly")
+	parser.add_argument("-f", "--fit_method", default=DEF_FITTING, type=str, choices=["cropping","padding"], help="If keep_ratio is set, this is the method used to keep the original image ratio, default: {}".format(DEF_FITTING))
 
 	#augmentation and other parameters
 	parser.add_argument("--resize_policy", default=None, choices=["strict", "minimum", "maximum"], help="if images are of different sizes what policy should we adopt, strict fails, minimum takes the minimum shape, maximum takes the maximum shape, default None")
 	parser.add_argument("--add_H_sym", default=False, action="store_true", help="add Horizontal symmetric images to the output data, default false")
-	parser.add_argument("--keep_ratio", default=False, action="store_true", help="Preserve image ratio if resized, default false")
 	parser.add_argument("--crop_levels", default=0, type=int, choices=[1,2,3], help="augment the images with cropings, of the original image, 1 is no augmentation, 2 adds 4(2*2) quarter images, 3 adds 20=(4+16(2*2+4*4)) heights of the original image")
 	parser.add_argument("--no_randomize", default=False, action="store_true", help="By default results are randomized, is set will not randomize")
 
