@@ -112,7 +112,6 @@ def main(args):
 		list_images = preprocessor(list_images)
 	else:
 		list_images = preprocessor(list_path)
-	if args.verbose>=2: see_image(list_images[0], title="after preprocessed")
 	#uniformely resize images if needed
 	if args.resize_policy or args.output_format==".npy":
 		resize_policy = args.resize_policy if args.resize_policy else "strict"

@@ -24,10 +24,13 @@ def save_grp_samples(images, groups, scores, output_dir, nsamples=20, method="ra
 	the out_format can be ".jpg" or ".npy" and is
 	"""
 	assert len(images)==len(groups) and len(groups)==len(scores), "images, groups, and scores should all be the same length"
-
+	#prepare directory
+	if not os.path.exists(output_dir):
+		os.makedirs(output_dir)
 	#get list of group values and for each value sort image by best accuracy
 	groups_id = np.unique(groups)
 	for grp_id in groups_id:
+		#sort values by score
 		values = [(x,y) for x, y in zip(images[groups==grp_id], scores[groups==grp_id])]
 		values.sort(key=lambda x:x[1], reverse=True) #sort best first
 		#select images index
@@ -41,18 +44,17 @@ def save_grp_samples(images, groups, scores, output_dir, nsamples=20, method="ra
 		else:
 			raise ValueError("invalid method {}".format(method))
 		#save images
-		if not os.path.isdir(output_dir):
-			os.makedirs(output_dir)
-		if out_format==".jpg":
+		if out_format==".jpg" or out_format=="both":
+			group_directory = os.path.join(output_dir, "grp"+str(grp_id))
+			if not os.path.exists(group_directory):
+				os.makedirs(group_directory)
 			for i, idx in enumerate(choices):
 				img, score = values[idx]
-				plt.imsave(os.path.join(output_dir, 'grp{}_{}_{:.3f}.jpg'.format(grp_id, i, score)), img)
-		elif out_format==".npy":
+				plt.imsave(os.path.join(group_directory, 'img_{}_{:.3f}.jpg'.format(i, score)), img)
+		if out_format==".npy" or out_format=="both":
 			filename = "grp{}_{}{}_images.npy".format(grp_id, nsamples, method)
 			data = np.array([values[c][0] for c in choices])
 			np.save(os.path.join(output_dir, filename), data)
-		else:
-			raise ValueError("invalid format {}".format(format))
 
 
 def normalize(ldf):
@@ -146,9 +148,9 @@ def get_df(model, test, list_layers, verbosity=1):
 	for layer in model.layers:
 		if layer.name in list_layers:
 			generator = chunks(test, 50)
-			ldf = K.function([model.input], layer.output)([next(generator), 1])
+			ldf = K.function([model.input], layer.output)([next(generator)])
 			for batch in generator:
-				bdf = K.function([model.input], layer.output)([batch, 1])
+				bdf = K.function([model.input], layer.output)([batch])
 				ldf = np.concatenate((ldf, bdf), axis=0)
 			if ldf.ndim!=2: #if layer is conv
 				ldf = np.mean(ldf, axis=(1,2))
@@ -173,7 +175,7 @@ def get_AE_df(model, test, list_layers, verbosity=1):
 	deep_features += get_df(model.decoder, test, list_layers, verbosity-1)
 	return deep_features
 
-def do_kmeans(data, img, color_img, k_grps, output_dir, title, palette_size, save_clusters, show3D=False):
+def do_kmeans(data, img, color_img, k_grps, output_dir, title, palette_size, format_palette, show3D=False):
 	"""
 	data: a numpy array
 	"""
@@ -197,18 +199,11 @@ def do_kmeans(data, img, color_img, k_grps, output_dir, title, palette_size, sav
 		show_by_class(color_img, groups=cluster_labels, scores=sample_silhouette_values, title="{}_{}clusters".format(title, k), output_dir=output_dir)
 
 		# save a palette of the n_to_save best clusturised colored images
-		palette_size=450-k*50 	#so 3k:300 , 6k:150
-		if palette_size:
+		if palette_size>=1:
 			save_grp_samples(color_img, cluster_labels, sample_silhouette_values,
 							output_dir=os.path.join(output_dir, "Palette_{}_{}clusters".format(title, k)),
 							nsamples=palette_size,
-							method="best", out_format=".jpg")
-		# save a numpy array of the n_to_save best clusterised colored images
-		if save_clusters:
-			save_grp_samples(img, cluster_labels, sample_silhouette_values,
-							output_dir=os.path.join(output_dir, "Palette_{}_{}clusters".format(title, k)),
-							nsamples=palette_size,
-							method="best", out_format=".npy")
+							method="best", out_format=format_palette)
 
 		#plot silhouettes
 		y_lower = 10
@@ -250,26 +245,10 @@ def do_kmeans(data, img, color_img, k_grps, output_dir, title, palette_size, sav
 	# plt.show()
 	plt.close()
 
-if __name__=="__main__":
-	DEFAULT_MODEL="vgg16"
-	VERBOSE=1
-	DEFAULT_K=[2,3,4,5,6,7,8]
-	#parsing parameters
-	parser = argparse.ArgumentParser(description="Clusterize given numpy images using network deep features and k means")
-	parser.add_argument("input", help="path of the file to open (.npy)")
-	parser.add_argument("output_dir", help="path of the file to save")
-	parser.add_argument("-m", "--model", choices=["vgg16", "places", "hybrid", "AEconvo"], default=DEFAULT_MODEL, help="network model to use")
-	parser.add_argument("-r", "--reduction", choices=["pca", "mds"], default=None, help="dimension reduction method to use")
-	parser.add_argument("-d", "--dim", type=int, default=None, help="number of dim for the PCA, default None performs no PCA")
-	parser.add_argument("-o", "--optional", help="add the model path here")
-	parser.add_argument("-k", "--klusters", nargs="+", type=int, default=DEFAULT_K, help="kernels to use for clusterisation, default {}".format(DEFAULT_K))
-	parser.add_argument("-p", "--palette_size", type=int, default=0, help="number of images to save in a palette")
-	parser.add_argument("--save_clusters", default=False, action="store_true", help="add this argument if you want to save a numpy of the predicted clusters")
-	parser.add_argument("-v", "--verbose", default=VERBOSE, type=int, choices=[0,1,2], help="set the level of visualization, default: {}".format(VERBOSE))
-
-	args = parser.parse_args()
-	n_pca=args.dim
-
+def main(args):
+	"""
+	perform the deep features acquisition, clustering, dimensionality reduction and savings of the data
+	"""
 	#prepare images
 	test = np.load(args.input)
 	print("test shape: {}".format(test.shape))
@@ -296,42 +275,58 @@ if __name__=="__main__":
 	#add a concatenation of features
 	# layers_to_extract.append("01_pools")
 	# deep_features.append(np.concatenate([x for x in deep_features[0:2]], axis=-1))
-
 	# layers_to_extract.append("12_pools")
 	# deep_features.append(np.concatenate([x for x in deep_features[1:3]], axis=-1))
-
 	# layers_to_extract.append("012_pools")
 	# deep_features.append(np.concatenate([x for x in deep_features[0:3]], axis=-1))
-
 	# layers_to_extract.append("all_pools")
 	# deep_features.append(np.concatenate([x for x in deep_features[0:4]], axis=-1))
+	# #retrieve only all pools concatenated
+	# deep_features=[np.concatenate([x for x in deep_features[2:4]], axis=-1)]
+	# layers_to_extract = ["23_pools"]
 
 	layers_to_extract.append("23_pools")
 	deep_features.append(np.concatenate([x for x in deep_features[2:4]], axis=-1))
 
-	#retrieve only all pools concatenated
-	# deep_features=[np.concatenate([x for x in deep_features[2:4]], axis=-1)]
-	# layers_to_extract = ["23_pools"]
-
-
-
+	#normalize deep features
 	deep_features = [normalize(df) for df in deep_features]
 	print([x.shape for x in deep_features])
 
-	title_end = ["","_{}{}".format(args.reduction,n_pca)][(n_pca is not None and args.reduction is not None)]
-
+	# perform a dimensionality reduction
 	for name_layer, df in zip(layers_to_extract, deep_features):
 		df = df.reshape((len(df), -1))
 		#do dimension reduction
+		n_pca=args.dim
 		if args.reduction=="pca":
 			df = do_pca(df, n_pca)
 		elif args.reduction=="mds":
 			df = do_MDS(df, n_pca)
 
 		#clusterize
+		title_end = ["","_{}{}".format(args.reduction,n_pca)][(n_pca is not None and args.reduction is not None)]
 		title = "{}{}".format(name_layer, title_end)
 		color_img = np.load(os.path.join(os.path.dirname(args.input) , "color_reference.npy"))
-		do_kmeans(df, test, color_img, args.klusters, args.output_dir, title=title, palette_size=args.palette_size, save_clusters=args.save_clusters ,show3D=n_pca==3)
+		do_kmeans(df, test, color_img, args.klusters, args.output_dir, title=title, palette_size=args.palette_size, format_palette=args.format_palette ,show3D=n_pca==3)
 
 
-	# df3 = np.concatenate((df1, df2), axis=-1)
+
+if __name__=="__main__":
+	DEFAULT_MODEL="vgg16"
+	VERBOSE=1
+	DEFAULT_K=[2,3,4,5,6,7,8]
+	FORMAT_PAL=".npy"
+	#parsing parameters
+	parser = argparse.ArgumentParser(description="Clusterize given numpy images using network deep features and k means")
+	parser.add_argument("input", help="path of the file to open (.npy)")
+	parser.add_argument("output_dir", help="path of the file to save")
+	parser.add_argument("-m", "--model", choices=["vgg16", "places", "hybrid", "AEconvo"], default=DEFAULT_MODEL, help="network model to use")
+	parser.add_argument("-r", "--reduction", choices=["pca", "mds"], default=None, help="dimension reduction method to use")
+	parser.add_argument("-d", "--dim", type=int, default=None, help="number of dim for the PCA, default None performs no PCA")
+	parser.add_argument("-o", "--optional", help="add the model path here")
+	parser.add_argument("-k", "--klusters", nargs="+", type=int, default=DEFAULT_K, help="kernels to use for clusterisation, default {}".format(DEFAULT_K))
+	parser.add_argument("-p", "--palette_size", type=int, default=0, help="number of images to save in a palette")
+	parser.add_argument("-f","--format_palette", default=FORMAT_PAL, choices=[".npy",".jpg","both"], help="when palette_size is set, this is the format at which save the palette, default: {}".format(FORMAT_PAL))
+	parser.add_argument("-v", "--verbose", default=VERBOSE, type=int, choices=[0,1,2], help="set the level of visualization, default: {}".format(VERBOSE))
+
+	args = parser.parse_args()
+	main(args)

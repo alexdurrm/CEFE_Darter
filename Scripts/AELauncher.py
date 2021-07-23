@@ -21,7 +21,7 @@ def load_train_test(train_path, test_path=None, descriptor=False, verbose=0):
 		test = np.load(test_path)
 		if verbose>=1: print("loading train and test from {} ad {}".format(train_path, test_path))
 	else:
-		train, test = train_test_split(data, test_size=0.1)
+		train, test = train_test_split(train, test_size=0.1)
 		if verbose>=1: print("splitting dataset {} in 90% train and 10% test".format(train_path))
 	#do verification
 	assert train.shape[1:]==test.shape[1:], "train and test should contain images of similar shape, here {} and {}".format(train.shape[1:], test.shape[1:])
@@ -69,6 +69,7 @@ def train_model(model_type, model_path, train, test, epochs, batch_size, loss_na
 	#train the network
 	optimizer = K.optimizers.Adam(learning_rate=learning_rate)
 	model.compile(optimizer, loss_func)
+	print(train.shape, test.shape)
 	history = model.fit(x=train, y=train,
 		batch_size= batch_size,
 		validation_data= (test, test),
