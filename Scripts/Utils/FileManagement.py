@@ -125,56 +125,56 @@ def load_info_from_filepath(file_path):
 	image = imageio.imread(file_path)
 	dict_info={COL_IMG_PATH:file_path, COL_FILENAME:filename, COL_DIRECTORY:directory,
 		COL_IMG_HEIGHT:image.shape[0], COL_IMG_WIDTH:image.shape[1], COL_IMG_EXT:ext}
-
-	#if the directory contains stylized fishes
-	if [p for p in DIR_STYLIZED_FISHES if p == directory]:
-		crossing, color_ctrl, _, tvloss, *_  = filename.split("_")
-		middle, fish_n = crossing.rsplit("x", maxsplit=1)
-		dict_info[COL_FISH_NUMBER] = fish_n[4:] #4 to remove FISH
-		dict_info[COL_HABITAT] = middle
-		dict_info[COL_COLOR_CONTROL] = color_ctrl[12:]
-		dict_info[COL_TV_LOSS] = tvloss[6:]
-		dict_info[COL_LAYERS] = directory
-		dict_info[COL_TYPE] = FILE_TYPE.STYLIZED_FISH.value
-	#if the directory contains original fishes
-	elif [p for p in DIR_ORIGINAL_FISHES if p == directory]:
-		fish_n, _, original_size, specie, *_, end = filename.split("_")
-		dict_info[COL_SPECIES] = specie
-		dict_info[COL_FISH_NUMBER] = end.split('.')[0][1:]
-		dict_info[COL_FISH_SEX] = end[0]
-		dict_info[COL_TYPE] = FILE_TYPE.ORIG_FISH.value
-	#if the directory contains original habitats
-	elif [p for p in DIR_ORIGINAL_HABITATS if p == directory]:
-		middle, *_ = filename.split('_')
-		dict_info[COL_HABITAT] = middle
-		dict_info[COL_TYPE] = FILE_TYPE.HABITAT.value
-	#if the folder is the samuel folder
-	elif [p for p in DIR_SAMUEL if p == directory]:
-		specie, *_, fish = filename.split("_")
-		dict_info[COL_FISH_NUMBER] = fish.split('.')[0][1:]
-		dict_info[COL_FISH_SEX] = fish.split('.')[0][0]
-		dict_info[COL_SPECIES] = specie
-		dict_info[COL_TYPE] = FILE_TYPE.ORIG_FISH.value
-	elif [p for p in DIR_SAMUEL if p == os.path.split(head)[-1]]:
-		specie = directory
-		code_specie, *_, fish = filename.split("_")
-		dict_info[COL_FISH_NUMBER] = fish.split('.')[0][1:]
-		dict_info[COL_FISH_SEX] = fish.split('.')[0][0]
-		dict_info[COL_SPECIES] = specie
-		dict_info[COL_TYPE] = FILE_TYPE.ORIG_FISH.value
-	elif [p in head for p in DIR_POISSONS]:
-		specie = directory
-		code_specie, *_, fish = filename.split("_")
-		dict_info[COL_FISH_NUMBER] = fish.split('.')[0][1:]
-		dict_info[COL_FISH_SEX] = fish.split('.')[0][0]
-		dict_info[COL_SPECIES] = specie
-		dict_info[COL_HABITAT] = DICT_HABITAT.get(specie, "not_listed")
-		dict_info[COL_TYPE] = FILE_TYPE.ORIG_FISH.value
-	elif [p in head for p in DIR_PALETTES]:
-		dict_info[COL_HABITAT] = filename.split("_")[0]
-		dict_info[COL_TYPE] = FILE_TYPE.HABITAT.value
-	else:
-		dict_info[COL_TYPE] = FILE_TYPE.ELSE.value
+	#
+	# #if the directory contains stylized fishes
+	# if [p for p in DIR_STYLIZED_FISHES if p == directory]:
+	# 	crossing, color_ctrl, _, tvloss, *_  = filename.split("_")
+	# 	middle, fish_n = crossing.rsplit("x", maxsplit=1)
+	# 	dict_info[COL_FISH_NUMBER] = fish_n[4:] #4 to remove FISH
+	# 	dict_info[COL_HABITAT] = middle
+	# 	dict_info[COL_COLOR_CONTROL] = color_ctrl[12:]
+	# 	dict_info[COL_TV_LOSS] = tvloss[6:]
+	# 	dict_info[COL_LAYERS] = directory
+	# 	dict_info[COL_TYPE] = FILE_TYPE.STYLIZED_FISH.value
+	# #if the directory contains original fishes
+	# elif [p for p in DIR_ORIGINAL_FISHES if p == directory]:
+	# 	fish_n, _, original_size, specie, *_, end = filename.split("_")
+	# 	dict_info[COL_SPECIES] = specie
+	# 	dict_info[COL_FISH_NUMBER] = end.split('.')[0][1:]
+	# 	dict_info[COL_FISH_SEX] = end[0]
+	# 	dict_info[COL_TYPE] = FILE_TYPE.ORIG_FISH.value
+	# #if the directory contains original habitats
+	# elif [p for p in DIR_ORIGINAL_HABITATS if p == directory]:
+	# 	middle, *_ = filename.split('_')
+	# 	dict_info[COL_HABITAT] = middle
+	# 	dict_info[COL_TYPE] = FILE_TYPE.HABITAT.value
+	# #if the folder is the samuel folder
+	# elif [p for p in DIR_SAMUEL if p == directory]:
+	# 	specie, *_, fish = filename.split("_")
+	# 	dict_info[COL_FISH_NUMBER] = fish.split('.')[0][1:]
+	# 	dict_info[COL_FISH_SEX] = fish.split('.')[0][0]
+	# 	dict_info[COL_SPECIES] = specie
+	# 	dict_info[COL_TYPE] = FILE_TYPE.ORIG_FISH.value
+	# elif [p for p in DIR_SAMUEL if p == os.path.split(head)[-1]]:
+	# 	specie = directory
+	# 	code_specie, *_, fish = filename.split("_")
+	# 	dict_info[COL_FISH_NUMBER] = fish.split('.')[0][1:]
+	# 	dict_info[COL_FISH_SEX] = fish.split('.')[0][0]
+	# 	dict_info[COL_SPECIES] = specie
+	# 	dict_info[COL_TYPE] = FILE_TYPE.ORIG_FISH.value
+	# elif [p in head for p in DIR_POISSONS]:
+	# 	specie = directory
+	# 	code_specie, *_, fish = filename.split("_")
+	# 	dict_info[COL_FISH_NUMBER] = fish.split('.')[0][1:]
+	# 	dict_info[COL_FISH_SEX] = fish.split('.')[0][0]
+	# 	dict_info[COL_SPECIES] = specie
+	# 	dict_info[COL_HABITAT] = DICT_HABITAT.get(specie, "not_listed")
+	# 	dict_info[COL_TYPE] = FILE_TYPE.ORIG_FISH.value
+	# elif [p in head for p in DIR_PALETTES]:
+	# 	dict_info[COL_HABITAT] = filename.split("_")[0]
+	# 	dict_info[COL_TYPE] = FILE_TYPE.HABITAT.value
+	# else:
+	# 	dict_info[COL_TYPE] = FILE_TYPE.ELSE.value
 	return dict_info
 
 
