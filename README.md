@@ -1,24 +1,37 @@
-#setup
+# setup
+To execute the scripts correctly you should launch them from the root directory of the project or export the root directory path with the following command line.
+```
 export PYTHONPATH="absolute/path/to/CEFE/"
-
-you can create a new conda environment with:
-conda create --name <envname> --file conda_list
+```
+The project depends on a some python libraries (tensorflow, sklearn, numpy, pandas, matplotlib, seaborn...), you can either install them  manually or you can use the conda_list.txt file containing the exact libraries and versions used for development. To do so you can use the following line:
+```
+conda env create --name <envname> --file conda_list.txt
+```
+where <envname> is the name of your new environment.
 
 # CEFE_Darter
-**_Script/_** contains all the Scripts from this project.
-**_Script/Metrics/_** contains the python scripts used on images that output csv files in **_Result/_** directory.
+**_Scripts/_** contains all the Scripts from this project.
+    
+**_Scripts/Metrics/_** contains the python scripts used to retrieve metrics from images byt the MotherMetrics script.
+    
+**_Scripts/Utils/_** contains files with common functions for the rest of the project.
+    
+**_Scripts/Notebooks/_** contains jupyter notebooks, those are for visualisation purposes.
+    
+**_Scripts/AutoEncoders/_** contains scripts relative to Autoencoders. 
 
-## Metrics
+## Scripts/MotherMetric
 
-All python scripts ending with __"Metrics"__ contains one or multiple classes that inherits from __MotherMetric__ and that takes care of a specific type of metric.
+This file contains multiple classes inheriting from a mother class __"MotherMetric"__. 
+All classes in that file inherit from the the mother class and they each take care of a specific type of metric.
 All those classes have the following functions:
 * function(image): which take an image as input and execute the metric on one image.
-* metric_from_csv(csv_path): which allows to execute the metric on a list of images contained in a csv and store those metrics internally.
+* metric_from_path_list(path_list): which allows to execute the metric on a list of images given their path.
 * save(path): which save the list of metric values as a csv, either on the given path or in the class path.
 * load(path): which load a list of metric values from a csv, either from the given path or from the class path.
-* visualize(): which allows to visualize the metric values handled by this class.
+* \__call\__(path): which given an image path will calculate its metrics and store them
 
-Each metric contains a __Preprocess__ object that preprocess the image in order to make it usable. If none is given at creation of the metric, it is created by default with preset parameters.
+Each metric contains a __Preprocess__ object that preprocess the image in order to make it usable. If none is given at creation of the metric, a preprocess with default parameters will be created (should not interfere with the image).
 The parameters of the Preprocess object are stored along with the metric values as those might have an impact on the values obtained.
 
 Use case of GaborMetrics with calculation from a csv:
@@ -29,25 +42,38 @@ Use case of GaborMetrics with calculation from a csv:
                           path=os.path.join(DIR_RESULTS, CSV_GABOR))          #a saving/loading path  
     metric.metric_from_csv("Results/image_list.csv")                       #execute the metrics from a csv containing image path
     metric.save()                                                          #save the dataframe as a csv at path os.path.join(DIR_RESULTS, CSV_GABOR)
-    
-Use case of GaborMetrics for simple visualisation:
-
-    metric = GaborMetrics(angles=[0,45,90,135], frequencies=[0.2, 0.4, 0.8])  #creation of the metric with default values
-    metric.load("path_gabor_values.csv")                                      #load the metric values of the csv
-    metric.visualize()                                                        #open a plot to visualize its internal data
    
-## Command line
-The main file of the project is __run_metrics.py__, it will create a csv file containing a list of image path and informations from a given repertory. It will also create a csv file called experiments.csv corresponding to each styleTransfer combinaison.
+### Command line
+This script can be used from the command line. To print the list of arguments you can type:
 ```
-$ python Scripts/Metrics/run_metrics Directory -d 2
+$ python Scripts/MotherMetric.py -h
 ```
--d is the depth of the Directory search, 0 is for a single image, 1 is for a simple directory, 2 is for directory and subdirs.
+Most of the command will take as input the path of a csv file, this csv file can be obtained with the command "list":
+```
+$ python Scripts/MotherMetric.py <input_path> <output_csv> list -h
+```
+    
+## Scripts/AELauncher
 
-You can also run the metrics directly from command line by feeding it the csv output of run_metric.py:
+This script contains the scripts used to train and test the Autoencoders in Scripts/AutoEncoders/Models.
+it can be called from command line:
 ```
-$ python Scripts/Metrics/GaborMetrics.py work Results/image_list.csv
+$ python Scripts/AELauncher.py -h
 ```
-If the command word is _work_ the metric will be calculated from the input data and saved, if the command is _visu_ the previous metrics will be loaded and visualized.
+Multiple arguments can then be given to customize the training (change models, learning rate, callbacks, etc).
+    
+## Scripts/ClusterHabitats
+ 
+This script contains functions used to clusterize a dataset through deep features.
 ```
-$ python Scripts/Metrics/GaborMetrics visu Results/image_list.csv
+$ python Scripts/ClusterHabitats.py -h
 ```
+to be called it need the path of a numpy dataset and an output directory
+    
+## Scripts/ConvertData
+
+This script is used to convert directories of images into another type, apply tranformations and deal with some data augmentation. 
+```
+$ python Scripts/ClusterHabitats.py -h
+```
+the positional arguments are required and are described in the help manual
