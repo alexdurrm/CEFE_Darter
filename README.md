@@ -3,11 +3,10 @@ To execute the scripts correctly you should launch them from the root directory 
 ```
 export PYTHONPATH="absolute/path/to/CEFE/"
 ```
-The project depends on a some python libraries (tensorflow, sklearn, numpy, pandas, matplotlib, seaborn...), you can either install them  manually or you can use the conda_list.txt file containing the exact libraries and versions used for development. To do so you can use the following line:
+The project depends on a some python libraries (tensorflow, sklearn, numpy, pandas, matplotlib, seaborn...), you can either install them  manually or you can use the requirements.txt file containing the libraries and versions used for development. To do so you can use the following line:
 ```
-conda env create --name <envname> --file conda_list.txt
+pip install -r requirements.txt
 ```
-where <envname> is the name of your new environment.
 
 # CEFE_Darter
 **_Scripts/_** contains all the Scripts from this project.
