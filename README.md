@@ -1,5 +1,5 @@
 # setup
-To execute the scripts correctly you should launch them from the root directory of the project or export the root directory path with the following command line.
+To execute the scripts correctly you should launch them from the root directory of the project or export the root directory path with the following command line (for linux).
 ```
 export PYTHONPATH="absolute/path/to/CEFE/"
 ```
