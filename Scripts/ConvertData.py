@@ -38,7 +38,7 @@ def get_paths(input, expected_img_ext=None, verbose=0):
 			print("get_paths: Removed {} because of unexpected extension".format(path))
 	#return if list of images valid
 	if not list_paths:
-		raise ValueError("get_paths: No valid path found in:\n{}".format(input))
+		raise FileNotFoundError("get_paths: No valid path found in:\n{}".format(input))
 	if verbose>=1: print("get_paths: loading paths\n{}".format(list_paths))
 	return list_paths
 

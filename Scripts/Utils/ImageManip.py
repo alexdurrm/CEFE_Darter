@@ -11,7 +11,6 @@ import os
 #																	 #
 ######################################################################
 WORKING_TYPE="float32"
-## TODO: THE whole file has to be coordinated with numpy float32 and be parrallelized
 
 def img_manip_decorator(function):
 	"""
@@ -32,14 +31,7 @@ def img_manip_decorator(function):
 				output = output[..., np.newaxis]
 			#if visu is true show the input and output images
 			if kwargs.pop("verbose", 0)>=2:
-				fig, axs = plt.subplots(nrows=1, ncols=2, sharex=True, sharey=True)
-				visu_input = input_img if input_img.shape[-1]!=2 else np.mean(input_img, axis=-1)
-				axs[0].imshow(visu_input, vmin=0, vmax=1, cmap='gray')
-				visu_out = output if output.shape[-1]!=2 else np.mean(output, axis=-1)
-				axs[1].imshow(visu_out, vmin=0, vmax=1, cmap='gray')
-				plt.title(function.__name__)
-				plt.show()
-				plt.close()
+				compare_images(input_img, output, "comparaison input/output", "input", "output")
 		else:	#if given a list of images, call the function on each image and return a list
 			#first remove the list form parameters
 			if not kwargs.pop("image", None):
@@ -358,7 +350,26 @@ def crop_by_levels_augment(image, levels=1, verbose=0):
 ################################################################################
 
 def see_image(image, title="", cmap="gray"):
+	"""
+	just plot an image
+	"""
 	visu = np.mean(image, axis=-1) if image.shape[-1]==2 else image
 	plt.imshow(visu, vmin=0, vmax=1, cmap=cmap)
 	plt.title(title)
 	plt.show()
+
+
+def compare_images(image1, image2, title="", subtitle1="", subtitle2="", cmap="gray"):
+	"""
+	plot two images
+	"""
+	visu1 = np.mean(image1, axis=-1) if image1.shape[-1]==2 else image1
+	visu2 = np.mean(image2, axis=-1) if image2.shape[-1]==2 else image2
+	fig, axs = plt.subplots(nrows=1, ncols=2, sharex=True, sharey=True)
+	axs[0].imshow(visu1, vmin=0, vmax=1, cmap=cmap)
+	axs[0].set_title(subtitle1)
+	axs[1].imshow(visu2, vmin=0, vmax=1, cmap=cmap)
+	axs[2].set_title(subtitle2)
+	plt.title(title)
+	plt.show()
+	plt.close()

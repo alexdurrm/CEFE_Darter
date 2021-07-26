@@ -689,7 +689,7 @@ def main(args):
 	elif args.command == "autoencoder":
 		metric = AutoencoderMetrics(args.model_path, preprocess=preprocess, load_from=load_from, verbose=args.verbose)
 	elif args.command == "list":
-		metric = get_files(args.input_path, args.depth, tuple(args.formats), [], only_endnodes=args.endnodes, verbose=args.verbose)
+		metric = get_minimal_df(args.input_path, args.depth, tuple(args.formats), [], only_endnodes=args.endnodes, verbose=args.verbose)
 		metric.to_csv(args.output_path, index=True)
 
 	#list is the only metric that do not take a list image as input
