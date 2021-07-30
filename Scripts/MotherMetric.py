@@ -237,7 +237,7 @@ class DeepFeatureMetrics(MotherMetric):
 		self.input_shape = input_shape
 		input_tensor = K.Input(shape=self.input_shape)
 		self.base_model.layers[0] = input_tensor
-		self.deep_features = K.Model(inputs=self.base_model.input, outputs=[l.output for l in self.base_model.layers[1:]])
+		self.deep_features = K.Model(inputs=self.base_model.input, outputs=[l.output for l in self.base_model.layers[1:]])	## TODO: appel get_DF
 		super().__init__(*args, **kwargs)
 
 	def function(self, image):

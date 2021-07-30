@@ -62,13 +62,13 @@ COL_IMG_EXT="image_extension"
 
 LIST_COLUMNS_IMG=[COL_IMG_PATH, COL_FILENAME, COL_TYPE, COL_DIRECTORY, COL_IMG_WIDTH,COL_IMG_HEIGHT,COL_IMG_EXT]
 
-class FILE_TYPE(Enum):
-	ORIG_FISH="original fish"
-	STYLIZED_FISH="fish stylized"
-	HABITAT="habitat"
-	ELSE="else"
-	def __str__(self):
-		return self.name
+# class FILE_TYPE(Enum):
+# 	ORIG_FISH="original fish"
+# 	STYLIZED_FISH="fish stylized"
+# 	HABITAT="habitat"
+# 	ELSE="else"
+# 	def __str__(self):
+# 		return self.name
 
 def save_args(args, textfile):
 	"""
