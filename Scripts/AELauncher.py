@@ -156,9 +156,9 @@ if __name__=="__main__":
 	# specific parameters for a simple training
 	training_parser = subparsers.add_parser("train")
 	training_parser.add_argument("model_type", choices=MODEL_TYPES, help='The architecture name of the model used')
-	training_parser.add_argument("--model_path", default=None, help="path to the model to load, if set will ignore model_type")
+	training_parser.add_argument("--model_path", default=None, help="path to the model to load, only works if model type is \"tranfer\"!")
 	training_parser.add_argument("--test", type=str, default=None, help="optionnal path to a numpy used as test, if None given split 10 percent of the dataset, default None")
-	training_parser.add_argument("-l", "--latent_dim", type=int, default=LATENT_DIM, help="the latent dimention, if multiple are given multiple networks will be trained, default {}".format(LATENT_DIM))
+	training_parser.add_argument("-l", "--latent_dim", type=int, default=LATENT_DIM, help="The latent dimention, the size of the latent space, default {}".format(LATENT_DIM))
 	training_parser.add_argument("-b", "--batch", type=int, default=BATCH_SIZE, help="batch size for training, default {}".format(BATCH_SIZE))
 	training_parser.add_argument("-e", "--epochs", type=int, default=EPOCHS, help="number of epochs max for training, default {}".format(EPOCHS))
 	training_parser.add_argument("--learning_rate", type=float, default=LR, help="Starting learning rate, default {}".format(LR))

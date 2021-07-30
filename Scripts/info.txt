@@ -1,1 +1,1 @@
-directory storing the scripting parts of the project
+directory storing the main scripts of the project
